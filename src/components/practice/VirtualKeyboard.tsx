@@ -1,6 +1,8 @@
-import { memo, useEffect, useState } from "react"
+import { memo, useEffect, useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { fingerForKey } from "@/engine/typing/wordLists"
+import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
+import { CONFIDENCE_UNLOCK_THRESHOLD } from "@/engine/typing/adaptiveEngine"
 
 const rows = [
   [
@@ -50,11 +52,26 @@ const fingerColors: Record<string, string> = {
   "Right Pinky": "bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700",
 }
 
+function getAdaptiveKeyColor(kc: KeyConfidence): string {
+  if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
+  if (kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+    return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+  if (kc.confidence >= 0.6)
+    return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
+  if (kc.confidence >= 0.3)
+    return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
+  if (kc.samples > 0)
+    return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
+  return "bg-primary/10 border-primary/30 text-primary"
+}
+
 interface VirtualKeyboardProps {
   activeKeys?: Set<string>
   highlightKeys?: Set<string>
   nextKey?: string
   showFingerHints?: boolean
+  keyConfidences?: KeyConfidence[]
+  adaptiveMode?: boolean
 }
 
 function VirtualKeyboardInner({
@@ -62,8 +79,19 @@ function VirtualKeyboardInner({
   highlightKeys,
   nextKey,
   showFingerHints = true,
+  keyConfidences,
+  adaptiveMode = false,
 }: VirtualKeyboardProps) {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set())
+
+  const confidenceMap = useMemo(() => {
+    if (!keyConfidences) return new Map<string, KeyConfidence>()
+    const m = new Map<string, KeyConfidence>()
+    for (const kc of keyConfidences) {
+      m.set(kc.key, kc)
+    }
+    return m
+  }, [keyConfidences])
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -96,6 +124,9 @@ function VirtualKeyboardInner({
             const isNext = nextKey?.toLowerCase() === keyLower
             const finger = fingerForKey[keyLower]
             const fingerColor = finger ? fingerColors[finger] : ""
+            const kc = confidenceMap.get(keyLower)
+            const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColor(kc) : ""
+            const isFocused = adaptiveMode && kc?.focused
 
             return (
               <div
@@ -108,11 +139,14 @@ function VirtualKeyboardInner({
                     ? "bg-primary text-primary-foreground border-primary scale-95 shadow-inner"
                     : isNext
                       ? "bg-primary/20 border-primary/50 text-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background"
-                      : isHighlighted
-                        ? "bg-accent/30 border-accent/50 text-accent-foreground"
-                        : isActive && showFingerHints && fingerColor
-                          ? fingerColor
-                          : "bg-card border-border/80 text-muted-foreground",
+                      : adaptiveMode && adaptiveColor
+                        ? adaptiveColor
+                        : isHighlighted
+                          ? "bg-accent/30 border-accent/50 text-accent-foreground"
+                          : isActive && showFingerHints && fingerColor
+                            ? fingerColor
+                            : "bg-card border-border/80 text-muted-foreground",
+                  isFocused && !isPressed && !isNext && "ring-1 ring-primary/40",
                 )}
               >
                 <span className="relative z-10">
@@ -121,11 +155,51 @@ function VirtualKeyboardInner({
                 {keyDef.home && (
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary/50" />
                 )}
+                {adaptiveMode && kc && kc.unlocked && kc.confidence > 0 && !isPressed && (
+                  <div
+                    className={cn(
+                      "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 rounded-full transition-all",
+                      kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD
+                        ? "bg-emerald-500"
+                        : kc.confidence >= 0.6
+                          ? "bg-blue-500"
+                          : kc.confidence >= 0.3
+                            ? "bg-amber-500"
+                            : "bg-red-500",
+                    )}
+                    style={{ width: `${Math.min(kc.confidence * 100, 100) * 0.7}%` }}
+                  />
+                )}
               </div>
             )
           })}
         </div>
       ))}
+
+      {adaptiveMode && (
+        <div className="flex items-center justify-center gap-3 mt-1.5 pt-1.5 border-t border-border/30">
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full bg-red-500/60" />
+            <span className="text-[9px] text-muted-foreground">Weak</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full bg-amber-500/60" />
+            <span className="text-[9px] text-muted-foreground">Learning</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full bg-blue-500/60" />
+            <span className="text-[9px] text-muted-foreground">Good</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full bg-emerald-500/60" />
+            <span className="text-[9px] text-muted-foreground">Mastered</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full bg-muted/40" />
+            <span className="text-[9px] text-muted-foreground">Locked</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
