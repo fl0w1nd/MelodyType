@@ -27,10 +27,6 @@ import type { AdaptiveState } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
   updateKeyStatsFromSession,
-  saveUnlockedKeys,
-  shouldUnlockNextKey,
-  getNextKeyToUnlock,
-  getFocusKey,
 } from "@/engine/typing/adaptiveEngine"
 import { db } from "@/lib/db"
 
@@ -211,33 +207,15 @@ export default function PracticePage() {
     })
 
     if (config.mode === "adaptive") {
+      const prevUnlocked = adaptiveState?.unlockedKeys ?? []
       updateKeyStatsFromSession(state.keystrokeLog).then(() => {
         loadAdaptiveState().then((s) => {
-          const prevUnlocked = adaptiveState?.unlockedKeys ?? []
           const newKeys = s.unlockedKeys.filter(
             (k) => !prevUnlocked.includes(k),
           )
-
-          if (shouldUnlockNextKey(s.keyConfidences.filter((k) => k.unlocked))) {
-            const nextKey = getNextKeyToUnlock(s.unlockedKeys)
-            if (nextKey && !s.unlockedKeys.includes(nextKey)) {
-              s.unlockedKeys = [...s.unlockedKeys, nextKey]
-              const kc = s.keyConfidences.find((k) => k.key === nextKey)
-              if (kc) kc.unlocked = true
-              saveUnlockedKeys(s.unlockedKeys)
-              setNewlyUnlocked(nextKey)
-            } else if (newKeys.length > 0) {
-              setNewlyUnlocked(newKeys[0])
-            }
-          } else if (newKeys.length > 0) {
+          if (newKeys.length > 0) {
             setNewlyUnlocked(newKeys[0])
           }
-
-          const focusKey = getFocusKey(s.keyConfidences)
-          for (const kc of s.keyConfidences) {
-            kc.focused = kc.key === focusKey
-          }
-          s.focusKey = focusKey
 
           setAdaptiveState(s)
         })

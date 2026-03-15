@@ -1,4 +1,4 @@
-import { db, type KeyStat } from "@/lib/db"
+import { db, setSetting, type KeyStat } from "@/lib/db"
 
 export const LETTER_FREQUENCY_ORDER = [
   "e", "t", "a", "o", "i", "n", "s", "h", "r",
@@ -148,12 +148,7 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
 }
 
 export async function saveUnlockedKeys(keys: string[]): Promise<void> {
-  const existing = await db.settings.where("key").equals("adaptive_unlocked").first()
-  if (existing) {
-    await db.settings.update(existing.id!, { value: JSON.stringify(keys) })
-  } else {
-    await db.settings.add({ key: "adaptive_unlocked", value: JSON.stringify(keys) })
-  }
+  await setSetting("adaptive_unlocked", JSON.stringify(keys))
 }
 
 export async function updateKeyStatsFromSession(
@@ -220,6 +215,35 @@ export async function updateKeyStatsFromSession(
       }
     }
   })
+}
+
+export function getConfidenceColorClass(confidence: number, unlocked: boolean): string {
+  if (!unlocked) return "bg-muted/30 text-muted-foreground/40 border-border/30"
+  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
+  if (confidence >= 0.6)
+    return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
+  if (confidence >= 0.3)
+    return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
+  return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
+}
+
+export function getConfidenceBarColorClass(confidence: number): string {
+  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD) return "bg-emerald-500"
+  if (confidence >= 0.6) return "bg-blue-500"
+  if (confidence >= 0.3) return "bg-amber-500"
+  return "bg-red-500"
+}
+
+export function getAdaptiveKeyColorClass(kc: KeyConfidence): string {
+  if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
+  if (kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+    return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+  if (kc.confidence >= 0.6)
+    return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
+  if (kc.confidence >= 0.3)
+    return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
+  return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
 }
 
 export function computeKeyWeights(

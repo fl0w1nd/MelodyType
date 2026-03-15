@@ -15,27 +15,9 @@ import {
   loadAdaptiveState,
   CONFIDENCE_UNLOCK_THRESHOLD,
   LETTER_FREQUENCY_ORDER,
+  getConfidenceColorClass,
+  getConfidenceBarColorClass,
 } from "@/engine/typing/adaptiveEngine"
-
-function getConfidenceColor(confidence: number, unlocked: boolean): string {
-  if (!unlocked) return "bg-muted/30 text-muted-foreground/40 border-border/30"
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
-  if (confidence >= 0.6)
-    return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
-  if (confidence >= 0.3)
-    return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
-  if (confidence > 0)
-    return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
-  return "bg-primary/10 text-primary/60 border-primary/20"
-}
-
-function getBarColor(confidence: number): string {
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD) return "bg-emerald-500"
-  if (confidence >= 0.6) return "bg-blue-500"
-  if (confidence >= 0.3) return "bg-amber-500"
-  return "bg-red-500"
-}
 
 export function AdaptiveProgressCard() {
   const [adaptiveState, setAdaptiveState] = useState<AdaptiveState | null>(null)
@@ -161,7 +143,7 @@ export function AdaptiveProgressCard() {
                 transition={{ delay: i * 0.02, duration: 0.2 }}
                 className={cn(
                   "relative w-7 h-7 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
-                  getConfidenceColor(kc.confidence, kc.unlocked),
+                  getConfidenceColorClass(kc.confidence, kc.unlocked),
                   kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
                 )}
                 title={
@@ -175,7 +157,7 @@ export function AdaptiveProgressCard() {
                   <div
                     className={cn(
                       "absolute bottom-0 left-0 right-0 h-0.5 rounded-b",
-                      getBarColor(kc.confidence),
+                      getConfidenceBarColorClass(kc.confidence),
                     )}
                     style={{
                       width: `${Math.min(kc.confidence * 100, 100)}%`,
@@ -236,7 +218,7 @@ function KeyStatMiniRow({
       <div
         className={cn(
           "w-5 h-5 flex items-center justify-center rounded text-[9px] font-mono font-bold border",
-          getConfidenceColor(kc.confidence, true),
+          getConfidenceColorClass(kc.confidence, true),
         )}
       >
         {kc.key.toUpperCase()}

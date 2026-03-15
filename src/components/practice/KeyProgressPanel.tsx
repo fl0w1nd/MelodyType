@@ -3,30 +3,17 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, ChevronUp, Lock, Unlock, Star, Crosshair } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
-import { CONFIDENCE_UNLOCK_THRESHOLD, LETTER_FREQUENCY_ORDER } from "@/engine/typing/adaptiveEngine"
+import {
+  CONFIDENCE_UNLOCK_THRESHOLD,
+  LETTER_FREQUENCY_ORDER,
+  getConfidenceColorClass,
+  getConfidenceBarColorClass,
+} from "@/engine/typing/adaptiveEngine"
 
 interface KeyProgressPanelProps {
   keyConfidences: KeyConfidence[]
   focusKey: string | null
   compact?: boolean
-}
-
-function getConfidenceColor(confidence: number, unlocked: boolean): string {
-  if (!unlocked) return "bg-muted/30 text-muted-foreground/40 border-border/30"
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
-  if (confidence >= 0.6)
-    return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
-  if (confidence >= 0.3)
-    return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
-  return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
-}
-
-function getConfidenceBarColor(confidence: number): string {
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD) return "bg-emerald-500"
-  if (confidence >= 0.6) return "bg-blue-500"
-  if (confidence >= 0.3) return "bg-amber-500"
-  return "bg-red-500"
 }
 
 function KeyProgressPanelInner({ keyConfidences, focusKey, compact = false }: KeyProgressPanelProps) {
@@ -59,7 +46,7 @@ function KeyProgressPanelInner({ keyConfidences, focusKey, compact = false }: Ke
               key={kc.key}
               className={cn(
                 "w-5 h-5 flex items-center justify-center rounded text-[9px] font-mono font-medium border transition-colors",
-                getConfidenceColor(kc.confidence, kc.unlocked),
+                getConfidenceColorClass(kc.confidence, kc.unlocked),
                 kc.focused && "ring-1 ring-primary ring-offset-1 ring-offset-background",
               )}
             >
@@ -129,7 +116,7 @@ function KeyProgressPanelInner({ keyConfidences, focusKey, compact = false }: Ke
             key={kc.key}
             className={cn(
               "w-6 h-6 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
-              getConfidenceColor(kc.confidence, kc.unlocked),
+              getConfidenceColorClass(kc.confidence, kc.unlocked),
               kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
             )}
             title={
@@ -221,7 +208,7 @@ function KeyStatRow({ keyConf, isFocus }: { keyConf: KeyConfidence; isFocus: boo
       <div
         className={cn(
           "w-5 h-5 flex items-center justify-center rounded text-[10px] font-mono font-bold border",
-          getConfidenceColor(keyConf.confidence, true),
+          getConfidenceColorClass(keyConf.confidence, true),
         )}
       >
         {keyConf.key.toUpperCase()}
@@ -229,7 +216,7 @@ function KeyStatRow({ keyConf, isFocus }: { keyConf: KeyConfidence; isFocus: boo
       <div className="flex-1 min-w-0">
         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all duration-300", getConfidenceBarColor(keyConf.confidence))}
+            className={cn("h-full rounded-full transition-all duration-300", getConfidenceBarColorClass(keyConf.confidence))}
             style={{ width: `${Math.min(keyConf.confidence * 100, 100)}%` }}
           />
         </div>

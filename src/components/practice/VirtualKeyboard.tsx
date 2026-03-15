@@ -2,7 +2,10 @@ import { memo, useEffect, useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { fingerForKey } from "@/engine/typing/wordLists"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
-import { CONFIDENCE_UNLOCK_THRESHOLD } from "@/engine/typing/adaptiveEngine"
+import {
+  getAdaptiveKeyColorClass,
+  getConfidenceBarColorClass,
+} from "@/engine/typing/adaptiveEngine"
 
 const rows = [
   [
@@ -50,19 +53,6 @@ const fingerColors: Record<string, string> = {
   "Right Middle": "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
   "Right Ring": "bg-violet-100 dark:bg-violet-900/30 border-violet-300 dark:border-violet-700",
   "Right Pinky": "bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700",
-}
-
-function getAdaptiveKeyColor(kc: KeyConfidence): string {
-  if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
-  if (kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
-    return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
-  if (kc.confidence >= 0.6)
-    return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
-  if (kc.confidence >= 0.3)
-    return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
-  if (kc.samples > 0)
-    return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
-  return "bg-primary/10 border-primary/30 text-primary"
 }
 
 interface VirtualKeyboardProps {
@@ -125,7 +115,7 @@ function VirtualKeyboardInner({
             const finger = fingerForKey[keyLower]
             const fingerColor = finger ? fingerColors[finger] : ""
             const kc = confidenceMap.get(keyLower)
-            const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColor(kc) : ""
+            const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColorClass(kc) : ""
             const isFocused = adaptiveMode && kc?.focused
 
             return (
@@ -159,13 +149,7 @@ function VirtualKeyboardInner({
                   <div
                     className={cn(
                       "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 rounded-full transition-all",
-                      kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD
-                        ? "bg-emerald-500"
-                        : kc.confidence >= 0.6
-                          ? "bg-blue-500"
-                          : kc.confidence >= 0.3
-                            ? "bg-amber-500"
-                            : "bg-red-500",
+                      getConfidenceBarColorClass(kc.confidence),
                     )}
                     style={{ width: `${Math.min(kc.confidence * 100, 100) * 0.7}%` }}
                   />
