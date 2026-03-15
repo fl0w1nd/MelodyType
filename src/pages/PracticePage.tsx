@@ -10,6 +10,10 @@ import { ResultsPanel } from "@/components/practice/ResultsPanel"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { useMidi } from "@/engine/midi/MidiContext"
 import {
+  NoteParticles,
+  useNoteParticles,
+} from "@/components/practice/NoteParticles"
+import {
   generateWordText,
   generateTextFromKeys,
   getRandomQuote,
@@ -28,8 +32,13 @@ export default function PracticePage() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { triggerNextFrame } = useMidi()
+  const { particles, emit: emitNote } = useNoteParticles()
+  const onKeystroke = useCallback(() => {
+    triggerNextFrame()
+    emitNote()
+  }, [triggerNextFrame, emitNote])
   const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
-    useTypingEngine(triggerNextFrame)
+    useTypingEngine(onKeystroke)
 
   const metrics = useMemo(() => getMetrics(), [getMetrics, elapsed, state])
 
@@ -268,12 +277,15 @@ export default function PracticePage() {
               timeLimit={config.mode === "time" ? config.timeLimit : undefined}
             />
 
-            <TextDisplay
-              words={state.words}
-              currentWordIndex={state.currentWordIndex}
-              currentCharIndex={state.currentCharIndex}
-              isFinished={state.isFinished}
-            />
+            <div className="relative">
+              <TextDisplay
+                words={state.words}
+                currentWordIndex={state.currentWordIndex}
+                currentCharIndex={state.currentCharIndex}
+                isFinished={state.isFinished}
+              />
+              <NoteParticles particles={particles} />
+            </div>
 
             <div className="flex justify-center gap-2">
               <Button

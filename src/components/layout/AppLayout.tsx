@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from "react-router-dom"
 import { Keyboard, BarChart3, Music, Settings } from "lucide-react"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
+import { BackgroundDecor } from "./BackgroundDecor"
 
 const navItems = [
   { to: "/", icon: Keyboard, label: "Practice" },
@@ -13,7 +14,9 @@ const navItems = [
 export function AppLayout() {
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-screen flex flex-col bg-background relative">
+        <BackgroundDecor />
+
         <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
             <NavLink to="/" className="flex items-center gap-2.5 group">
@@ -64,16 +67,27 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1">
-          <div className="mx-auto max-w-6xl px-6 py-8">
-            <Outlet />
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+              className="mx-auto max-w-6xl px-6 py-8"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         <footer className="border-t border-border/40 py-4">
-          <div className="mx-auto max-w-6xl px-6 text-center">
-            <p className="text-xs text-muted-foreground/60">
+          <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">
+            <div className="h-px flex-1 max-w-16 bg-gradient-to-r from-transparent to-border/40" />
+            <p className="text-xs text-muted-foreground/60 font-medium tracking-wide">
               MelodyType &middot; Where typing meets music
             </p>
+            <div className="h-px flex-1 max-w-16 bg-gradient-to-l from-transparent to-border/40" />
           </div>
         </footer>
       </div>
