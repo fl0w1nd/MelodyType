@@ -8,6 +8,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  Brain,
 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ interface ModeSelectorProps {
 }
 
 const modeIcons: Record<PracticeMode, React.ReactNode> = {
+  adaptive: <Brain className="h-3.5 w-3.5" />,
   time: <Clock className="h-3.5 w-3.5" />,
   words: <Hash className="h-3.5 w-3.5" />,
   quote: <Quote className="h-3.5 w-3.5" />,
@@ -58,6 +60,11 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
     setMode(m)
     setShowLessons(false)
 
+    if (m === "adaptive") {
+      onSelect({ mode: "adaptive" })
+      return
+    }
+
     if (m === "lesson") {
       if (currentConfig.lessonId) return
       const first = beginnerLessons[0]
@@ -83,7 +90,7 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
       <Tabs value={mode} onValueChange={handleModeChange}>
         <TabsList className="h-auto flex-wrap">
           {(
-            ["lesson", "time", "words", "quote", "free"] as PracticeMode[]
+            ["adaptive", "time", "words", "quote", "lesson", "free"] as PracticeMode[]
           ).map((m) => (
             <TabsTrigger
               key={m}
@@ -91,7 +98,7 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
               className="gap-1.5 text-xs sm:text-sm capitalize"
             >
               {modeIcons[m]}
-              {m === "lesson" ? "Lessons" : m}
+              {m === "adaptive" ? "Adaptive" : m === "lesson" ? "Lessons" : m}
             </TabsTrigger>
           ))}
         </TabsList>

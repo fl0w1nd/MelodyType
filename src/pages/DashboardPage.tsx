@@ -9,6 +9,7 @@ import { KeyboardHeatmap } from "@/components/dashboard/KeyboardHeatmap"
 import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
+import { AdaptiveProgressCard } from "@/components/dashboard/AdaptiveProgressCard"
 
 export default function DashboardPage() {
   const sessions =
@@ -42,6 +43,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <AdaptiveProgressCard />
           <WpmChart sessions={sessions} />
           <AccuracyChart sessions={sessions} />
         </div>
