@@ -7,7 +7,6 @@ import {
   Clock,
   Zap,
   RotateCcw,
-  TrendingUp,
   Unlock,
   ArrowUp,
   ArrowDown,

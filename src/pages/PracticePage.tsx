@@ -23,7 +23,7 @@ import {
 } from "@/engine/typing/wordLists"
 import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
-import type { AdaptiveState, KeyConfidence } from "@/engine/typing/adaptiveEngine"
+import type { AdaptiveState } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
   updateKeyStatsFromSession,
