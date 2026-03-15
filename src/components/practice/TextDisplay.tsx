@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { WordState } from "@/engine/typing/types"
 
@@ -15,17 +15,21 @@ function TextDisplayInner({
   currentCharIndex,
   isFinished,
 }: TextDisplayProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef<HTMLSpanElement>(null)
+  const [shakeKey, setShakeKey] = useState(0)
+  const prevCharIndexRef = useRef(currentCharIndex)
+  const prevWordIndexRef = useRef(currentWordIndex)
 
   useEffect(() => {
-    if (cursorRef.current && containerRef.current) {
-      const container = containerRef.current
+    if (cursorRef.current && scrollRef.current) {
+      const container = scrollRef.current
       const cursor = cursorRef.current
       const containerRect = container.getBoundingClientRect()
       const cursorRect = cursor.getBoundingClientRect()
 
-      const relativeTop = cursorRect.top - containerRect.top + container.scrollTop
+      const relativeTop =
+        cursorRect.top - containerRect.top + container.scrollTop
 
       if (
         relativeTop > container.clientHeight * 0.6 ||
@@ -39,6 +43,24 @@ function TextDisplayInner({
     }
   }, [currentWordIndex, currentCharIndex])
 
+  useEffect(() => {
+    const samePos =
+      prevCharIndexRef.current === currentCharIndex &&
+      prevWordIndexRef.current === currentWordIndex
+    prevCharIndexRef.current = currentCharIndex
+    prevWordIndexRef.current = currentWordIndex
+
+    if (samePos && words.length > 0) {
+      const word = words[currentWordIndex]
+      if (word && currentCharIndex < word.chars.length) {
+        const char = word.chars[currentCharIndex]
+        if (char?.status === "incorrect") {
+          setShakeKey((k) => k + 1)
+        }
+      }
+    }
+  }, [words, currentWordIndex, currentCharIndex])
+
   if (words.length === 0) {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground">
@@ -48,60 +70,89 @@ function TextDisplayInner({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="relative overflow-hidden rounded-xl bg-card/60 border border-border/50 p-6 sm:p-8 font-mono text-lg sm:text-xl leading-relaxed tracking-wide max-h-48 sm:max-h-56"
-    >
-      <div className="flex flex-wrap gap-x-2.5 gap-y-2">
-        {words.map((word, wi) => (
-          <span
-            key={wi}
-            className={cn(
-              "inline-flex transition-opacity duration-200",
-              wi < currentWordIndex && "opacity-50",
-            )}
-          >
-            {word.chars.map((char, ci) => {
-              const isCursor =
-                wi === currentWordIndex &&
-                ci === currentCharIndex &&
-                !isFinished
+    <div className="relative rounded-xl bg-card/60 border border-border/50 max-h-48 sm:max-h-56 overflow-hidden flex flex-col">
+      <div className="shrink-0 h-5 sm:h-6" />
 
-              return (
-                <span key={ci} className="relative">
-                  {isCursor && (
-                    <span
-                      ref={cursorRef}
-                      className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary animate-pulse rounded-full"
-                    />
-                  )}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-hidden px-6 sm:px-8 font-mono text-lg sm:text-xl leading-relaxed tracking-wide"
+      >
+        <div className="flex flex-wrap items-baseline" key={shakeKey}>
+          {words.map((word, wi) => (
+            <span
+              key={wi}
+              className={cn(
+                "inline-flex transition-opacity duration-200",
+                wi < currentWordIndex && "opacity-50",
+              )}
+            >
+              {word.chars.map((char, ci) => {
+                const isCursor =
+                  wi === currentWordIndex &&
+                  ci === currentCharIndex &&
+                  !isFinished
+
+                return (
                   <span
+                    key={ci}
+                    ref={isCursor ? cursorRef : undefined}
                     className={cn(
-                      "transition-colors duration-75",
-                      char.status === "pending" && "text-muted-foreground/60",
-                      char.status === "correct" && "text-foreground",
-                      char.status === "incorrect" &&
-                        "text-destructive bg-destructive/10 rounded-sm",
-                      char.status === "extra" &&
-                        "text-destructive/70 bg-destructive/5 rounded-sm",
+                      "relative transition-colors duration-75",
+                      isCursor && "current-char",
                     )}
                   >
-                    {char.status === "extra" ? char.typedChar : char.char}
+                    <span
+                      className={cn(
+                        char.status === "pending" && "text-muted-foreground/60",
+                        char.status === "correct" &&
+                          !char.hadError &&
+                          "text-foreground",
+                        char.status === "correct" &&
+                          char.hadError &&
+                          "text-amber-600",
+                        char.status === "incorrect" &&
+                          "text-destructive bg-destructive/10 rounded-sm",
+                      )}
+                    >
+                      {char.char}
+                    </span>
+                    {isCursor && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-pulse rounded-full" />
+                    )}
                   </span>
-                </span>
-              )
-            })}
-            {wi === currentWordIndex &&
-              currentCharIndex >= word.chars.length &&
-              !isFinished && (
-                <span
-                  ref={cursorRef}
-                  className="w-0.5 bg-primary animate-pulse rounded-full self-stretch"
-                />
-              )}
-          </span>
-        ))}
+                )
+              })}
+              {wi < words.length - 1 &&
+                (() => {
+                  const isSpaceCursor =
+                    wi === currentWordIndex &&
+                    currentCharIndex >= word.chars.length &&
+                    !isFinished
+                  return (
+                    <span
+                      ref={isSpaceCursor ? cursorRef : undefined}
+                      className={cn(
+                        "relative mx-0.5 select-none",
+                        isSpaceCursor
+                          ? "text-primary"
+                          : wi < currentWordIndex
+                            ? "text-muted-foreground/30"
+                            : "text-muted-foreground/40",
+                      )}
+                    >
+                      &middot;
+                      {isSpaceCursor && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-pulse rounded-full" />
+                      )}
+                    </span>
+                  )
+                })()}
+            </span>
+          ))}
+        </div>
       </div>
+
+      <div className="shrink-0 h-5 sm:h-6" />
     </div>
   )
 }

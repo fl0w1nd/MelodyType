@@ -1,12 +1,9 @@
 import * as Tone from "tone"
 import type { SynthType } from "./types"
 
-let audioStarted = false
-
 export async function ensureAudioStarted(): Promise<void> {
-  if (audioStarted) return
+  if (Tone.getContext().state === "running") return
   await Tone.start()
-  audioStarted = true
 }
 
 export function createSynth(

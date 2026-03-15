@@ -8,11 +8,11 @@ import { WpmChart, AccuracyChart } from "@/components/dashboard/WpmChart"
 import { KeyboardHeatmap } from "@/components/dashboard/KeyboardHeatmap"
 import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
+import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
 
 export default function DashboardPage() {
-  const sessions = useLiveQuery(() =>
-    db.sessions.orderBy("timestamp").toArray(),
-  ) ?? []
+  const sessions =
+    useLiveQuery(() => db.sessions.orderBy("timestamp").toArray()) ?? []
 
   const keyStats = useLiveQuery(() => db.keyStats.toArray()) ?? []
 
@@ -47,29 +47,32 @@ export default function DashboardPage() {
         </div>
         <div className="space-y-6">
           <DailyGoalRing todayGoal={todayGoal} />
-          <div>
-            <div className="flex gap-1 mb-3">
-              <Button
-                variant={heatmapMode === "errors" ? "default" : "ghost"}
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => setHeatmapMode("errors")}
-              >
-                Error Rate
-              </Button>
-              <Button
-                variant={heatmapMode === "speed" ? "default" : "ghost"}
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => setHeatmapMode("speed")}
-              >
-                Frequency
-              </Button>
-            </div>
-            <KeyboardHeatmap keyStats={keyStats} mode={heatmapMode} />
-          </div>
         </div>
       </div>
+
+      <div>
+        <div className="flex gap-1 mb-3">
+          <Button
+            variant={heatmapMode === "errors" ? "default" : "ghost"}
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => setHeatmapMode("errors")}
+          >
+            Error Rate
+          </Button>
+          <Button
+            variant={heatmapMode === "speed" ? "default" : "ghost"}
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => setHeatmapMode("speed")}
+          >
+            Frequency
+          </Button>
+        </div>
+        <KeyboardHeatmap keyStats={keyStats} mode={heatmapMode} />
+      </div>
+
+      <KeyDetailPanel keyStats={keyStats} sessions={sessions} />
 
       <SessionHistory sessions={sessions} />
     </div>

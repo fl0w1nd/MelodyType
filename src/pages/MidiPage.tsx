@@ -63,6 +63,7 @@ export default function MidiPage() {
     changeVolume,
     currentIndex,
     totalFrames,
+    getFrameInfo,
     initSynth,
   } = useMidi()
 
@@ -122,16 +123,17 @@ export default function MidiPage() {
   )
 
   const handleTestPlay = useCallback(() => {
+    const info = getFrameInfo()
     triggerNextFrame()
     const frame =
       selectedPreset && presetMelodies[selectedPreset]
-        ? presetMelodies[selectedPreset].frames[currentIndex]
+        ? presetMelodies[selectedPreset].frames[info.current]
         : null
     if (frame) {
       setTestNotes(frame.notes.map((n) => n.name))
       setTimeout(() => setTestNotes([]), 400)
     }
-  }, [triggerNextFrame, currentIndex, selectedPreset])
+  }, [triggerNextFrame, getFrameInfo, selectedPreset])
 
   useEffect(() => {
     if (!selectedPreset && presetList.length > 0) {

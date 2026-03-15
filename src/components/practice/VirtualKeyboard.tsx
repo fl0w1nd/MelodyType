@@ -85,7 +85,7 @@ function VirtualKeyboardInner({
   }, [])
 
   return (
-    <div className="flex flex-col gap-1 p-4 rounded-xl bg-secondary/40 border border-border/60 w-full max-w-2xl mx-auto">
+    <div className="flex flex-col gap-1 px-4 py-3 rounded-xl bg-secondary/40 border border-border/60 w-full max-w-2xl mx-auto">
       {rows.map((row, ri) => (
         <div key={ri} className="flex gap-1 justify-center">
           {row.map((keyDef) => {

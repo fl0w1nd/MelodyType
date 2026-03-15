@@ -37,35 +37,66 @@ export function useTypingEngine(onKeystroke?: () => void) {
   const [state, setState] = useState<TypingState>({ ...initialState })
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const elapsedRef = useRef(0)
+  const startTimeRef = useRef<number | null>(null)
   const timeLimitRef = useRef<number | null>(null)
-  const onFinishRef = useRef<(() => void) | null>(null)
+  const finishedRef = useRef(false)
+  const onKeystrokeRef = useRef(onKeystroke)
+  onKeystrokeRef.current = onKeystroke
 
-  const loadText = useCallback(
-    (text: string, timeLimit?: number, onFinish?: () => void) => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      setElapsed(0)
-      timeLimitRef.current = timeLimit ?? null
-      onFinishRef.current = onFinish ?? null
-      setState({
-        ...initialState,
-        words: textToWords(text),
-      })
-    },
-    [],
-  )
+  const loadText = useCallback((text: string, timeLimit?: number) => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    setElapsed(0)
+    elapsedRef.current = 0
+    startTimeRef.current = null
+    timeLimitRef.current = timeLimit ?? null
+    finishedRef.current = false
+    setState({
+      ...initialState,
+      words: textToWords(text),
+    })
+  }, [])
 
-  const finish = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
+  const doFinish = useCallback(() => {
+    if (finishedRef.current) return
+    finishedRef.current = true
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
     setState((prev) => ({
       ...prev,
       isFinished: true,
       endTime: Date.now(),
     }))
-    onFinishRef.current?.()
   }, [])
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) return
+    startTimeRef.current = Date.now()
+    timerRef.current = setInterval(() => {
+      if (!startTimeRef.current) return
+      const secs = Math.floor((Date.now() - startTimeRef.current) / 1000)
+      if (secs !== elapsedRef.current) {
+        elapsedRef.current = secs
+        setElapsed(secs)
+      }
+      if (timeLimitRef.current && secs >= timeLimitRef.current) {
+        doFinish()
+      }
+    }, 200)
+  }, [doFinish])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (finishedRef.current) return
+
+      let didType = false
+      let shouldStartTimer = false
+
       setState((prev) => {
         if (prev.isFinished) return prev
         if (prev.words.length === 0) return prev
@@ -79,16 +110,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
         if (!next.isStarted && e.key.length === 1) {
           next.isStarted = true
           next.startTime = Date.now()
-
-          timerRef.current = setInterval(() => {
-            setElapsed((t) => {
-              const newT = t + 1
-              if (timeLimitRef.current && newT >= timeLimitRef.current) {
-                finish()
-              }
-              return newT
-            })
-          }, 1000)
+          shouldStartTimer = true
         }
 
         if (!next.isStarted) return prev
@@ -105,30 +127,25 @@ export function useTypingEngine(onKeystroke?: () => void) {
         }
 
         if (e.key === "Backspace") {
-          if (next.currentCharIndex > 0) {
-            const extraChars = word.chars.filter((c) => c.status === "extra")
-            if (extraChars.length > 0 && next.currentCharIndex >= word.chars.length - extraChars.length) {
-              word.chars.pop()
-            } else {
-              next.currentCharIndex--
-              word.chars[next.currentCharIndex].status = "pending"
-              word.chars[next.currentCharIndex].typedChar = undefined
-            }
-          }
           return next
         }
 
         if (e.key === " ") {
-          if (next.currentCharIndex > 0) {
+          const allCorrect = word.chars.every((c) => c.status === "correct")
+          if (allCorrect && next.currentCharIndex === word.chars.length) {
             word.completed = true
+            didType = true
             if (next.currentWordIndex < next.words.length - 1) {
               next.currentWordIndex++
               next.currentCharIndex = 0
             } else {
               next.isFinished = true
               next.endTime = Date.now()
-              if (timerRef.current) clearInterval(timerRef.current)
-              onFinishRef.current?.()
+              finishedRef.current = true
+              if (timerRef.current) {
+                clearInterval(timerRef.current)
+                timerRef.current = null
+              }
             }
           }
           return next
@@ -145,104 +162,119 @@ export function useTypingEngine(onKeystroke?: () => void) {
             char.typedChar = e.key
             entry.correct = true
             next.correctKeystrokes++
+            next.currentCharIndex++
+            didType = true
           } else {
             char.status = "incorrect"
             char.typedChar = e.key
+            char.hadError = true
             next.errorKeystrokes++
+            didType = true
           }
-          next.currentCharIndex++
-        } else {
-          word.chars.push({
-            char: e.key,
-            status: "extra",
-            typedChar: e.key,
-          })
-          next.currentCharIndex++
-          next.errorKeystrokes++
         }
 
         next.keystrokeLog = [...prev.keystrokeLog, entry]
 
         const isLastWord = next.currentWordIndex === next.words.length - 1
-        const allCharsTyped = next.currentCharIndex >= word.chars.filter((c) => c.status !== "extra").length
-        if (isLastWord && allCharsTyped && word.chars.every((c) => c.status !== "pending")) {
+        const allDone =
+          next.currentCharIndex === word.chars.length &&
+          word.chars.every((c) => c.status === "correct")
+        if (isLastWord && allDone) {
           word.completed = true
           next.isFinished = true
           next.endTime = Date.now()
-          if (timerRef.current) clearInterval(timerRef.current)
-          onFinishRef.current?.()
+          finishedRef.current = true
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
         }
 
-        onKeystroke?.()
         return next
       })
+
+      if (shouldStartTimer) {
+        startTimer()
+      }
+
+      if (didType) {
+        queueMicrotask(() => {
+          onKeystrokeRef.current?.()
+        })
+      }
     },
-    [finish, onKeystroke],
+    [doFinish, startTimer],
   )
 
   const getMetrics = useCallback((): TypingMetrics => {
-    const timeInMinutes = elapsed > 0 ? elapsed / 60 : 0.001
+    const currentElapsed = elapsedRef.current || elapsed
+    const timeInMinutes = currentElapsed > 0 ? currentElapsed / 60 : 0
 
-    let correctChars = 0
-    let incorrectChars = 0
-    let totalChars = 0
+    let typedChars = 0
+    let charsWithError = 0
 
     for (const word of state.words) {
       for (const char of word.chars) {
-        if (char.status === "correct") correctChars++
-        if (char.status === "incorrect" || char.status === "extra")
-          incorrectChars++
-        if (char.status !== "pending") totalChars++
+        if (char.status !== "pending") {
+          typedChars++
+          if (char.hadError) charsWithError++
+        }
       }
     }
 
+    const correctChars = typedChars - charsWithError
     const wpm = timeInMinutes > 0 ? correctChars / 5 / timeInMinutes : 0
-    const rawWpm = timeInMinutes > 0 ? totalChars / 5 / timeInMinutes : 0
-    const accuracy = totalChars > 0 ? (correctChars / totalChars) * 100 : 100
-
-    const wpmSamples: number[] = []
-    const windowSize = 5000
-    for (const entry of state.keystrokeLog) {
-      if (!state.startTime) break
-      const t = (entry.timestamp - state.startTime) / 60000
-      if (t > 0) {
-        wpmSamples.push(
-          state.keystrokeLog.filter(
-            (e) =>
-              e.timestamp >= entry.timestamp - windowSize &&
-              e.timestamp <= entry.timestamp &&
-              e.correct,
-          ).length /
-            5 /
-            (windowSize / 60000),
-        )
-      }
-    }
+    const rawWpm = timeInMinutes > 0 ? typedChars / 5 / timeInMinutes : 0
+    const accuracy = typedChars > 0 ? (correctChars / typedChars) * 100 : 100
 
     let consistency = 100
-    if (wpmSamples.length > 1) {
-      const mean = wpmSamples.reduce((a, b) => a + b, 0) / wpmSamples.length
-      const variance =
-        wpmSamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
-        wpmSamples.length
-      const stdDev = Math.sqrt(variance)
-      consistency = mean > 0 ? Math.max(0, 100 - (stdDev / mean) * 100) : 100
+    if (state.keystrokeLog.length > 2 && state.startTime) {
+      const windowSize = 5000
+      const wpmSamples: number[] = []
+      for (const entry of state.keystrokeLog) {
+        const correctInWindow = state.keystrokeLog.filter(
+          (e) =>
+            e.timestamp >= entry.timestamp - windowSize &&
+            e.timestamp <= entry.timestamp &&
+            e.correct,
+        ).length
+        const sample = correctInWindow / 5 / (windowSize / 60000)
+        if (Number.isFinite(sample)) wpmSamples.push(sample)
+      }
+
+      if (wpmSamples.length > 1) {
+        const mean =
+          wpmSamples.reduce((a, b) => a + b, 0) / wpmSamples.length
+        if (mean > 0) {
+          const variance =
+            wpmSamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
+            wpmSamples.length
+          const stdDev = Math.sqrt(variance)
+          consistency = Math.max(0, 100 - (stdDev / mean) * 100)
+        }
+      }
     }
 
     return {
-      wpm: Math.round(wpm * 10) / 10,
-      rawWpm: Math.round(rawWpm * 10) / 10,
-      accuracy: Math.round(accuracy * 100) / 100,
+      wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
+      rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
+      accuracy: Number.isFinite(accuracy)
+        ? Math.round(accuracy * 100) / 100
+        : 100,
       correctChars,
-      incorrectChars,
-      totalChars,
-      elapsedTime: elapsed,
-      consistency: Math.round(consistency),
+      incorrectChars: charsWithError,
+      totalChars: typedChars,
+      elapsedTime: currentElapsed,
+      consistency: Number.isFinite(consistency) ? Math.round(consistency) : 100,
     }
   }, [state, elapsed])
 
   const reset = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = null
+    startTimeRef.current = null
+    finishedRef.current = false
+    elapsedRef.current = 0
     setElapsed(0)
     setState({ ...initialState })
   }, [])
@@ -254,6 +286,6 @@ export function useTypingEngine(onKeystroke?: () => void) {
     handleKeyDown,
     getMetrics,
     reset,
-    finish,
+    finish: doFinish,
   }
 }

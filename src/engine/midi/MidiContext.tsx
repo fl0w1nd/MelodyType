@@ -11,20 +11,22 @@ export function MidiProvider({ children }: { children: ReactNode }) {
   const midi = useMidiTrigger()
 
   useEffect(() => {
+    const defaultPreset = Object.keys(presetMelodies)[0]
+    if (defaultPreset) {
+      midi.loadFramesOnly(presetMelodies[defaultPreset].frames)
+    }
+
     getSetting("selectedMidi").then(async (val) => {
       if (val) {
         try {
-          const parsed = JSON.parse(val) as { type: "preset"; id: string } | { type: "file"; id: number }
+          const parsed = JSON.parse(val) as
+            | { type: "preset"; id: string }
+            | { type: "file"; id: number }
           if (parsed.type === "preset" && presetMelodies[parsed.id]) {
-            await midi.initSynth()
-            await midi.loadFrames(presetMelodies[parsed.id].frames)
+            midi.loadFramesOnly(presetMelodies[parsed.id].frames)
           }
-        } catch { /* ignore */ }
-      } else {
-        const defaultPreset = Object.keys(presetMelodies)[0]
-        if (defaultPreset) {
-          await midi.initSynth()
-          await midi.loadFrames(presetMelodies[defaultPreset].frames)
+        } catch {
+          /* ignore */
         }
       }
     })

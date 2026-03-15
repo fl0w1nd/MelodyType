@@ -7,13 +7,13 @@ import { getSetting, setSetting } from "@/lib/db"
 
 export function useMidiTrigger() {
   const [config, setConfig] = useState<MidiConfig>(defaultMidiConfig)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [totalFrames, setTotalFrames] = useState(0)
+  const [frameInfo, setFrameInfo] = useState({ current: 0, total: 0 })
 
   const framesRef = useRef<MidiFrame[]>([])
   const indexRef = useRef(0)
   const synthRef = useRef<Tone.PolySynth | null>(null)
   const configRef = useRef<MidiConfig>(defaultMidiConfig)
+  const initingRef = useRef(false)
 
   useEffect(() => {
     configRef.current = config
@@ -25,7 +25,9 @@ export function useMidiTrigger() {
         try {
           const parsed = JSON.parse(val) as MidiConfig
           setConfig(parsed)
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     })
   }, [])
@@ -52,12 +54,17 @@ export function useMidiTrigger() {
     [],
   )
 
+  const loadFramesOnly = useCallback((frames: MidiFrame[]) => {
+    framesRef.current = frames
+    indexRef.current = 0
+    setFrameInfo({ current: 0, total: frames.length })
+  }, [])
+
   const loadFrames = useCallback(
     async (frames: MidiFrame[]) => {
       framesRef.current = frames
       indexRef.current = 0
-      setCurrentIndex(0)
-      setTotalFrames(frames.length)
+      setFrameInfo({ current: 0, total: frames.length })
 
       if (frames.length > 0 && !synthRef.current) {
         await initSynth()
@@ -69,7 +76,25 @@ export function useMidiTrigger() {
   const triggerNextFrame = useCallback(() => {
     if (!configRef.current.isEnabled) return
     if (framesRef.current.length === 0) return
-    if (!synthRef.current) return
+
+    if (!synthRef.current) {
+      if (initingRef.current) return
+      initingRef.current = true
+      ensureAudioStarted()
+        .then(() => {
+          if (!synthRef.current) {
+            synthRef.current = createSynth(
+              configRef.current.synthType,
+              configRef.current.volume,
+            )
+          }
+          initingRef.current = false
+        })
+        .catch(() => {
+          initingRef.current = false
+        })
+      return
+    }
 
     const frame = framesRef.current[indexRef.current]
     if (frame && frame.notes.length > 0) {
@@ -77,7 +102,7 @@ export function useMidiTrigger() {
       try {
         synthRef.current.triggerAttackRelease(noteNames, "8n")
       } catch {
-        // audio context may not be ready yet
+        /* audio context may not be ready yet */
       }
     }
 
@@ -94,8 +119,10 @@ export function useMidiTrigger() {
         indexRef.current++
       }
     }
+  }, [])
 
-    setCurrentIndex(indexRef.current)
+  const getFrameInfo = useCallback(() => {
+    return { current: indexRef.current, total: framesRef.current.length }
   }, [])
 
   const changeSynth = useCallback(
@@ -127,11 +154,13 @@ export function useMidiTrigger() {
     config,
     updateConfig,
     loadFrames,
+    loadFramesOnly,
     triggerNextFrame,
     changeSynth,
     changeVolume,
-    currentIndex,
-    totalFrames,
+    currentIndex: frameInfo.current,
+    totalFrames: frameInfo.total,
+    getFrameInfo,
     initSynth,
   }
 }

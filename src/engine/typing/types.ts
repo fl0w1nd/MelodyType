@@ -17,9 +17,10 @@ export interface PracticeModeConfig {
 
 export interface CharState {
   char: string
-  status: "pending" | "correct" | "incorrect" | "extra"
+  status: "pending" | "correct" | "incorrect"
   typedChar?: string
   timestamp?: number
+  hadError?: boolean
 }
 
 export interface WordState {

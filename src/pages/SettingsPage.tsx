@@ -32,7 +32,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { db, exportAllData, importAllData, getSetting, setSetting } from "@/lib/db"
@@ -295,12 +294,14 @@ export default function SettingsPage() {
             />
 
             <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-              <DialogTrigger
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-destructive hover:bg-accent hover:text-destructive cursor-pointer"
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive hover:text-destructive"
+                onClick={() => setClearDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
                 Clear Statistics
-              </DialogTrigger>
+              </Button>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Clear All Statistics?</DialogTitle>

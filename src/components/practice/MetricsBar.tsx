@@ -9,9 +9,15 @@ interface MetricsBarProps {
 }
 
 function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
-  const remaining = timeLimit
-    ? Math.max(0, timeLimit - metrics.elapsedTime)
-    : null
+  const remaining =
+    timeLimit != null ? Math.max(0, timeLimit - metrics.elapsedTime) : null
+
+  const timeValue = (() => {
+    if (!isStarted) {
+      return remaining != null ? formatTime(timeLimit!) : "0:00"
+    }
+    return formatTime(remaining != null ? remaining : metrics.elapsedTime)
+  })()
 
   return (
     <div className="flex items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
@@ -30,14 +36,8 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
       <div className="w-px h-8 bg-border/60" />
       <MetricItem
         icon={<Clock className="h-4 w-4" />}
-        label={remaining !== null ? "Remaining" : "Time"}
-        value={
-          isStarted
-            ? formatTime(remaining !== null ? remaining : metrics.elapsedTime)
-            : remaining !== null
-              ? formatTime(remaining)
-              : "0:00"
-        }
+        label={remaining != null ? "Remaining" : "Time"}
+        value={timeValue}
       />
       <div className="w-px h-8 bg-border/60" />
       <MetricItem
@@ -78,8 +78,9 @@ function MetricItem({
 }
 
 function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
+  const safe = Math.max(0, Math.round(seconds))
+  const m = Math.floor(safe / 60)
+  const s = safe % 60
   return `${m}:${s.toString().padStart(2, "0")}`
 }
 

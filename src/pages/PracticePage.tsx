@@ -24,9 +24,8 @@ import { db } from "@/lib/db"
 
 export default function PracticePage() {
   const [config, setConfig] = useState<PracticeModeConfig>({
-    mode: "time",
-    timeLimit: 30,
-    difficulty: "easy",
+    mode: "lesson",
+    lessonId: "home-jf",
   })
   const [showKeyboard, setShowKeyboard] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -117,15 +116,13 @@ export default function PracticePage() {
         return
       }
 
-      if (
-        e.key === "Tab" ||
-        e.key === "Escape"
-      ) {
+      if (e.key === "Tab" || e.key === "Escape") {
         e.preventDefault()
         if (e.key === "Tab") handleRestart()
         return
       }
 
+      e.preventDefault()
       handleKeyDown(e)
     }
 
@@ -134,90 +131,88 @@ export default function PracticePage() {
   }, [handleKeyDown, handleRestart, state.isFinished])
 
   useEffect(() => {
-    if (state.isFinished && state.isStarted) {
-      const m = getMetrics()
-      db.sessions.add({
-        timestamp: Date.now(),
-        mode: config.mode,
-        modeConfig: JSON.stringify(config),
-        wpm: m.wpm,
-        rawWpm: m.rawWpm,
-        accuracy: m.accuracy,
-        duration: m.elapsedTime,
-        totalChars: m.totalChars,
-        correctChars: m.correctChars,
-        errorChars: m.incorrectChars,
-        keystrokes: state.keystrokeLog.map((k) => ({
-          key: k.key,
-          correct: k.correct,
-          timestamp: k.timestamp,
-          latency: 0,
-        })),
-      })
+    if (!state.isFinished || !state.isStarted) return
 
-      const keyCounts: Record<string, { hits: number; errors: number; latency: number }> = {}
-      for (const k of state.keystrokeLog) {
-        if (k.key.length !== 1) continue
-        const lower = k.key.toLowerCase()
-        if (!keyCounts[lower]) keyCounts[lower] = { hits: 0, errors: 0, latency: 0 }
-        keyCounts[lower].hits++
-        if (!k.correct) keyCounts[lower].errors++
-      }
+    const m = getMetrics()
 
-      for (const [key, counts] of Object.entries(keyCounts)) {
-        db.keyStats
-          .where("key")
-          .equals(key)
-          .first()
-          .then((existing) => {
-            if (existing) {
-              db.keyStats.update(existing.id!, {
-                totalHits: existing.totalHits + counts.hits,
-                errors: existing.errors + counts.errors,
-                avgSpeed: 0,
-                lastUpdated: Date.now(),
-              })
-            } else {
-              db.keyStats.add({
-                key,
-                totalHits: counts.hits,
-                errors: counts.errors,
-                totalLatency: 0,
-                avgSpeed: 0,
-                lastUpdated: Date.now(),
-              })
-            }
-          })
-      }
+    db.sessions.add({
+      timestamp: Date.now(),
+      mode: config.mode,
+      modeConfig: JSON.stringify(config),
+      wpm: m.wpm,
+      rawWpm: m.rawWpm,
+      accuracy: m.accuracy,
+      duration: m.elapsedTime,
+      totalChars: m.totalChars,
+      correctChars: m.correctChars,
+      errorChars: m.incorrectChars,
+      keystrokes: state.keystrokeLog.map((k) => ({
+        key: k.key,
+        correct: k.correct,
+        timestamp: k.timestamp,
+        latency: 0,
+      })),
+    })
 
-      const today = new Date().toISOString().split("T")[0]
-      db.dailyGoals
-        .where("date")
-        .equals(today)
-        .first()
-        .then((existing) => {
-          const sessionMinutes = m.elapsedTime / 60
-          if (existing) {
-            db.dailyGoals.update(existing.id!, {
-              completedMinutes: existing.completedMinutes + sessionMinutes,
-              sessionsCount: existing.sessionsCount + 1,
-              bestWpm: Math.max(existing.bestWpm, m.wpm),
-              avgAccuracy:
-                (existing.avgAccuracy * existing.sessionsCount + m.accuracy) /
-                (existing.sessionsCount + 1),
-            })
-          } else {
-            db.dailyGoals.add({
-              date: today,
-              targetMinutes: 30,
-              completedMinutes: sessionMinutes,
-              sessionsCount: 1,
-              bestWpm: m.wpm,
-              avgAccuracy: m.accuracy,
-            })
-          }
-        })
+    const keyCounts: Record<
+      string,
+      { hits: number; errors: number }
+    > = {}
+    for (const k of state.keystrokeLog) {
+      if (k.key.length !== 1) continue
+      const lower = k.key.toLowerCase()
+      if (!keyCounts[lower])
+        keyCounts[lower] = { hits: 0, errors: 0 }
+      keyCounts[lower].hits++
+      if (!k.correct) keyCounts[lower].errors++
     }
+
+    db.transaction("rw", db.keyStats, async () => {
+      for (const [key, counts] of Object.entries(keyCounts)) {
+        const existing = await db.keyStats.where("key").equals(key).first()
+        if (existing) {
+          await db.keyStats.update(existing.id!, {
+            totalHits: existing.totalHits + counts.hits,
+            errors: existing.errors + counts.errors,
+            lastUpdated: Date.now(),
+          })
+        } else {
+          await db.keyStats.add({
+            key,
+            totalHits: counts.hits,
+            errors: counts.errors,
+            totalLatency: 0,
+            avgSpeed: 0,
+            lastUpdated: Date.now(),
+          })
+        }
+      }
+    })
+
+    const today = new Date().toISOString().split("T")[0]
+    db.transaction("rw", db.dailyGoals, async () => {
+      const existing = await db.dailyGoals.where("date").equals(today).first()
+      const sessionMinutes = m.elapsedTime / 60
+      if (existing) {
+        await db.dailyGoals.update(existing.id!, {
+          completedMinutes: existing.completedMinutes + sessionMinutes,
+          sessionsCount: existing.sessionsCount + 1,
+          bestWpm: Math.max(existing.bestWpm, m.wpm),
+          avgAccuracy:
+            (existing.avgAccuracy * existing.sessionsCount + m.accuracy) /
+            (existing.sessionsCount + 1),
+        })
+      } else {
+        await db.dailyGoals.add({
+          date: today,
+          targetMinutes: 30,
+          completedMinutes: sessionMinutes,
+          sessionsCount: 1,
+          bestWpm: m.wpm,
+          avgAccuracy: m.accuracy,
+        })
+      }
+    })
   }, [state.isFinished]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeKeys = useMemo(() => {
@@ -239,7 +234,11 @@ export default function PracticePage() {
   }, [state])
 
   return (
-    <div ref={containerRef} className="flex flex-col items-center gap-6" tabIndex={-1}>
+    <div
+      ref={containerRef}
+      className="flex flex-col items-center gap-6"
+      tabIndex={-1}
+    >
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

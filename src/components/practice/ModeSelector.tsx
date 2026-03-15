@@ -6,6 +6,8 @@ import {
   GraduationCap,
   Infinity,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -33,7 +35,10 @@ const modeIcons: Record<PracticeMode, React.ReactNode> = {
 
 const timeOptions = [15, 30, 60, 120]
 const wordOptions = [10, 25, 50, 100]
-const difficultyOptions: Array<{ value: "easy" | "medium" | "hard"; label: string }> = [
+const difficultyOptions: Array<{
+  value: "easy" | "medium" | "hard"
+  label: string
+}> = [
   { value: "easy", label: "Easy" },
   { value: "medium", label: "Medium" },
   { value: "hard", label: "Hard" },
@@ -43,12 +48,22 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
   const [mode, setMode] = useState<PracticeMode>(currentConfig.mode)
   const [showLessons, setShowLessons] = useState(false)
 
+  const currentLesson =
+    currentConfig.lessonId
+      ? beginnerLessons.find((l) => l.id === currentConfig.lessonId)
+      : null
+
   const handleModeChange = (newMode: string) => {
     const m = newMode as PracticeMode
     setMode(m)
-    setShowLessons(m === "lesson")
+    setShowLessons(false)
 
-    if (m === "lesson") return
+    if (m === "lesson") {
+      if (currentConfig.lessonId) return
+      const first = beginnerLessons[0]
+      if (first) onSelect({ mode: "lesson", lessonId: first.id })
+      return
+    }
 
     const config: PracticeModeConfig = { mode: m }
     if (m === "time") config.timeLimit = currentConfig.timeLimit ?? 30
@@ -64,13 +79,17 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 items-center">
+    <div className="flex flex-col gap-2 items-center w-full">
       <Tabs value={mode} onValueChange={handleModeChange}>
         <TabsList className="h-auto flex-wrap">
           {(
-            ["time", "words", "quote", "lesson", "free"] as PracticeMode[]
+            ["lesson", "time", "words", "quote", "free"] as PracticeMode[]
           ).map((m) => (
-            <TabsTrigger key={m} value={m} className="gap-1.5 text-xs sm:text-sm capitalize">
+            <TabsTrigger
+              key={m}
+              value={m}
+              className="gap-1.5 text-xs sm:text-sm capitalize"
+            >
               {modeIcons[m]}
               {m === "lesson" ? "Lessons" : m}
             </TabsTrigger>
@@ -82,7 +101,9 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
         <div className="flex flex-wrap items-center justify-center gap-2">
           {mode === "time" && (
             <div className="flex gap-1 items-center">
-              <span className="text-xs text-muted-foreground mr-1">Duration:</span>
+              <span className="text-xs text-muted-foreground mr-1">
+                Duration:
+              </span>
               {timeOptions.map((t) => (
                 <Button
                   key={t}
@@ -100,7 +121,9 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
           )}
           {mode === "words" && (
             <div className="flex gap-1 items-center">
-              <span className="text-xs text-muted-foreground mr-1">Words:</span>
+              <span className="text-xs text-muted-foreground mr-1">
+                Words:
+              </span>
               {wordOptions.map((w) => (
                 <Button
                   key={w}
@@ -140,8 +163,43 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
         </div>
       )}
 
+      {mode === "lesson" && (
+        <div className="flex items-center gap-2">
+          {currentLesson && (
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="secondary"
+                className="text-xs font-medium px-2.5 py-0.5"
+              >
+                Lv.{currentLesson.level}
+              </Badge>
+              <span className="text-sm font-medium">{currentLesson.name}</span>
+              <span className="text-xs text-muted-foreground">
+                [{currentLesson.keys.join(", ")}]
+              </span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs text-muted-foreground"
+            onClick={() => setShowLessons(!showLessons)}
+          >
+            {showLessons ? (
+              <>
+                Collapse <ChevronUp className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                Browse <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       {showLessons && (
-        <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+        <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 max-h-64 overflow-y-auto">
           {beginnerLessons.map((lesson) => (
             <LessonCard
               key={lesson.id}
@@ -186,7 +244,10 @@ function LessonCard({
     >
       <Badge
         variant="secondary"
-        className={cn("mt-0.5 text-[10px] shrink-0", categoryColors[lesson.category])}
+        className={cn(
+          "mt-0.5 text-[10px] shrink-0",
+          categoryColors[lesson.category],
+        )}
       >
         Lv.{lesson.level}
       </Badge>
