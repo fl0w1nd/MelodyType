@@ -1,4 +1,5 @@
 export type PracticeMode =
+  | "adaptive"
   | "time"
   | "words"
   | "quote"
