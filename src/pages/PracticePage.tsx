@@ -7,6 +7,8 @@ import { MetricsBar } from "@/components/practice/MetricsBar"
 import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
+import { AdaptiveResultsPanel } from "@/components/practice/AdaptiveResultsPanel"
+import { KeyProgressPanel } from "@/components/practice/KeyProgressPanel"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { useMidi } from "@/engine/midi/MidiContext"
 import {
@@ -19,16 +21,29 @@ import {
   getRandomQuote,
   beginnerLessons,
 } from "@/engine/typing/wordLists"
+import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
+import type { AdaptiveState, KeyConfidence } from "@/engine/typing/adaptiveEngine"
+import {
+  loadAdaptiveState,
+  updateKeyStatsFromSession,
+  saveUnlockedKeys,
+  shouldUnlockNextKey,
+  getNextKeyToUnlock,
+  getFocusKey,
+} from "@/engine/typing/adaptiveEngine"
 import { db } from "@/lib/db"
 
 export default function PracticePage() {
   const [config, setConfig] = useState<PracticeModeConfig>({
-    mode: "lesson",
-    lessonId: "home-jf",
+    mode: "adaptive",
   })
   const [showKeyboard, setShowKeyboard] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const [adaptiveState, setAdaptiveState] = useState<AdaptiveState | null>(null)
+  const [newlyUnlocked, setNewlyUnlocked] = useState<string | null>(null)
+  const adaptiveLoaded = useRef(false)
 
   const { triggerNextFrame } = useMidi()
   const { particles, emit: emitNote } = useNoteParticles()
@@ -41,9 +56,38 @@ export default function PracticePage() {
 
   const metrics = useMemo(() => getMetrics(), [getMetrics, elapsed, state])
 
+  useEffect(() => {
+    if (adaptiveLoaded.current) return
+    adaptiveLoaded.current = true
+    loadAdaptiveState().then((s) => {
+      setAdaptiveState(s)
+      if (config.mode === "adaptive") {
+        const text = generateAdaptiveText(
+          s.keyConfidences,
+          s.unlockedKeys,
+          s.focusKey,
+          30,
+        )
+        loadText(text)
+      }
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const generateText = useCallback(
-    (cfg: PracticeModeConfig): string => {
+    (cfg: PracticeModeConfig, aState?: AdaptiveState | null): string => {
       switch (cfg.mode) {
+        case "adaptive": {
+          const st = aState ?? adaptiveState
+          if (st) {
+            return generateAdaptiveText(
+              st.keyConfidences,
+              st.unlockedKeys,
+              st.focusKey,
+              30,
+            )
+          }
+          return generateWordText("easy", 25)
+        }
         case "time":
           return generateWordText(cfg.difficulty ?? "easy", 200)
         case "words":
@@ -61,32 +105,44 @@ export default function PracticePage() {
           return generateWordText("easy", 25)
       }
     },
-    [],
+    [adaptiveState],
   )
 
   const startPractice = useCallback(
-    (cfg: PracticeModeConfig) => {
-      const text = generateText(cfg)
+    (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
+      const text = generateText(cfg, aState)
       loadText(text, cfg.mode === "time" ? cfg.timeLimit : undefined)
     },
     [generateText, loadText],
   )
 
-  useEffect(() => {
-    startPractice(config)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleConfigChange = useCallback(
     (newConfig: PracticeModeConfig) => {
       setConfig(newConfig)
-      startPractice(newConfig)
+      setNewlyUnlocked(null)
+      if (newConfig.mode === "adaptive") {
+        loadAdaptiveState().then((s) => {
+          setAdaptiveState(s)
+          startPractice(newConfig, s)
+        })
+      } else {
+        startPractice(newConfig)
+      }
     },
     [startPractice],
   )
 
   const handleRestart = useCallback(() => {
     reset()
-    startPractice(config)
+    setNewlyUnlocked(null)
+    if (config.mode === "adaptive") {
+      loadAdaptiveState().then((s) => {
+        setAdaptiveState(s)
+        startPractice(config, s)
+      })
+    } else {
+      startPractice(config)
+    }
   }, [reset, startPractice, config])
 
   const handleNext = useCallback(() => {
@@ -154,40 +210,70 @@ export default function PracticePage() {
       })),
     })
 
-    const keyCounts: Record<
-      string,
-      { hits: number; errors: number }
-    > = {}
-    for (const k of state.keystrokeLog) {
-      if (k.key.length !== 1) continue
-      const lower = k.key.toLowerCase()
-      if (!keyCounts[lower])
-        keyCounts[lower] = { hits: 0, errors: 0 }
-      keyCounts[lower].hits++
-      if (!k.correct) keyCounts[lower].errors++
-    }
+    if (config.mode === "adaptive") {
+      updateKeyStatsFromSession(state.keystrokeLog).then(() => {
+        loadAdaptiveState().then((s) => {
+          const prevUnlocked = adaptiveState?.unlockedKeys ?? []
+          const newKeys = s.unlockedKeys.filter(
+            (k) => !prevUnlocked.includes(k),
+          )
 
-    db.transaction("rw", db.keyStats, async () => {
-      for (const [key, counts] of Object.entries(keyCounts)) {
-        const existing = await db.keyStats.where("key").equals(key).first()
-        if (existing) {
-          await db.keyStats.update(existing.id!, {
-            totalHits: existing.totalHits + counts.hits,
-            errors: existing.errors + counts.errors,
-            lastUpdated: Date.now(),
-          })
-        } else {
-          await db.keyStats.add({
-            key,
-            totalHits: counts.hits,
-            errors: counts.errors,
-            totalLatency: 0,
-            avgSpeed: 0,
-            lastUpdated: Date.now(),
-          })
-        }
+          if (shouldUnlockNextKey(s.keyConfidences.filter((k) => k.unlocked))) {
+            const nextKey = getNextKeyToUnlock(s.unlockedKeys)
+            if (nextKey && !s.unlockedKeys.includes(nextKey)) {
+              s.unlockedKeys = [...s.unlockedKeys, nextKey]
+              const kc = s.keyConfidences.find((k) => k.key === nextKey)
+              if (kc) kc.unlocked = true
+              saveUnlockedKeys(s.unlockedKeys)
+              setNewlyUnlocked(nextKey)
+            } else if (newKeys.length > 0) {
+              setNewlyUnlocked(newKeys[0])
+            }
+          } else if (newKeys.length > 0) {
+            setNewlyUnlocked(newKeys[0])
+          }
+
+          const focusKey = getFocusKey(s.keyConfidences)
+          for (const kc of s.keyConfidences) {
+            kc.focused = kc.key === focusKey
+          }
+          s.focusKey = focusKey
+
+          setAdaptiveState(s)
+        })
+      })
+    } else {
+      const keyCounts: Record<string, { hits: number; errors: number }> = {}
+      for (const k of state.keystrokeLog) {
+        if (k.key.length !== 1) continue
+        const lower = k.key.toLowerCase()
+        if (!keyCounts[lower]) keyCounts[lower] = { hits: 0, errors: 0 }
+        keyCounts[lower].hits++
+        if (!k.correct) keyCounts[lower].errors++
       }
-    })
+
+      db.transaction("rw", db.keyStats, async () => {
+        for (const [key, counts] of Object.entries(keyCounts)) {
+          const existing = await db.keyStats.where("key").equals(key).first()
+          if (existing) {
+            await db.keyStats.update(existing.id!, {
+              totalHits: existing.totalHits + counts.hits,
+              errors: existing.errors + counts.errors,
+              lastUpdated: Date.now(),
+            })
+          } else {
+            await db.keyStats.add({
+              key,
+              totalHits: counts.hits,
+              errors: counts.errors,
+              totalLatency: 0,
+              avgSpeed: 0,
+              lastUpdated: Date.now(),
+            })
+          }
+        }
+      })
+    }
 
     const today = new Date().toISOString().split("T")[0]
     db.transaction("rw", db.dailyGoals, async () => {
@@ -216,12 +302,15 @@ export default function PracticePage() {
   }, [state.isFinished]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeKeys = useMemo(() => {
+    if (config.mode === "adaptive" && adaptiveState) {
+      return new Set(adaptiveState.unlockedKeys)
+    }
     if (config.mode === "lesson" && config.lessonId) {
       const lesson = beginnerLessons.find((l) => l.id === config.lessonId)
       if (lesson) return new Set(lesson.keys)
     }
     return undefined
-  }, [config])
+  }, [config, adaptiveState])
 
   const nextKey = useMemo(() => {
     if (state.isFinished || !state.words.length) return undefined
@@ -232,6 +321,8 @@ export default function PracticePage() {
     }
     return " "
   }, [state])
+
+  const isAdaptive = config.mode === "adaptive"
 
   return (
     <div
@@ -248,20 +339,40 @@ export default function PracticePage() {
           Practice
         </h1>
         <p className="text-sm text-muted-foreground">
-          Focus on accuracy first, speed will follow
+          {isAdaptive
+            ? "Adaptive practice — focuses on your weakest keys"
+            : "Focus on accuracy first, speed will follow"}
         </p>
       </motion.div>
 
       <ModeSelector onSelect={handleConfigChange} currentConfig={config} />
 
+      {isAdaptive && adaptiveState && !state.isFinished && (
+        <KeyProgressPanel
+          keyConfidences={adaptiveState.keyConfidences}
+          focusKey={adaptiveState.focusKey}
+        />
+      )}
+
       <AnimatePresence mode="wait">
         {state.isFinished && state.isStarted ? (
-          <ResultsPanel
-            key="results"
-            metrics={metrics}
-            onRestart={handleRestart}
-            onNext={config.mode === "lesson" ? handleNext : undefined}
-          />
+          isAdaptive && adaptiveState ? (
+            <AdaptiveResultsPanel
+              key="adaptive-results"
+              metrics={metrics}
+              keystrokeLog={state.keystrokeLog}
+              keyConfidences={adaptiveState.keyConfidences}
+              newlyUnlocked={newlyUnlocked}
+              onRestart={handleRestart}
+            />
+          ) : (
+            <ResultsPanel
+              key="results"
+              metrics={metrics}
+              onRestart={handleRestart}
+              onNext={config.mode === "lesson" ? handleNext : undefined}
+            />
+          )
         ) : (
           <motion.div
             key="practice"
@@ -321,6 +432,10 @@ export default function PracticePage() {
                     activeKeys={activeKeys}
                     nextKey={nextKey}
                     showFingerHints={config.mode === "lesson"}
+                    keyConfidences={
+                      isAdaptive ? adaptiveState?.keyConfidences : undefined
+                    }
+                    adaptiveMode={isAdaptive}
                   />
                 </motion.div>
               )}
