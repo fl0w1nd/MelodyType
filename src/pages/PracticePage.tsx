@@ -8,7 +8,7 @@ import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
-import { useMidiTrigger } from "@/engine/midi/useMidiTrigger"
+import { useMidi } from "@/engine/midi/MidiContext"
 import {
   generateWordText,
   generateTextFromKeys,
@@ -27,7 +27,7 @@ export default function PracticePage() {
   const [showKeyboard, setShowKeyboard] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { triggerNextFrame } = useMidiTrigger()
+  const { triggerNextFrame } = useMidi()
   const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
     useTypingEngine(triggerNextFrame)
 
