@@ -20,14 +20,16 @@ import {
 } from "@/engine/typing/wordLists"
 import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
-import type { AdaptiveState } from "@/engine/typing/adaptiveEngine"
+import type { AdaptiveSettings, AdaptiveState } from "@/engine/typing/adaptiveEngine"
 import {
+  DEFAULT_TARGET_CPM,
   INITIAL_UNLOCK_COUNT,
+  forceUnlockKey,
   loadAdaptiveState,
   recomputeAndUnlock,
   updateKeyStatsFromSession,
 } from "@/engine/typing/adaptiveEngine"
-import { db } from "@/lib/db"
+import { db, setSetting } from "@/lib/db"
 import type { KeystrokeEntry, TypingMetrics, WordState } from "@/engine/typing/types"
 
 const ADAPTIVE_WORD_COUNT = 30
@@ -230,6 +232,39 @@ export default function PracticePage() {
       startPractice(config, s)
     })
   }, [config, reset, startPractice, state.isFinished])
+
+  const updateAdaptiveSettings = useCallback(
+    async (updates: Partial<AdaptiveSettings>) => {
+      const nextTarget =
+        updates.targetCpm ?? adaptiveState?.settings.targetCpm ?? DEFAULT_TARGET_CPM
+      const nextRecover =
+        updates.recoverKeys ?? adaptiveState?.settings.recoverKeys ?? false
+
+      await Promise.all([
+        setSetting("adaptive_targetCpm", String(nextTarget)),
+        setSetting("adaptive_recoverKeys", String(nextRecover)),
+      ])
+
+      const nextState = await loadAdaptiveState()
+      setAdaptiveState(nextState)
+    },
+    [adaptiveState],
+  )
+
+  const handleManualUnlock = useCallback(
+    async (key: string) => {
+      if (config.mode !== "adaptive") return
+
+      await forceUnlockKey(key)
+      setNewlyUnlocked(key)
+      reset()
+      adaptiveContinuingRef.current = false
+      const nextState = await loadAdaptiveState()
+      setAdaptiveState(nextState)
+      startPractice(config, nextState)
+    },
+    [config, reset, startPractice],
+  )
 
   const startAdaptiveNextRound = useCallback((nextState: AdaptiveState) => {
     const text = generateAdaptiveText(
@@ -508,9 +543,15 @@ export default function PracticePage() {
           globalSummary={adaptiveState.globalSummary}
           targetCpm={adaptiveState.settings.targetCpm}
           recoverKeys={adaptiveState.settings.recoverKeys}
-          forcedAlphabetSize={adaptiveState.settings.alphabetSize}
           totalSessions={adaptiveState.totalSessions}
           roundNumber={roundCount + 1}
+          onUnlockKey={handleManualUnlock}
+          onTargetChange={(targetCpm) => {
+            void updateAdaptiveSettings({ targetCpm })
+          }}
+          onRecoverChange={(recoverKeys) => {
+            void updateAdaptiveSettings({ recoverKeys })
+          }}
         />
       )}
 
