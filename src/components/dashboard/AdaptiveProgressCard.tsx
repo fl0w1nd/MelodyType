@@ -1,4 +1,5 @@
-import { useMemo, useEffect, useState } from "react"
+import { useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import {
   Brain,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import type { AdaptiveState, KeyConfidence } from "@/engine/typing/adaptiveEngine"
+import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
   LETTER_FREQUENCY_ORDER,
@@ -19,11 +20,7 @@ import {
 } from "@/engine/typing/adaptiveEngine"
 
 export function AdaptiveProgressCard() {
-  const [adaptiveState, setAdaptiveState] = useState<AdaptiveState | null>(null)
-
-  useEffect(() => {
-    loadAdaptiveState().then(setAdaptiveState)
-  }, [])
+  const adaptiveState = useLiveQuery(() => loadAdaptiveState(), [], null)
 
   const stats = useMemo(() => {
     if (!adaptiveState) return null

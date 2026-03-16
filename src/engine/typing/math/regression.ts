@@ -2,13 +2,16 @@ import { Polynomial } from "./polynomial.ts"
 import { Sle } from "./sle.ts"
 import { type Vector } from "./vector.ts"
 
+const ERR_VECTOR_LENGTH = "Regression vectors must have the same length"
+const ERR_EMPTY_SAMPLES = "Regression requires at least one sample"
+
 export function linearRegression(vx: Vector, vy: Vector): Polynomial {
   const { length } = vx
   if (length !== vy.length) {
-    throw new Error()
+    throw new Error(ERR_VECTOR_LENGTH)
   }
   if (length === 0) {
-    throw new Error()
+    throw new Error(ERR_EMPTY_SAMPLES)
   }
 
   let sx = 0
@@ -45,14 +48,15 @@ export function polynomialRegression(
 
   const { length } = vx
   if (length !== vy.length) {
-    throw new Error()
+    throw new Error(ERR_VECTOR_LENGTH)
   }
   if (length === 0) {
-    throw new Error()
+    throw new Error(ERR_EMPTY_SAMPLES)
   }
 
   const size = degree + 1
   const sle = new Sle(size)
+  // Populate the normal-equation system for least-squares polynomial fitting.
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < size; j++) {
       let t = 0
@@ -83,10 +87,10 @@ export function r2(
 ): number {
   const { length } = vx
   if (length !== vy.length) {
-    throw new Error()
+    throw new Error(ERR_VECTOR_LENGTH)
   }
   if (length === 0) {
-    throw new Error()
+    throw new Error(ERR_EMPTY_SAMPLES)
   }
 
   let sy = 0

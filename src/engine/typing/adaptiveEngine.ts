@@ -403,6 +403,8 @@ export function computeKeyWeights(
       weight *= 2.0
     }
 
+    // Keep newly introduced keys in heavy rotation until they have enough
+    // samples for their confidence and accuracy signals to stabilize.
     if (kc.samples < MIN_HITS_FOR_MASTERY) {
       weight = Math.max(weight, 3.0)
     }

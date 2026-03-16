@@ -32,6 +32,9 @@ import {
 import { db } from "@/lib/db"
 import type { KeystrokeEntry, TypingMetrics, WordState } from "@/engine/typing/types"
 
+const ADAPTIVE_WORD_COUNT = 30
+const UNLOCK_TOAST_DURATION_MS = 2500
+
 function computeMetricsForWords(
   words: WordState[],
   keystrokeLog: KeystrokeEntry[],
@@ -112,6 +115,7 @@ export default function PracticePage() {
   const roundKeystrokeStartRef = useRef(0)
   const roundStartTimeRef = useRef(0)
   const adaptiveContinuingRef = useRef(false)
+  const newlyUnlockedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { triggerNextFrame } = useMidi()
   const { particles, emit: emitNote } = useNoteParticles()
@@ -142,12 +146,12 @@ export default function PracticePage() {
           s.keyConfidences,
           s.unlockedKeys,
           s.focusKey,
-          30,
+          ADAPTIVE_WORD_COUNT,
         )
         loadText(text)
       }
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [config.mode, loadText])
 
   const generateText = useCallback(
     (cfg: PracticeModeConfig, aState?: AdaptiveState | null): string => {
@@ -159,7 +163,7 @@ export default function PracticePage() {
               st.keyConfidences,
               st.unlockedKeys,
               st.focusKey,
-              30,
+              ADAPTIVE_WORD_COUNT,
             )
           }
           return generateWordText("easy", 25)
@@ -242,7 +246,7 @@ export default function PracticePage() {
           s.keyConfidences,
           s.unlockedKeys,
           s.focusKey,
-          30,
+          ADAPTIVE_WORD_COUNT,
         )
         continueWithText(text)
         roundKeystrokeStartRef.current = state.keystrokeLog.length
@@ -314,8 +318,7 @@ export default function PracticePage() {
     return () => window.removeEventListener("keydown", handler)
   }, [handleKeyDown, handleRestart, handleAdaptivePause, handleAdaptiveResume, state.isFinished, state.isStarted, config.mode, adaptivePaused])
 
-  // Save session data on finish
-  useEffect(() => {
+  const persistFinishedRound = useCallback(() => {
     if (!state.isFinished || !state.isStarted) return
     if (adaptiveContinuingRef.current) return
     adaptiveContinuingRef.current = true
@@ -339,7 +342,7 @@ export default function PracticePage() {
     const sessionCorrectChars = roundMetrics.correctChars
     const sessionErrorChars = roundMetrics.incorrectChars
 
-    db.sessions.add({
+    void db.sessions.add({
       timestamp: Date.now(),
       mode: config.mode,
       modeConfig: JSON.stringify(config),
@@ -360,7 +363,7 @@ export default function PracticePage() {
 
     if (config.mode === "adaptive") {
       const prevUnlocked = adaptiveState?.unlockedKeys ?? []
-      updateKeyStatsFromSession(roundLog).then(() => {
+      void updateKeyStatsFromSession(roundLog).then(() =>
         recomputeAndUnlock().then((s) => {
           const newKeys = s.unlockedKeys.filter(
             (k) => !prevUnlocked.includes(k),
@@ -371,21 +374,20 @@ export default function PracticePage() {
           setAdaptiveState(s)
           setRoundCount((c) => c + 1)
 
-          // Auto-continue unless paused
           if (!adaptivePaused) {
             const text = generateAdaptiveText(
               s.keyConfidences,
               s.unlockedKeys,
               s.focusKey,
-              30,
+              ADAPTIVE_WORD_COUNT,
             )
             continueWithText(text)
             roundKeystrokeStartRef.current = state.keystrokeLog.length
             roundStartTimeRef.current = m.elapsedTime
             adaptiveContinuingRef.current = false
           }
-        })
-      })
+        }),
+      )
     } else {
       const keyCounts: Record<string, { hits: number; errors: number }> = {}
       for (const k of roundLog) {
@@ -396,7 +398,7 @@ export default function PracticePage() {
         if (!k.correct) keyCounts[lower].errors++
       }
 
-      db.transaction("rw", db.keyStats, async () => {
+      void db.transaction("rw", db.keyStats, async () => {
         for (const [key, counts] of Object.entries(keyCounts)) {
           const existing = await db.keyStats.where("key").equals(key).first()
           if (existing) {
@@ -420,7 +422,7 @@ export default function PracticePage() {
     }
 
     const today = new Date().toISOString().split("T")[0]
-    db.transaction("rw", db.dailyGoals, async () => {
+    void db.transaction("rw", db.dailyGoals, async () => {
       const existing = await db.dailyGoals.where("date").equals(today).first()
       const roundMinutes = sessionDuration / 60
       if (existing) {
@@ -443,7 +445,38 @@ export default function PracticePage() {
         })
       }
     })
-  }, [state.isFinished]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    adaptivePaused,
+    adaptiveState,
+    config,
+    continueWithText,
+    getMetrics,
+    state.isFinished,
+    state.isStarted,
+    state.keystrokeLog,
+    state.words,
+  ])
+
+  useEffect(() => {
+    persistFinishedRound()
+  }, [persistFinishedRound])
+
+  useEffect(() => {
+    if (!newlyUnlocked || adaptivePaused) return
+    if (newlyUnlockedTimeoutRef.current) {
+      clearTimeout(newlyUnlockedTimeoutRef.current)
+    }
+    newlyUnlockedTimeoutRef.current = setTimeout(() => {
+      setNewlyUnlocked(null)
+      newlyUnlockedTimeoutRef.current = null
+    }, UNLOCK_TOAST_DURATION_MS)
+    return () => {
+      if (newlyUnlockedTimeoutRef.current) {
+        clearTimeout(newlyUnlockedTimeoutRef.current)
+        newlyUnlockedTimeoutRef.current = null
+      }
+    }
+  }, [adaptivePaused, newlyUnlocked])
 
   const activeKeys = useMemo(() => {
     if (config.mode === "adaptive" && adaptiveState) {
@@ -511,9 +544,6 @@ export default function PracticePage() {
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ type: "spring", damping: 20 }}
             className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-sm font-medium text-emerald-700 dark:text-emerald-400 shadow-lg"
-            onAnimationComplete={() => {
-              setTimeout(() => setNewlyUnlocked(null), 2500)
-            }}
           >
             🔓 New key unlocked: <span className="font-mono font-bold text-base">{newlyUnlocked.toUpperCase()}</span>
           </motion.div>
