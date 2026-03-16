@@ -14,11 +14,11 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { KeyboardIcon, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { KeyStat, TypingSession } from "@/lib/db"
+import type { TypingSession } from "@/lib/db"
 
 interface KeyDetailPanelProps {
-  keyStats: KeyStat[]
   sessions: TypingSession[]
+  title?: string
 }
 
 interface PerKeyData {
@@ -31,24 +31,11 @@ interface PerKeyData {
   learningRate: number
 }
 
-export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
+export function KeyDetailPanel({ sessions, title = "Per-Key Analysis" }: KeyDetailPanelProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const perKeyData = useMemo(() => {
     const map = new Map<string, PerKeyData>()
-
-    for (const stat of keyStats) {
-      if (stat.totalHits === 0) continue
-      map.set(stat.key, {
-        key: stat.key,
-        totalHits: stat.totalHits,
-        errors: stat.errors,
-        errorRate: stat.totalHits > 0 ? stat.errors / stat.totalHits : 0,
-        avgLatency: 0,
-        recentSamples: [],
-        learningRate: 0,
-      })
-    }
 
     const recentSessions = sessions.slice(-20)
     for (let si = 0; si < recentSessions.length; si++) {
@@ -63,12 +50,53 @@ export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
       }
 
       for (const [key, counts] of Object.entries(keyHits)) {
-        const data = map.get(key)
-        if (data && counts.total > 0) {
-          const speed = Math.round(
-            (counts.correct / counts.total) * 100,
-          )
+        const data = map.get(key) ?? {
+          key,
+          totalHits: 0,
+          errors: 0,
+          errorRate: 0,
+          avgLatency: 0,
+          recentSamples: [],
+          learningRate: 0,
+        }
+        data.totalHits += counts.total
+        data.errors += counts.total - counts.correct
+        if (counts.total > 0) {
+          const speed = Math.round((counts.correct / counts.total) * 100)
           data.recentSamples.push({ session: si + 1, speed })
+        }
+        map.set(key, data)
+      }
+    }
+
+    for (const data of map.values()) {
+      data.errorRate = data.totalHits > 0 ? data.errors / data.totalHits : 0
+    }
+
+    for (const session of sessions) {
+      const perKeyTimestamps = new Map<string, number[]>()
+      for (const stroke of session.keystrokes) {
+        const key = stroke.key.toLowerCase()
+        if (!stroke.correct || key.length !== 1 || key < "a" || key > "z") continue
+        const existing = perKeyTimestamps.get(key) ?? []
+        existing.push(stroke.timestamp)
+        perKeyTimestamps.set(key, existing)
+      }
+
+      for (const [key, timestamps] of perKeyTimestamps) {
+        if (timestamps.length < 2) continue
+        const latencies: number[] = []
+        for (let i = 1; i < timestamps.length; i++) {
+          const latency = timestamps[i] - timestamps[i - 1]
+          if (latency > 0) {
+            latencies.push(latency)
+          }
+        }
+        if (latencies.length === 0) continue
+        const avgLatency = latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
+        const data = map.get(key)
+        if (data) {
+          data.avgLatency = data.avgLatency > 0 ? (data.avgLatency + avgLatency) / 2 : avgLatency
         }
       }
     }
@@ -87,7 +115,7 @@ export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
     }
 
     return [...map.values()].sort((a, b) => b.totalHits - a.totalHits)
-  }, [keyStats, sessions])
+  }, [sessions])
 
   const selected = selectedKey
     ? perKeyData.find((d) => d.key === selectedKey)
@@ -99,7 +127,7 @@ export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <KeyboardIcon className="h-4 w-4 text-primary" />
-            Per-Key Analysis
+            {title}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8 text-sm text-muted-foreground">
@@ -112,11 +140,11 @@ export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <KeyboardIcon className="h-4 w-4 text-primary" />
-          Per-Key Analysis
-        </CardTitle>
-      </CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <KeyboardIcon className="h-4 w-4 text-primary" />
+            {title}
+          </CardTitle>
+        </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
           {/* Key selector */}

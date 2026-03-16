@@ -1,10 +1,3 @@
-export const homeRowKeys = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
-export const topRowKeys = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]
-export const bottomRowKeys = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
-export const numberRowKeys = [
-  "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-]
-
 export const fingerZones: Record<string, string[]> = {
   "Left Pinky": ["q", "a", "z", "1"],
   "Left Ring": ["w", "s", "x", "2"],
@@ -22,114 +15,6 @@ for (const [finger, keys] of Object.entries(fingerZones)) {
     fingerForKey[key] = finger
   }
 }
-
-export interface LessonDefinition {
-  id: string
-  name: string
-  description: string
-  category: "homeRow" | "topRow" | "bottomRow" | "numbers" | "full" | "custom"
-  keys: string[]
-  level: number
-}
-
-export const beginnerLessons: LessonDefinition[] = [
-  {
-    id: "home-jf",
-    name: "Home Row: J & F",
-    description: "Start with the two index finger home keys",
-    category: "homeRow",
-    keys: ["j", "f"],
-    level: 1,
-  },
-  {
-    id: "home-jfkd",
-    name: "Home Row: J F K D",
-    description: "Add the middle finger keys",
-    category: "homeRow",
-    keys: ["j", "f", "k", "d"],
-    level: 2,
-  },
-  {
-    id: "home-jfkdls",
-    name: "Home Row: + L & S",
-    description: "Add the ring finger keys",
-    category: "homeRow",
-    keys: ["j", "f", "k", "d", "l", "s"],
-    level: 3,
-  },
-  {
-    id: "home-full",
-    name: "Full Home Row",
-    description: "All home row keys including pinkies",
-    category: "homeRow",
-    keys: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
-    level: 4,
-  },
-  {
-    id: "top-er",
-    name: "Top Row: E & R",
-    description: "Common top row keys for index and middle fingers",
-    category: "topRow",
-    keys: ["a", "s", "d", "f", "g", "h", "j", "k", "l", "e", "r"],
-    level: 5,
-  },
-  {
-    id: "top-ti",
-    name: "Top Row: + T & I",
-    description: "Add T and I to your repertoire",
-    category: "topRow",
-    keys: ["a", "s", "d", "f", "g", "h", "j", "k", "l", "e", "r", "t", "i"],
-    level: 6,
-  },
-  {
-    id: "top-full",
-    name: "Full Top Row",
-    description: "All top row keys combined with home row",
-    category: "topRow",
-    keys: [
-      ...homeRowKeys,
-      ...topRowKeys,
-    ],
-    level: 7,
-  },
-  {
-    id: "bottom-nm",
-    name: "Bottom Row: N & M",
-    description: "Start the bottom row with index finger keys",
-    category: "bottomRow",
-    keys: [
-      ...homeRowKeys,
-      ...topRowKeys,
-      "n", "m",
-    ],
-    level: 8,
-  },
-  {
-    id: "bottom-full",
-    name: "Full Bottom Row",
-    description: "All three rows combined",
-    category: "bottomRow",
-    keys: [
-      ...homeRowKeys,
-      ...topRowKeys,
-      ...bottomRowKeys,
-    ],
-    level: 9,
-  },
-  {
-    id: "numbers",
-    name: "Number Row",
-    description: "Add number keys to complete the keyboard",
-    category: "numbers",
-    keys: [
-      ...homeRowKeys,
-      ...topRowKeys,
-      ...bottomRowKeys,
-      ...numberRowKeys,
-    ],
-    level: 10,
-  },
-]
 
 export const commonWords: Record<string, string[]> = {
   easy: [
@@ -193,26 +78,6 @@ export const quotes = [
   "The greatest glory in living lies not in never falling but in rising every time we fall.",
   "Do not go where the path may lead. Go instead where there is no path and leave a trail.",
 ]
-
-export function generateTextFromKeys(
-  keys: string[],
-  wordCount: number,
-): string {
-  const words: string[] = []
-  const letterKeys = keys.filter((k) => /^[a-z]$/.test(k))
-
-  if (letterKeys.length === 0) return ""
-
-  for (let i = 0; i < wordCount; i++) {
-    const len = Math.floor(Math.random() * 4) + 2
-    let word = ""
-    for (let j = 0; j < len; j++) {
-      word += letterKeys[Math.floor(Math.random() * letterKeys.length)]
-    }
-    words.push(word)
-  }
-  return words.join(" ")
-}
 
 export function generateWordText(
   difficulty: "easy" | "medium" | "hard",

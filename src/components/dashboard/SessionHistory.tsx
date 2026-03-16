@@ -6,9 +6,13 @@ import type { TypingSession } from "@/lib/db"
 
 interface SessionHistoryProps {
   sessions: TypingSession[]
+  title?: string
 }
 
-export function SessionHistory({ sessions }: SessionHistoryProps) {
+export function SessionHistory({
+  sessions,
+  title = "Recent Sessions",
+}: SessionHistoryProps) {
   const recent = [...sessions]
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 20)
@@ -16,10 +20,10 @@ export function SessionHistory({ sessions }: SessionHistoryProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <History className="h-4 w-4 text-primary" />
-          Recent Sessions
-        </CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4 text-primary" />
+            {title}
+          </CardTitle>
       </CardHeader>
       <CardContent>
         {recent.length === 0 ? (

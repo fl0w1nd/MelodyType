@@ -15,9 +15,10 @@ import type { TypingSession } from "@/lib/db"
 
 interface WpmChartProps {
   sessions: TypingSession[]
+  title?: string
 }
 
-export function WpmChart({ sessions }: WpmChartProps) {
+export function WpmChart({ sessions, title = "WPM Over Time" }: WpmChartProps) {
   const data = sessions
     .slice(-30)
     .map((s, i) => ({
@@ -36,7 +37,7 @@ export function WpmChart({ sessions }: WpmChartProps) {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <TrendingUp className="h-4 w-4 text-primary" />
-            WPM Over Time
+            {title}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-48 text-muted-foreground text-sm">
@@ -50,8 +51,8 @@ export function WpmChart({ sessions }: WpmChartProps) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          WPM Over Time
+            <TrendingUp className="h-4 w-4 text-primary" />
+            {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -98,7 +99,7 @@ export function WpmChart({ sessions }: WpmChartProps) {
   )
 }
 
-export function AccuracyChart({ sessions }: WpmChartProps) {
+export function AccuracyChart({ sessions, title = "Accuracy Trend" }: WpmChartProps) {
   const data = sessions
     .slice(-30)
     .map((s, i) => ({
@@ -114,7 +115,7 @@ export function AccuracyChart({ sessions }: WpmChartProps) {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Accuracy Trend</CardTitle>
+          <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-48 text-muted-foreground text-sm">
           No data yet
@@ -126,7 +127,7 @@ export function AccuracyChart({ sessions }: WpmChartProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Accuracy Trend</CardTitle>
+          <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
