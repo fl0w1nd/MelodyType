@@ -1,0 +1,824 @@
+{
+  "quotes": [
+    {
+      "text": "The only way to do great work is to love what you do.",
+      "author": "Steve Jobs",
+      "length": "medium"
+    },
+    {
+      "text": "In the middle of difficulty lies opportunity.",
+      "author": "Albert Einstein",
+      "length": "short"
+    },
+    {
+      "text": "Life is what happens when you're busy making other plans.",
+      "author": "John Lennon",
+      "length": "medium"
+    },
+    {
+      "text": "The future belongs to those who believe in the beauty of their dreams.",
+      "author": "Eleanor Roosevelt",
+      "length": "medium"
+    },
+    {
+      "text": "It does not matter how slowly you go as long as you do not stop.",
+      "author": "Confucius",
+      "length": "medium"
+    },
+    {
+      "text": "The best time to plant a tree was twenty years ago. The second best time is now.",
+      "author": "Chinese Proverb",
+      "length": "medium"
+    },
+    {
+      "text": "Your time is limited, so don't waste it living someone else's life.",
+      "author": "Steve Jobs",
+      "length": "medium"
+    },
+    {
+      "text": "Believe you can and you're halfway there.",
+      "author": "Theodore Roosevelt",
+      "length": "short"
+    },
+    {
+      "text": "The only impossible journey is the one you never begin.",
+      "author": "Tony Robbins",
+      "length": "medium"
+    },
+    {
+      "text": "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+      "author": "Winston Churchill",
+      "length": "medium"
+    },
+    {
+      "text": "What you get by achieving your goals is not as important as what you become by achieving your goals.",
+      "author": "Zig Ziglar",
+      "length": "medium"
+    },
+    {
+      "text": "The way to get started is to quit talking and begin doing.",
+      "author": "Walt Disney",
+      "length": "medium"
+    },
+    {
+      "text": "If you look at what you have in life, you'll always have more.",
+      "author": "Oprah Winfrey",
+      "length": "medium"
+    },
+    {
+      "text": "Life is really simple, but we insist on making it complicated.",
+      "author": "Confucius",
+      "length": "medium"
+    },
+    {
+      "text": "The purpose of our lives is to be happy.",
+      "author": "Dalai Lama",
+      "length": "short"
+    },
+    {
+      "text": "You only live once, but if you do it right, once is enough.",
+      "author": "Mae West",
+      "length": "medium"
+    },
+    {
+      "text": "Many of life's failures are people who did not realize how close they were to success when they gave up.",
+      "author": "Thomas Edison",
+      "length": "medium"
+    },
+    {
+      "text": "Tell me and I forget. Teach me and I remember. Involve me and I learn.",
+      "author": "Benjamin Franklin",
+      "length": "medium"
+    },
+    {
+      "text": "Our greatest glory is not in never falling, but in rising every time we fall.",
+      "author": "Confucius",
+      "length": "medium"
+    },
+    {
+      "text": "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+      "author": "Ralph Waldo Emerson",
+      "length": "medium"
+    },
+    {
+      "text": "What you do today can improve all your tomorrows.",
+      "author": "Ralph Marston",
+      "length": "short"
+    },
+    {
+      "text": "Intelligence without ambition is a bird without wings.",
+      "author": "Salvador Dali",
+      "length": "medium"
+    },
+    {
+      "text": "The key is to keep company only with people who uplift you, whose presence calls forth your best.",
+      "author": "Epictetus",
+      "length": "medium"
+    },
+    {
+      "text": "We may encounter many defeats but we must not be defeated.",
+      "author": "Maya Angelou",
+      "length": "medium"
+    },
+    {
+      "text": "Problems are not stop signs, they are guidelines.",
+      "author": "Robert H. Schuller",
+      "length": "short"
+    },
+    {
+      "text": "Be kind whenever possible. It is always possible.",
+      "author": "Dalai Lama",
+      "length": "short"
+    },
+    {
+      "text": "A creative man is motivated by the desire to achieve, not by the desire to beat others.",
+      "author": "Ayn Rand",
+      "length": "medium"
+    },
+    {
+      "text": "Life is 10% what happens to us and 90% how we react to it.",
+      "author": "Dennis P. Kimbro",
+      "length": "medium"
+    },
+    {
+      "text": "Even if you're on the right track, you'll get run over if you just sit there.",
+      "author": "Will Rogers",
+      "length": "medium"
+    },
+    {
+      "text": "Luck is a dividend of sweat. The more you sweat, the luckier you get.",
+      "author": "Ray Kroc",
+      "length": "medium"
+    },
+    {
+      "text": "Courage is the first of human qualities because it is the quality which guarantees all others.",
+      "author": "Winston Churchill",
+      "length": "medium"
+    },
+    {
+      "text": "The great thing in this world is not so much where you stand, as in what direction you are moving.",
+      "author": "Oliver Wendell Holmes",
+      "length": "medium"
+    },
+    {
+      "text": "Though no one can go back and make a brand new start, anyone can start from now and make a brand new ending.",
+      "author": "Carl Bard",
+      "length": "medium"
+    },
+    {
+      "text": "Speak less than you know; have more than you show.",
+      "author": "William Shakespeare",
+      "length": "medium"
+    },
+    {
+      "text": "Education costs money. But then so does ignorance.",
+      "author": "Sir Claus Moser",
+      "length": "medium"
+    },
+    {
+      "text": "The journey of a thousand miles begins with one step.",
+      "author": "Lao Tzu",
+      "length": "medium"
+    },
+    {
+      "text": "Do not let what you cannot do interfere with what you can do.",
+      "author": "John Wooden",
+      "length": "medium"
+    },
+    {
+      "text": "Defeat is not bitter unless you swallow it.",
+      "author": "Joe Clark",
+      "length": "short"
+    },
+    {
+      "text": "An obstacle is often a stepping stone.",
+      "author": "Prescott",
+      "length": "short"
+    },
+    {
+      "text": "Don't worry about failures, worry about the chances you miss when you don't even try.",
+      "author": "Jack Canfield",
+      "length": "medium"
+    },
+    {
+      "text": "Live each day as if your life had just begun.",
+      "author": "Johann Wolfgang Von Goethe",
+      "length": "short"
+    },
+    {
+      "text": "The secret to getting ahead is getting started.",
+      "author": "Mark Twain",
+      "length": "short"
+    },
+    {
+      "text": "The will to win, the desire to succeed, the urge to reach your full potential, these are the keys that will unlock the door to personal excellence.",
+      "author": "Confucius",
+      "length": "long"
+    },
+    {
+      "text": "The world is full of magical things patiently waiting for our wits to grow sharper.",
+      "author": "Bertrand Russell",
+      "length": "medium"
+    },
+    {
+      "text": "Let us make our future now, and let us make our dreams tomorrow's reality.",
+      "author": "Malala Yousafzai",
+      "length": "medium"
+    },
+    {
+      "text": "All you need is the plan, the road map, and the courage to press on to your destination.",
+      "author": "Earl Nightingale",
+      "length": "medium"
+    },
+    {
+      "text": "The glow of one warm thought is to me worth more than money.",
+      "author": "Thomas Jefferson",
+      "length": "medium"
+    },
+    {
+      "text": "The power of imagination makes us infinite.",
+      "author": "John Muir",
+      "length": "short"
+    },
+    {
+      "text": "Try to be a rainbow in someone's cloud.",
+      "author": "Maya Angelou",
+      "length": "short"
+    },
+    {
+      "text": "Each day provides its own gifts.",
+      "author": "Marcus Aurelius",
+      "length": "short"
+    },
+    {
+      "text": "Creativity is intelligence having fun.",
+      "author": "Albert Einstein",
+      "length": "short"
+    },
+    {
+      "text": "People who are crazy enough to think they can change the world, are the ones who do.",
+      "author": "Rob Siltanen",
+      "length": "medium"
+    },
+    {
+      "text": "Follow your bliss and the universe will open doors where there were only walls.",
+      "author": "Joseph Campbell",
+      "length": "medium"
+    },
+    {
+      "text": "It is always the simple that produces the marvelous.",
+      "author": "Amelia Barr",
+      "length": "medium"
+    },
+    {
+      "text": "Everything you've ever wanted is on the other side of fear.",
+      "author": "George Addair",
+      "length": "medium"
+    },
+    {
+      "text": "Hardships often prepare ordinary people for an extraordinary destiny.",
+      "author": "C.S. Lewis",
+      "length": "medium"
+    },
+    {
+      "text": "Believe in yourself. You are braver than you think, more talented than you know, and capable of more than you imagine.",
+      "author": "Roy T. Bennett",
+      "length": "medium"
+    },
+    {
+      "text": "I learned that courage was not the absence of fear, but the triumph over it. The brave man is not he who does not feel afraid, but he who conquers that fear.",
+      "author": "Nelson Mandela",
+      "length": "long"
+    },
+    {
+      "text": "There is only one thing that makes a dream impossible to achieve: the fear of failure.",
+      "author": "Paulo Coelho",
+      "length": "medium"
+    },
+    {
+      "text": "It's not whether you get knocked down. It's whether you get up.",
+      "author": "Vince Lombardi",
+      "length": "medium"
+    },
+    {
+      "text": "If you believe it will work out, you'll see opportunities. If you believe it won't, you will see obstacles.",
+      "author": "Wayne Dyer",
+      "length": "medium"
+    },
+    {
+      "text": "Struggle is a part of life. Embrace it, learn from it, and grow.",
+      "author": "Anonymous",
+      "length": "medium"
+    },
+    {
+      "text": "If you are not willing to risk the usual, you will have to settle for the ordinary.",
+      "author": "Jim Rohn",
+      "length": "medium"
+    },
+    {
+      "text": "All our dreams can come true if we have the courage to pursue them.",
+      "author": "Walt Disney",
+      "length": "medium"
+    },
+    {
+      "text": "Good things come to people who wait, but better things come to those who go out and get them.",
+      "author": "Anonymous",
+      "length": "medium"
+    },
+    {
+      "text": "If you do what you always did, you will get what you always got.",
+      "author": "Anonymous",
+      "length": "medium"
+    },
+    {
+      "text": "Success is walking from failure to failure with no loss of enthusiasm.",
+      "author": "Winston Churchill",
+      "length": "medium"
+    },
+    {
+      "text": "Just when the caterpillar thought the world was ending, he turned into a butterfly.",
+      "author": "Proverb",
+      "length": "medium"
+    },
+    {
+      "text": "Hope is like the sun, which, as we journey toward it, casts the shadow of our burden behind us.",
+      "author": "Samuel Smiles",
+      "length": "medium"
+    },
+    {
+      "text": "Enthusiasm is the energy and force that builds literal momentum of the human soul and mind.",
+      "author": "Bryant McGill",
+      "length": "medium"
+    },
+    {
+      "text": "Sometimes thinking too much can destroy your momentum.",
+      "author": "Tom Watson",
+      "length": "medium"
+    },
+    {
+      "text": "Work spares us from three evils: boredom, vice, and need.",
+      "author": "Voltaire",
+      "length": "medium"
+    },
+    {
+      "text": "Fortune favors the brave.",
+      "author": "Publius Terence",
+      "length": "short"
+    },
+    {
+      "text": "Strong lives are motivated by dynamic purposes.",
+      "author": "Kenneth Hildebrand",
+      "length": "short"
+    },
+    {
+      "text": "Either write something worth reading or do something worth writing.",
+      "author": "Benjamin Franklin",
+      "length": "medium"
+    },
+    {
+      "text": "If the wind will not serve, take to the oars.",
+      "author": "Latin Proverb",
+      "length": "short"
+    },
+    {
+      "text": "There are no traffic jams along the extra mile.",
+      "author": "Roger Staubach",
+      "length": "short"
+    },
+    {
+      "text": "Too many of us are not living our dreams because we are living our fears.",
+      "author": "Les Brown",
+      "length": "medium"
+    },
+    {
+      "text": "Challenges are what make life interesting and overcoming them is what makes life meaningful.",
+      "author": "Joshua J. Marine",
+      "length": "medium"
+    },
+    {
+      "text": "I have been impressed with the urgency of doing. Knowing is not enough; we must apply. Being willing is not enough; we must do.",
+      "author": "Leonardo da Vinci",
+      "length": "long"
+    },
+    {
+      "text": "Start where you are. Use what you have. Do what you can.",
+      "author": "Arthur Ashe",
+      "length": "medium"
+    },
+    {
+      "text": "Happiness is not something ready made. It comes from your own actions.",
+      "author": "Dalai Lama",
+      "length": "medium"
+    },
+    {
+      "text": "If you are offered a seat on a rocket ship, don't ask what seat! Just get on.",
+      "author": "Sheryl Sandberg",
+      "length": "medium"
+    },
+    {
+      "text": "The question isn't who is going to let me; it's who is going to stop me.",
+      "author": "Ayn Rand",
+      "length": "medium"
+    },
+    {
+      "text": "We are what we repeatedly do. Excellence, therefore, is not an act but a habit.",
+      "author": "Aristotle",
+      "length": "medium"
+    },
+    {
+      "text": "Take calculated risks. That is quite different from being rash.",
+      "author": "George S. Patton",
+      "length": "medium"
+    },
+    {
+      "text": "In every difficult situation is potential value. Believe this, then begin looking for it.",
+      "author": "Norman Vincent Peale",
+      "length": "medium"
+    },
+    {
+      "text": "When everything seems to be going against you, remember that the airplane takes off against the wind, not with it.",
+      "author": "Henry Ford",
+      "length": "medium"
+    },
+    {
+      "text": "The world is wide, and I will not waste my life in friction when it could be turned into momentum.",
+      "author": "Frances E. Willard",
+      "length": "medium"
+    },
+    {
+      "text": "Believe with all of your heart that you will do what you were made to do.",
+      "author": "Orison Swett Marden",
+      "length": "medium"
+    },
+    {
+      "text": "Do not wait to strike till the iron is hot; but make it hot by striking.",
+      "author": "William B. Sprague",
+      "length": "medium"
+    },
+    {
+      "text": "A goal is a dream with a deadline.",
+      "author": "Napoleon Hill",
+      "length": "short"
+    },
+    {
+      "text": "Things do not happen. Things are made to happen.",
+      "author": "John F. Kennedy",
+      "length": "short"
+    },
+    {
+      "text": "Quality is not an act, it is a habit.",
+      "author": "Aristotle",
+      "length": "short"
+    },
+    {
+      "text": "By failing to prepare, you are preparing to fail.",
+      "author": "Benjamin Franklin",
+      "length": "short"
+    },
+    {
+      "text": "Either you run the day or the day runs you.",
+      "author": "Jim Rohn",
+      "length": "short"
+    },
+    {
+      "text": "Once you choose hope, anything's possible.",
+      "author": "Christopher Reeve",
+      "length": "short"
+    },
+    {
+      "text": "Try not to become a person of success, but rather try to become a person of value.",
+      "author": "Albert Einstein",
+      "length": "medium"
+    },
+    {
+      "text": "Someone is sitting in the shade today because someone planted a tree a long time ago.",
+      "author": "Warren Buffett",
+      "length": "medium"
+    },
+    {
+      "text": "If you love what you do and are willing to do what it takes, it's within your reach.",
+      "author": "Steve Wozniak",
+      "length": "medium"
+    },
+    {
+      "text": "Keep on going, and the chances are that you will stumble on something, perhaps when you are least expecting it.",
+      "author": "Charles F. Kettering",
+      "length": "medium"
+    },
+    {
+      "text": "The successful warrior is the average man, with laser-like focus.",
+      "author": "Bruce Lee",
+      "length": "medium"
+    },
+    {
+      "text": "In the midst of movement and chaos, keep stillness inside of you.",
+      "author": "Deepak Chopra",
+      "length": "medium"
+    },
+    {
+      "text": "Success does not consist in never making mistakes but in never making the same one a second time.",
+      "author": "George Bernard Shaw",
+      "length": "medium"
+    },
+    {
+      "text": "If you genuinely want something, don't wait for it; teach yourself to be impatient.",
+      "author": "Gurbaksh Chahal",
+      "length": "medium"
+    },
+    {
+      "text": "Don't let the fear of losing be greater than the excitement of winning.",
+      "author": "Robert Kiyosaki",
+      "length": "medium"
+    },
+    {
+      "text": "Motivation is what gets you started. Habit is what keeps you going.",
+      "author": "Jim Ryun",
+      "length": "medium"
+    },
+    {
+      "text": "People rarely succeed unless they have fun in what they are doing.",
+      "author": "Dale Carnegie",
+      "length": "medium"
+    },
+    {
+      "text": "Little minds are tamed and subdued by misfortune; but great minds rise above it.",
+      "author": "Washington Irving",
+      "length": "medium"
+    },
+    {
+      "text": "Success is most often achieved by those who don't know that failure is inevitable.",
+      "author": "Coco Chanel",
+      "length": "medium"
+    },
+    {
+      "text": "There are two types of people who will tell you that you cannot make a difference in this world: those who are afraid to try and those who are afraid you will succeed.",
+      "author": "Ray Goforth",
+      "length": "long"
+    },
+    {
+      "text": "Learn from yesterday, live for today, hope for tomorrow. The important thing is not to stop questioning.",
+      "author": "Albert Einstein",
+      "length": "medium"
+    },
+    {
+      "text": "Opportunities don't happen. You create them.",
+      "author": "Chris Grosser",
+      "length": "short"
+    },
+    {
+      "text": "You miss 100 percent of the shots you don't take.",
+      "author": "Wayne Gretzky",
+      "length": "short"
+    },
+    {
+      "text": "If you can't explain it simply, you don't understand it well enough.",
+      "author": "Albert Einstein",
+      "length": "medium"
+    },
+    {
+      "text": "I believe every human has a finite number of heartbeats. I don't intend to waste any of mine.",
+      "author": "Neil Armstrong",
+      "length": "medium"
+    },
+    {
+      "text": "The two most important days in your life are the day you are born and the day you find out why.",
+      "author": "Mark Twain",
+      "length": "medium"
+    },
+    {
+      "text": "As you grow older, you will discover that you have two hands, one for helping yourself, the other for helping others.",
+      "author": "Audrey Hepburn",
+      "length": "medium"
+    },
+    {
+      "text": "It's not about how hard you can hit; it's about how hard you can get hit and keep moving forward.",
+      "author": "Rocky Balboa",
+      "length": "medium"
+    },
+    {
+      "text": "If you want to go fast, go alone. If you want to go far, go together.",
+      "author": "African Proverb",
+      "length": "medium"
+    },
+    {
+      "text": "Nothing lasts forever. Not even your troubles.",
+      "author": "Arnold H. Glasgow",
+      "length": "short"
+    },
+    {
+      "text": "There are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.",
+      "author": "Albert Einstein",
+      "length": "long"
+    },
+    {
+      "text": "To accomplish great things, we must not only act, but also dream, not only plan, but also believe.",
+      "author": "Anatole France",
+      "length": "medium"
+    },
+    {
+      "text": "You measure the size of the accomplishment by the obstacles you had to overcome to reach your goals.",
+      "author": "Booker T. Washington",
+      "length": "medium"
+    },
+    {
+      "text": "Most of the important things in the world have been accomplished by people who have kept on trying when there seemed to be no hope at all.",
+      "author": "Dale Carnegie",
+      "length": "long"
+    },
+    {
+      "text": "A life spent making mistakes is not only more honorable but more useful than a life spent doing nothing.",
+      "author": "George Bernard Shaw",
+      "length": "medium"
+    },
+    {
+      "text": "It is better to fail in originality than to succeed in imitation.",
+      "author": "Herman Melville",
+      "length": "medium"
+    },
+    {
+      "text": "Fortune sides with him who dares.",
+      "author": "Virgil",
+      "length": "short"
+    },
+    {
+      "text": "You may have to fight a battle more than once to win it.",
+      "author": "Margaret Thatcher",
+      "length": "medium"
+    },
+    {
+      "text": "Where hope grows, miracles blossom.",
+      "author": "Elna Rae",
+      "length": "short"
+    },
+    {
+      "text": "Make the most of yourself, for that is all there is of you.",
+      "author": "Ralph Waldo Emerson",
+      "length": "medium"
+    },
+    {
+      "text": "Hope never abandons you, you abandon it.",
+      "author": "George Weinberg",
+      "length": "short"
+    },
+    {
+      "text": "Nothing splendid has ever been achieved except by those who dared believe that something inside of them was superior to circumstance.",
+      "author": "Bruce Barton",
+      "length": "long"
+    },
+    {
+      "text": "If you want to achieve excellence, you can get there today. As of this second, quit doing less-than-excellent work.",
+      "author": "Thomas J. Watson",
+      "length": "medium"
+    },
+    {
+      "text": "The only limit to our realization of tomorrow will be our doubts of today.",
+      "author": "Franklin D. Roosevelt",
+      "length": "medium"
+    },
+    {
+      "text": "It always seems impossible until it's done.",
+      "author": "Nelson Mandela",
+      "length": "short"
+    },
+    {
+      "text": "Act as if what you do makes a difference. It does.",
+      "author": "William James",
+      "length": "medium"
+    },
+    {
+      "text": "What lies behind us and what lies before us are tiny matters compared to what lies within us.",
+      "author": "Ralph Waldo Emerson",
+      "length": "medium"
+    },
+    {
+      "text": "The mind is everything. What you think you become.",
+      "author": "Buddha",
+      "length": "medium"
+    },
+    {
+      "text": "Strive not to be a success, but rather to be of value.",
+      "author": "Albert Einstein",
+      "length": "medium"
+    },
+    {
+      "text": "The best revenge is massive success.",
+      "author": "Frank Sinatra",
+      "length": "short"
+    },
+    {
+      "text": "I find that the harder I work, the more luck I seem to have.",
+      "author": "Thomas Jefferson",
+      "length": "medium"
+    },
+    {
+      "text": "Everything has beauty, but not everyone sees it.",
+      "author": "Confucius",
+      "length": "short"
+    },
+    {
+      "text": "Life shrinks or expands in proportion to one's courage.",
+      "author": "Anais Nin",
+      "length": "medium"
+    },
+    {
+      "text": "Change your thoughts and you change your world.",
+      "author": "Norman Vincent Peale",
+      "length": "short"
+    },
+    {
+      "text": "Whether you think you can or you think you can't, you're right.",
+      "author": "Henry Ford",
+      "length": "medium"
+    },
+    {
+      "text": "The only person you are destined to become is the person you decide to be.",
+      "author": "Ralph Waldo Emerson",
+      "length": "medium"
+    },
+    {
+      "text": "In three words I can sum up everything I've learned about life: it goes on.",
+      "author": "Robert Frost",
+      "length": "medium"
+    },
+    {
+      "text": "You must be the change you wish to see in the world.",
+      "author": "Mahatma Gandhi",
+      "length": "medium"
+    },
+    {
+      "text": "Knowing is not enough; we must apply. Wishing is not enough; we must do.",
+      "author": "Johann Wolfgang Von Goethe",
+      "length": "medium"
+    },
+    {
+      "text": "No one can make you feel inferior without your consent.",
+      "author": "Eleanor Roosevelt",
+      "length": "medium"
+    },
+    {
+      "text": "Simplicity is the ultimate sophistication.",
+      "author": "Leonardo da Vinci",
+      "length": "short"
+    },
+    {
+      "text": "Turn your wounds into wisdom.",
+      "author": "Oprah Winfrey",
+      "length": "short"
+    },
+    {
+      "text": "Well done is better than well said.",
+      "author": "Benjamin Franklin",
+      "length": "short"
+    },
+    {
+      "text": "The best way to predict the future is to create it.",
+      "author": "Abraham Lincoln",
+      "length": "medium"
+    },
+    {
+      "text": "If opportunity doesn't knock, build a door.",
+      "author": "Milton Berle",
+      "length": "short"
+    },
+    {
+      "text": "Every moment is a fresh beginning.",
+      "author": "T.S. Eliot",
+      "length": "short"
+    },
+    {
+      "text": "Do what you can, with what you have, where you are.",
+      "author": "Theodore Roosevelt",
+      "length": "medium"
+    },
+    {
+      "text": "Perfection is not attainable, but if we chase perfection we can catch excellence.",
+      "author": "Vince Lombardi",
+      "length": "medium"
+    },
+    {
+      "text": "What we achieve inwardly will change outer reality.",
+      "author": "Plutarch",
+      "length": "medium"
+    },
+    {
+      "text": "Dream big and dare to fail.",
+      "author": "Norman Vaughan",
+      "length": "short"
+    },
+    {
+      "text": "Tough times never last, but tough people do.",
+      "author": "Robert H. Schuller",
+      "length": "short"
+    },
+    {
+      "text": "It is during our darkest moments that we must focus to see the light.",
+      "author": "Aristotle",
+      "length": "medium"
+    },
+    {
+      "text": "Stay hungry, stay foolish.",
+      "author": "Steve Jobs",
+      "length": "short"
+    }
+  ]
+}

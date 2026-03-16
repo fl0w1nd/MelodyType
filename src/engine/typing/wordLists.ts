@@ -84,29 +84,6 @@ export const commonWords: Record<string, string[]> = {
   ],
 }
 
-export const quotes = [
-  "The only way to do great work is to love what you do.",
-  "In the middle of difficulty lies opportunity.",
-  "Life is what happens when you are busy making other plans.",
-  "The future belongs to those who believe in the beauty of their dreams.",
-  "It does not matter how slowly you go as long as you do not stop.",
-  "The best time to plant a tree was twenty years ago. The second best time is now.",
-  "Your time is limited so do not waste it living someone else's life.",
-  "Believe you can and you are halfway there.",
-  "The only impossible journey is the one you never begin.",
-  "Success is not final and failure is not fatal. It is the courage to continue that counts.",
-  "What you get by achieving your goals is not as important as what you become by achieving your goals.",
-  "The way to get started is to quit talking and begin doing.",
-  "If you look at what you have in life you will always have more.",
-  "Life is really simple but we insist on making it complicated.",
-  "The purpose of our lives is to be happy.",
-  "You only live once but if you do it right once is enough.",
-  "Many of life's failures are people who did not realize how close they were to success when they gave up.",
-  "Tell me and I forget. Teach me and I remember. Involve me and I learn.",
-  "The greatest glory in living lies not in never falling but in rising every time we fall.",
-  "Do not go where the path may lead. Go instead where there is no path and leave a trail.",
-]
-
 const punctuationMarks = [".", ",", ";", ":", "!", "?", "-", "'"]
 const sentenceEnders = [".", "!", "?"]
 
@@ -181,6 +158,4 @@ export function generateWordText(
   return words.join(" ")
 }
 
-export function getRandomQuote(): string {
-  return quotes[Math.floor(Math.random() * quotes.length)]
-}
+

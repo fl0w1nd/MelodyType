@@ -15,10 +15,8 @@ import {
   NoteParticles,
   useNoteParticles,
 } from "@/components/practice/NoteParticles"
-import {
-  generateWordText,
-  getRandomQuote,
-} from "@/engine/typing/wordLists"
+import { generateWordText } from "@/engine/typing/wordLists"
+import { getRandomQuoteAsync, preloadQuotes } from "@/engine/typing/quoteLoader"
 import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
 import type { AdaptiveSettings, AdaptiveState } from "@/engine/typing/adaptiveEngine"
@@ -119,6 +117,9 @@ export default function PracticePage() {
   const adaptiveContinuingRef = useRef(false)
   const newlyUnlockedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Quote mode: author attribution
+  const [quoteAuthor, setQuoteAuthor] = useState<string | null>(null)
+
   // Time mode: level selection vs typing
   const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
   const [timeLevelKey, setTimeLevelKey] = useState(0)
@@ -163,8 +164,12 @@ export default function PracticePage() {
     })
   }, [config.mode, loadText])
 
+  useEffect(() => {
+    preloadQuotes()
+  }, [])
+
   const generateText = useCallback(
-    (cfg: PracticeModeConfig, aState?: AdaptiveState | null): string => {
+    async (cfg: PracticeModeConfig, aState?: AdaptiveState | null): Promise<string> => {
       switch (cfg.mode) {
         case "adaptive": {
           const st = aState ?? adaptiveState
@@ -191,8 +196,11 @@ export default function PracticePage() {
             numbers: cfg.numbers,
           })
         }
-        case "quote":
-          return getRandomQuote()
+        case "quote": {
+          const quote = await getRandomQuoteAsync()
+          setQuoteAuthor(quote.author)
+          return quote.text
+        }
         default:
           return generateWordText("easy", 25)
       }
@@ -201,8 +209,9 @@ export default function PracticePage() {
   )
 
   const startPractice = useCallback(
-    (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
-      const text = generateText(cfg, aState)
+    async (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
+      if (cfg.mode !== "quote") setQuoteAuthor(null)
+      const text = await generateText(cfg, aState)
       loadText(text, cfg.mode === "time" ? cfg.timeLimit : undefined)
       setRoundCount(0)
       adaptiveContinuingRef.current = false
@@ -681,6 +690,12 @@ export default function PracticePage() {
                 />
                 <NoteParticles particles={particles} />
               </div>
+
+              {quoteAuthor && (
+                <div className="text-center text-xs text-muted-foreground/70 italic">
+                  — {quoteAuthor}
+                </div>
+              )}
 
               <div className="flex justify-center gap-2">
                 <Button
