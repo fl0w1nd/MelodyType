@@ -49,9 +49,20 @@ export function TimeLevelSelect({ onSelectLevel }: TimeLevelSelectProps) {
               map[lid] = { bestWpm: 0, bestAccuracy: 0, attempts: 0 }
             }
             map[lid].attempts++
-            if (s.wpm > map[lid].bestWpm) map[lid].bestWpm = s.wpm
-            if (s.accuracy > map[lid].bestAccuracy)
+            const currentStars = getStars(map[lid])
+            const candidateRecord: LevelRecord = {
+              bestWpm: s.wpm,
+              bestAccuracy: s.accuracy,
+              attempts: map[lid].attempts,
+            }
+            const candidateStars = getStars(candidateRecord)
+            if (
+              candidateStars > currentStars ||
+              (candidateStars === currentStars && s.wpm > map[lid].bestWpm)
+            ) {
+              map[lid].bestWpm = s.wpm
               map[lid].bestAccuracy = s.accuracy
+            }
           } catch {
             /* skip malformed config */
           }

@@ -128,7 +128,7 @@ function applyPunctuation(words: string[]): string[] {
       sentenceLen = 0
       nextEnd = targetSentenceLen()
     } else if (Math.random() < 0.08 && sentenceLen > 2) {
-      const mid = punctuationMarks[Math.floor(Math.random() * 3)]
+      const mid = punctuationMarks[1 + Math.floor(Math.random() * 2)]
       result[i] = result[i] + mid
     }
   }

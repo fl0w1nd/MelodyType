@@ -305,6 +305,6 @@ export const TIER_ORDER: TimeTier[] = ["beginner", "intermediate", "advanced", "
 export function getStars(record: LevelRecord | null): number {
   if (!record || record.attempts === 0) return 0
   if (record.bestWpm >= 60 && record.bestAccuracy >= 95) return 3
-  if (record.bestWpm >= 30) return 2
+  if (record.bestWpm >= 30 && record.bestAccuracy >= 80) return 2
   return 1
 }
