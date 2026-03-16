@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   getAdaptiveKeyColorClass,
-  getConfidenceBarColorClass,
+  getAdaptiveKeyBarClass,
 } from "@/engine/typing/adaptiveEngine"
 
 const rows = [
@@ -140,7 +140,7 @@ function VirtualKeyboardInner({
                   <div
                     className={cn(
                       "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 rounded-full transition-all",
-                      getConfidenceBarColorClass(kc.confidence),
+                      getAdaptiveKeyBarClass(kc),
                     )}
                     style={{ width: `${Math.min(kc.confidence * 100, 100) * 0.7}%` }}
                   />

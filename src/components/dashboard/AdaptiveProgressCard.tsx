@@ -19,8 +19,9 @@ import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
   LETTER_FREQUENCY_ORDER,
-  getConfidenceColorClass,
-  getConfidenceBarColorClass,
+  getAdaptiveKeyToneClass,
+  getAdaptiveKeyBarClass,
+  isKeyStrictlyMastered,
 } from "@/engine/typing/adaptiveEngine"
 
 export function AdaptiveProgressCard() {
@@ -30,9 +31,7 @@ export function AdaptiveProgressCard() {
     if (!adaptiveState) return null
 
     const unlocked = adaptiveState.keyConfidences.filter((k) => k.unlocked)
-    const mastered = unlocked.filter(
-      (k) => k.bestConfidence >= 1.0,
-    )
+    const mastered = unlocked.filter((k) => isKeyStrictlyMastered(k))
     const learning = unlocked.filter(
       (k) => k.confidence > 0 && k.bestConfidence < 1.0,
     )
@@ -176,7 +175,7 @@ export function AdaptiveProgressCard() {
                 transition={{ delay: i * 0.02, duration: 0.2 }}
                 className={cn(
                   "relative w-7 h-7 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
-                  getConfidenceColorClass(kc.confidence, kc.unlocked),
+                  getAdaptiveKeyToneClass(kc),
                   kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
                 )}
                 title={
@@ -190,7 +189,7 @@ export function AdaptiveProgressCard() {
                   <div
                     className={cn(
                       "absolute bottom-0 left-0 right-0 h-0.5 rounded-b",
-                      getConfidenceBarColorClass(kc.confidence),
+                      getAdaptiveKeyBarClass(kc),
                     )}
                     style={{
                       width: `${Math.min(kc.confidence * 100, 100)}%`,
@@ -251,7 +250,7 @@ function KeyStatMiniRow({
       <div
         className={cn(
           "w-5 h-5 flex items-center justify-center rounded text-[9px] font-mono font-bold border",
-          getConfidenceColorClass(kc.confidence, true),
+          getAdaptiveKeyToneClass(kc),
         )}
       >
         {kc.key.toUpperCase()}

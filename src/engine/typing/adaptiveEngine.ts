@@ -66,6 +66,13 @@ export interface KeyConfidence {
   learningRate: LearningRateResult | null
 }
 
+export interface KeyUnlockChecks {
+  speed: boolean
+  hits: boolean
+  recentAccuracy: boolean
+  lifetimeAccuracy: boolean
+}
+
 export interface AdaptiveState {
   unlockedKeys: string[]
   focusKey: string | null
@@ -82,7 +89,7 @@ export function computeMastery(ewmaCpm: number | undefined, targetCpm: number = 
 
 function computeAccuracyPercent(correctHits: number, errorHits: number): number {
   const totalHits = correctHits + errorHits
-  return totalHits > 0 ? (correctHits / totalHits) * 100 : 100
+  return totalHits > 0 ? (correctHits / totalHits) * 100 : 0
 }
 
 function makeMetricSummary(values: number[]): AdaptiveMetricSummary {
@@ -189,15 +196,7 @@ export function shouldUnlockNextKey(confidences: KeyConfidence[], recoverKeys: b
   const unlockedActive = confidences.filter((k) => k.unlocked && !k.forced)
   if (unlockedActive.length === 0) return true
 
-  return unlockedActive.every((k) => {
-    const conf = recoverKeys ? k.confidence : k.bestConfidence
-    return (
-      conf >= 1.0 &&
-      k.samples >= MIN_HITS_FOR_MASTERY &&
-      k.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100 &&
-      k.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100
-    )
-  })
+  return unlockedActive.every((k) => isKeyReadyToUnlock(k, recoverKeys))
 }
 
 export function getNextKeyToUnlock(
@@ -216,12 +215,63 @@ export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean =
   const unlocked = confidences.filter((k) => k.unlocked)
   if (unlocked.length === 0) return null
 
-  const confidenceOf = (k: KeyConfidence) => recoverKeys ? k.confidence : k.bestConfidence
-  const belowTarget = unlocked.filter((k) => confidenceOf(k) < 1.0)
-  if (belowTarget.length === 0) return null
+  const gatedConfidenceOf = (k: KeyConfidence) => recoverKeys ? k.confidence : k.bestConfidence
+  const blocked = unlocked.filter((k) => !isKeyReadyToUnlock(k, recoverKeys))
+  if (blocked.length === 0) return null
 
-  const sorted = [...belowTarget].sort((a, b) => confidenceOf(a) - confidenceOf(b))
+  const sorted = [...blocked].sort((a, b) => {
+    const aChecks = getKeyUnlockChecks(a, recoverKeys)
+    const bChecks = getKeyUnlockChecks(b, recoverKeys)
+    const aPassed = Object.values(aChecks).filter(Boolean).length
+    const bPassed = Object.values(bChecks).filter(Boolean).length
+    if (aPassed !== bPassed) return aPassed - bPassed
+    return gatedConfidenceOf(a) - gatedConfidenceOf(b)
+  })
   return sorted[0].key
+}
+
+export function getKeyUnlockChecks(
+  keyConfidence: KeyConfidence,
+  recoverKeys: boolean = false,
+): KeyUnlockChecks {
+  const gatedConfidence = recoverKeys
+    ? keyConfidence.confidence
+    : keyConfidence.bestConfidence
+
+  return {
+    speed: gatedConfidence >= 1.0,
+    hits: keyConfidence.samples >= MIN_HITS_FOR_MASTERY,
+    recentAccuracy: keyConfidence.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100,
+    lifetimeAccuracy:
+      keyConfidence.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100,
+  }
+}
+
+export function isKeyReadyToUnlock(
+  keyConfidence: KeyConfidence,
+  recoverKeys: boolean = false,
+): boolean {
+  const checks = getKeyUnlockChecks(keyConfidence, recoverKeys)
+  return Object.values(checks).every(Boolean)
+}
+
+export function isKeyStrictlyMastered(keyConfidence: KeyConfidence): boolean {
+  return (
+    keyConfidence.confidence >= 1.0 &&
+    keyConfidence.samples >= MIN_HITS_FOR_MASTERY &&
+    keyConfidence.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100 &&
+    keyConfidence.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100
+  )
+}
+
+export type AdaptiveKeyTier = "locked" | "weak" | "learning" | "good" | "mastered"
+
+export function getAdaptiveKeyTier(keyConfidence: KeyConfidence): AdaptiveKeyTier {
+  if (!keyConfidence.unlocked) return "locked"
+  if (isKeyStrictlyMastered(keyConfidence)) return "mastered"
+  if (keyConfidence.bestConfidence >= 1.0) return "good"
+  if (keyConfidence.confidence >= 0.4) return "learning"
+  return "weak"
 }
 
 export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
@@ -513,33 +563,50 @@ export async function updateKeyStatsFromSession(
   })
 }
 
-export function getConfidenceColorClass(confidence: number, unlocked: boolean): string {
-  if (!unlocked) return "bg-muted/30 text-muted-foreground/40 border-border/30"
-  if (confidence >= 1.0)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
-  if (confidence >= 0.7)
-    return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
-  if (confidence >= 0.4)
-    return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
-  return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
+export function getAdaptiveKeyToneClass(keyConfidence: KeyConfidence): string {
+  switch (getAdaptiveKeyTier(keyConfidence)) {
+    case "mastered":
+      return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
+    case "good":
+      return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
+    case "learning":
+      return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
+    case "weak":
+      return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
+    case "locked":
+    default:
+      return "bg-muted/30 text-muted-foreground/40 border-border/30"
+  }
 }
 
-export function getConfidenceBarColorClass(confidence: number): string {
-  if (confidence >= 1.0) return "bg-emerald-500"
-  if (confidence >= 0.7) return "bg-blue-500"
-  if (confidence >= 0.4) return "bg-amber-500"
-  return "bg-red-500"
+export function getAdaptiveKeyBarClass(keyConfidence: KeyConfidence): string {
+  switch (getAdaptiveKeyTier(keyConfidence)) {
+    case "mastered":
+      return "bg-emerald-500"
+    case "good":
+      return "bg-blue-500"
+    case "learning":
+      return "bg-amber-500"
+    case "weak":
+    case "locked":
+    default:
+      return "bg-red-500"
+  }
 }
 
 export function getAdaptiveKeyColorClass(kc: KeyConfidence): string {
   if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
-  if (kc.confidence >= 1.0)
-    return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
-  if (kc.confidence >= 0.7)
-    return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
-  if (kc.confidence >= 0.4)
-    return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
-  return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
+  switch (getAdaptiveKeyTier(kc)) {
+    case "mastered":
+      return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+    case "good":
+      return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
+    case "learning":
+      return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
+    case "weak":
+    default:
+      return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
+  }
 }
 
 export function computeKeyWeights(
