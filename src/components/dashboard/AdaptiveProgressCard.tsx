@@ -10,6 +10,8 @@ import {
   TrendingUp,
   Gauge,
   Target,
+  Keyboard,
+  Zap,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -55,6 +57,8 @@ export function AdaptiveProgressCard() {
       averageSpeed: adaptiveState.globalSummary.speed.avg,
       averageAccuracy: adaptiveState.globalSummary.accuracy.avg,
       averageScore: adaptiveState.globalSummary.score.avg,
+      totalClicks: adaptiveState.globalSummary.clicks.total,
+      averageCps: adaptiveState.globalSummary.cps.avg,
       weakest,
       strongest,
       totalSessions: adaptiveState.totalSessions,
@@ -123,7 +127,7 @@ export function AdaptiveProgressCard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <AverageMetricCard
             label="Average Speed"
             value={`${stats.totalSessions > 0 ? stats.averageSpeed.toFixed(1) : "—"} wpm`}
@@ -138,6 +142,16 @@ export function AdaptiveProgressCard() {
             label="Average Score"
             value={stats.totalSessions > 0 ? stats.averageScore.toFixed(0) : "—"}
             icon={<TrendingUp className="h-4 w-4 text-primary" />}
+          />
+          <AverageMetricCard
+            label="Total Clicks"
+            value={stats.totalSessions > 0 ? stats.totalClicks.toFixed(0) : "—"}
+            icon={<Keyboard className="h-4 w-4 text-primary" />}
+          />
+          <AverageMetricCard
+            label="Average CPS"
+            value={stats.totalSessions > 0 ? `${stats.averageCps.toFixed(1)} cps` : "—"}
+            icon={<Zap className="h-4 w-4 text-primary" />}
           />
         </div>
 

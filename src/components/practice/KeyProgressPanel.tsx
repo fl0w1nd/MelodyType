@@ -13,6 +13,8 @@ import {
   RotateCcw,
   TrendingUp,
   Activity,
+  Keyboard,
+  Zap,
   AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react"
@@ -334,14 +336,18 @@ function KeyProgressPanelInner({
             icon={<RotateCcw className="h-3 w-3" />}
           />
           <InlineMetric
-            label="Unlocked"
-            value={`${unlockedKeys.length}/${LETTER_FREQUENCY_ORDER.length}`}
-            icon={<Unlock className="h-3 w-3" />}
+            label="Clicks"
+            value={formatSummaryValue(hasSummaryData, globalSummary.clicks.last, "", 0)}
+            icon={<Keyboard className="h-3 w-3" />}
+            delta={showDelta ? formatDelta(globalSummary.clicks.delta, "", 0) : undefined}
+            deltaValue={globalSummary.clicks.delta}
           />
           <InlineMetric
-            label="Mastered"
-            value={String(masteredCount)}
-            icon={<Star className="h-3 w-3" />}
+            label="CPS"
+            value={formatSummaryValue(hasSummaryData, globalSummary.cps.last, "cps", 1)}
+            icon={<Zap className="h-3 w-3" />}
+            delta={showDelta ? formatDelta(globalSummary.cps.delta, "cps", 1) : undefined}
+            deltaValue={globalSummary.cps.delta}
           />
         </div>
       </div>
@@ -409,6 +415,16 @@ function KeyProgressPanelInner({
                   label="Adaptive Sessions"
                   value={String(totalSessions)}
                   icon={<Clock className="h-3.5 w-3.5" />}
+                />
+                <SummaryMetricCard
+                  label="Total Clicks"
+                  value={formatSummaryValue(hasSummaryData, globalSummary.clicks.total, "", 0)}
+                  icon={<Keyboard className="h-3.5 w-3.5" />}
+                />
+                <SummaryMetricCard
+                  label="Average CPS"
+                  value={formatSummaryValue(hasSummaryData, globalSummary.cps.avg, "cps", 1)}
+                  icon={<Zap className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
                   label="Average Confidence"

@@ -35,6 +35,8 @@ export interface AdaptiveGlobalSummary {
   speed: AdaptiveMetricSummary
   accuracy: AdaptiveMetricSummary
   score: AdaptiveMetricSummary
+  clicks: AdaptiveMetricSummary & { total: number }
+  cps: AdaptiveMetricSummary
 }
 
 export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
@@ -158,12 +160,28 @@ function computeAdaptiveGlobalSummary(
   const speeds = sessions.map((session) => session.wpm)
   const accuracies = sessions.map((session) => session.accuracy)
   const scores = sessions.map(computeAdaptiveScore)
+  const clicks = sessions.map((session) => session.keystrokes.length)
+  const cpsValues = sessions.map((session) =>
+    session.duration > 0 ? session.keystrokes.length / session.duration : 0,
+  )
+  const clicksSummary = makeMetricSummary(clicks)
+  const cpsSummary = makeMetricSummary(cpsValues)
+  const totalDuration = sessions.reduce((sum, session) => sum + Math.max(session.duration, 0), 0)
+  const totalClicks = clicks.reduce((sum, value) => sum + value, 0)
 
   return {
     count: sessions.length,
     speed: makeMetricSummary(speeds),
     accuracy: makeMetricSummary(accuracies),
     score: makeMetricSummary(scores),
+    clicks: {
+      ...clicksSummary,
+      total: totalClicks,
+    },
+    cps: {
+      ...cpsSummary,
+      avg: totalDuration > 0 ? totalClicks / totalDuration : 0,
+    },
   }
 }
 
