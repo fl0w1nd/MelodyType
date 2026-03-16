@@ -7,6 +7,9 @@ export interface PracticeModeConfig {
   mode: PracticeMode
   timeLimit?: number
   difficulty?: "easy" | "medium" | "hard"
+  punctuation?: boolean
+  numbers?: boolean
+  levelId?: string
 }
 
 export interface CharState {
