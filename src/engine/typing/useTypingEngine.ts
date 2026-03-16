@@ -133,6 +133,8 @@ export function useTypingEngine(onKeystroke?: () => void) {
         if (e.key === " ") {
           const allCorrect = word.chars.every((c) => c.status === "correct")
           if (allCorrect && next.currentCharIndex === word.chars.length) {
+            entry.correct = true
+            next.keystrokeLog = [...prev.keystrokeLog, entry]
             word.completed = true
             didType = true
             if (next.currentWordIndex < next.words.length - 1) {
@@ -269,6 +271,28 @@ export function useTypingEngine(onKeystroke?: () => void) {
     }
   }, [state, elapsed])
 
+  const continueWithText = useCallback((text: string) => {
+    finishedRef.current = false
+    setState((prev) => ({
+      ...prev,
+      words: textToWords(text),
+      currentWordIndex: 0,
+      currentCharIndex: 0,
+      isFinished: false,
+      endTime: null,
+    }))
+    if (!timerRef.current && startTimeRef.current) {
+      timerRef.current = setInterval(() => {
+        if (!startTimeRef.current) return
+        const secs = Math.floor((Date.now() - startTimeRef.current) / 1000)
+        if (secs !== elapsedRef.current) {
+          elapsedRef.current = secs
+          setElapsed(secs)
+        }
+      }, 200)
+    }
+  }, [])
+
   const reset = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = null
@@ -283,6 +307,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
     state,
     elapsed,
     loadText,
+    continueWithText,
     handleKeyDown,
     getMetrics,
     reset,

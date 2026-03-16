@@ -1,26 +1,48 @@
-import { db, setSetting, type KeyStat } from "@/lib/db"
+import { db, getSetting, setSetting, type KeyStat } from "@/lib/db"
+import { computeLearningRate, type LearningRateResult } from "./learningRate.ts"
 
 export const LETTER_FREQUENCY_ORDER = [
-  "e", "t", "a", "o", "i", "n", "s", "h", "r",
-  "d", "l", "c", "u", "m", "w", "f", "g", "y",
-  "p", "b", "v", "k", "j", "x", "q", "z",
+  "e", "n", "i", "t", "r", "l", "s", "a", "u",
+  "o", "d", "y", "c", "h", "g", "m", "p", "b",
+  "k", "v", "w", "f", "z", "x", "q", "j",
 ]
 
 export const INITIAL_UNLOCK_COUNT = 6
+export const DEFAULT_TARGET_CPM = 175
+export const MIN_TARGET_CPM = 75
+export const MAX_TARGET_CPM = 750
+export const EWMA_ALPHA = 0.1
+export const MIN_HITS_FOR_MASTERY = 10
+export const ACCURACY_DECAY = 0.95
+export const MIN_RECENT_ACCURACY_FOR_MASTERY = 0.92
+export const MIN_LIFETIME_ACCURACY_FOR_MASTERY = 0.85
+export const MIN_LATENCY_MS = 50
+export const MAX_LATENCY_MS = 3000
 
-export const CONFIDENCE_UNLOCK_THRESHOLD = 0.9
-export const TARGET_WPM = 35
-export const MIN_SAMPLES_FOR_CONFIDENCE = 5
-export const MAX_SAMPLES = 20
+export interface AdaptiveSettings {
+  targetCpm: number
+  recoverKeys: boolean
+  alphabetSize: number
+}
+
+export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
+  targetCpm: DEFAULT_TARGET_CPM,
+  recoverKeys: false,
+  alphabetSize: 0,
+}
 
 export interface KeyConfidence {
   key: string
   confidence: number
+  bestConfidence: number
   speed: number
   accuracy: number
+  lifetimeAccuracy: number
   samples: number
   unlocked: boolean
   focused: boolean
+  forced: boolean
+  learningRate: LearningRateResult | null
 }
 
 export interface AdaptiveState {
@@ -28,29 +50,32 @@ export interface AdaptiveState {
   focusKey: string | null
   keyConfidences: KeyConfidence[]
   totalSessions: number
+  settings: AdaptiveSettings
 }
 
-export function computeKeyConfidence(
-  speed: number,
-  accuracy: number,
-  samples: number,
-): number {
-  if (samples < MIN_SAMPLES_FOR_CONFIDENCE) {
-    return (samples / MIN_SAMPLES_FOR_CONFIDENCE) * 0.3
-  }
-
-  const speedScore = Math.min(speed / TARGET_WPM, 1)
-  const accuracyScore = accuracy / 100
-  const sampleWeight = Math.min(samples / MAX_SAMPLES, 1)
-
-  return speedScore * 0.5 + accuracyScore * 0.4 + sampleWeight * 0.1
+export function computeMastery(ewmaCpm: number | undefined, targetCpm: number = DEFAULT_TARGET_CPM): number {
+  if (!ewmaCpm || ewmaCpm <= 0) return 0
+  return ewmaCpm / targetCpm
 }
 
-export function shouldUnlockNextKey(confidences: KeyConfidence[]): boolean {
-  const unlockedActive = confidences.filter((k) => k.unlocked)
+function computeAccuracyPercent(correctHits: number, errorHits: number): number {
+  const totalHits = correctHits + errorHits
+  return totalHits > 0 ? (correctHits / totalHits) * 100 : 100
+}
+
+export function shouldUnlockNextKey(confidences: KeyConfidence[], recoverKeys: boolean = false): boolean {
+  const unlockedActive = confidences.filter((k) => k.unlocked && !k.forced)
   if (unlockedActive.length === 0) return true
 
-  return unlockedActive.every((k) => k.confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+  return unlockedActive.every((k) => {
+    const conf = recoverKeys ? k.confidence : k.bestConfidence
+    return (
+      conf >= 1.0 &&
+      k.samples >= MIN_HITS_FOR_MASTERY &&
+      k.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100 &&
+      k.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100
+    )
+  })
 }
 
 export function getNextKeyToUnlock(
@@ -65,86 +90,138 @@ export function getNextKeyToUnlock(
   return null
 }
 
-export function getFocusKey(confidences: KeyConfidence[]): string | null {
-  const unlocked = confidences.filter((k) => k.unlocked && k.samples > 0)
+export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean = false): string | null {
+  const unlocked = confidences.filter((k) => k.unlocked)
   if (unlocked.length === 0) return null
 
-  const sorted = [...unlocked].sort((a, b) => a.confidence - b.confidence)
+  const confidenceOf = (k: KeyConfidence) => recoverKeys ? k.confidence : k.bestConfidence
+  const belowTarget = unlocked.filter((k) => confidenceOf(k) < 1.0)
+  if (belowTarget.length === 0) return null
+
+  const sorted = [...belowTarget].sort((a, b) => confidenceOf(a) - confidenceOf(b))
   return sorted[0].key
 }
 
+export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
+  const [targetCpmStr, recoverKeysStr, alphabetSizeStr] = await Promise.all([
+    getSetting("adaptive_targetCpm"),
+    getSetting("adaptive_recoverKeys"),
+    getSetting("adaptive_alphabetSize"),
+  ])
+  return {
+    targetCpm: targetCpmStr ? Number(targetCpmStr) : DEFAULT_TARGET_CPM,
+    recoverKeys: recoverKeysStr === "true",
+    alphabetSize: alphabetSizeStr ? Number(alphabetSizeStr) : 0,
+  }
+}
+
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
-  const keyStats = await db.keyStats.toArray()
-  const sessions = await db.sessions.where("mode").equals("adaptive").count()
+  const [keyStats, sessions, savedUnlocked, adaptSettings] = await Promise.all([
+    db.keyStats.toArray(),
+    db.sessions.where("mode").equals("adaptive").count(),
+    db.settings.where("key").equals("adaptive_unlocked").first(),
+    loadAdaptiveSettings(),
+  ])
 
   const statsMap = new Map<string, KeyStat>()
   for (const stat of keyStats) {
     statsMap.set(stat.key, stat)
   }
 
-  const savedUnlocked = await db.settings.where("key").equals("adaptive_unlocked").first()
   let unlockedKeys: string[]
-
   if (savedUnlocked) {
     unlockedKeys = JSON.parse(savedUnlocked.value)
   } else {
     unlockedKeys = LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)
   }
 
-  const keyConfidences: KeyConfidence[] = LETTER_FREQUENCY_ORDER.map((letter) => {
+  const unlockedSet = new Set(unlockedKeys)
+  const minSize = INITIAL_UNLOCK_COUNT
+  const maxSize = minSize + Math.round((LETTER_FREQUENCY_ORDER.length - minSize) * adaptSettings.alphabetSize)
+
+  const keyConfidences: KeyConfidence[] = LETTER_FREQUENCY_ORDER.map((letter, index) => {
     const stat = statsMap.get(letter)
-    const isUnlocked = unlockedKeys.includes(letter)
+    const isUnlocked = unlockedSet.has(letter)
+    const isForced = !isUnlocked && index < maxSize
 
-    if (!stat || stat.totalHits === 0) {
-      return {
-        key: letter,
-        confidence: 0,
-        speed: 0,
-        accuracy: 100,
-        samples: 0,
-        unlocked: isUnlocked,
-        focused: false,
-      }
-    }
+    const ewmaCpm = stat?.adaptiveEwmaCpm
+    const bestCpm = stat?.adaptiveBestCpm
+    const correctHits = stat?.adaptiveCorrectHits ?? 0
+    const errorHits = stat?.adaptiveErrorHits ?? 0
+    const decayedCorrectHits = stat?.adaptiveDecayedCorrectHits ?? correctHits
+    const decayedErrorHits = stat?.adaptiveDecayedErrorHits ?? errorHits
+    const confidence = computeMastery(ewmaCpm, adaptSettings.targetCpm)
+    const bestConfidence = computeMastery(bestCpm, adaptSettings.targetCpm)
 
-    const accuracy = stat.totalHits > 0
-      ? ((stat.totalHits - stat.errors) / stat.totalHits) * 100
-      : 100
-    const speed = stat.avgSpeed || 0
+    const accuracy = computeAccuracyPercent(
+      decayedCorrectHits,
+      decayedErrorHits,
+    )
+    const lifetimeAccuracy = computeAccuracyPercent(correctHits, errorHits)
+    const speed = ewmaCpm ? (ewmaCpm / 5) : 0
+
+    const keySamples = stat?.adaptiveSamples ?? []
+    const lr = keySamples.length >= 5
+      ? computeLearningRate(keySamples, adaptSettings.targetCpm)
+      : null
 
     return {
       key: letter,
-      confidence: computeKeyConfidence(speed, accuracy, stat.totalHits),
+      confidence,
+      bestConfidence,
       speed,
       accuracy,
-      samples: stat.totalHits,
-      unlocked: isUnlocked,
+      lifetimeAccuracy,
+      samples: correctHits,
+      unlocked: isUnlocked || isForced,
       focused: false,
+      forced: isForced,
+      learningRate: lr,
     }
   })
 
-  if (shouldUnlockNextKey(keyConfidences.filter((k) => k.unlocked))) {
-    const nextKey = getNextKeyToUnlock(unlockedKeys)
-    if (nextKey) {
-      unlockedKeys = [...unlockedKeys, nextKey]
-      const kc = keyConfidences.find((k) => k.key === nextKey)
-      if (kc) kc.unlocked = true
-
-      await saveUnlockedKeys(unlockedKeys)
-    }
-  }
-
-  const focusKey = getFocusKey(keyConfidences)
+  const focusKey = getFocusKey(keyConfidences, adaptSettings.recoverKeys)
   for (const kc of keyConfidences) {
     kc.focused = kc.key === focusKey
   }
 
   return {
-    unlockedKeys,
+    unlockedKeys: keyConfidences.filter((k) => k.unlocked).map((k) => k.key),
     focusKey,
     keyConfidences,
     totalSessions: sessions,
+    settings: adaptSettings,
   }
+}
+
+export async function recomputeAndUnlock(): Promise<AdaptiveState> {
+  const state = await loadAdaptiveState()
+  const { recoverKeys } = state.settings
+
+  const unlockedConfidences = state.keyConfidences.filter((k) => k.unlocked && !k.forced)
+  if (shouldUnlockNextKey(unlockedConfidences, recoverKeys)) {
+    const autoUnlockedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
+    const nextKey = getNextKeyToUnlock(autoUnlockedKeys)
+    if (nextKey) {
+      const kc = state.keyConfidences.find((k) => k.key === nextKey)
+      if (kc) {
+        kc.unlocked = true
+        kc.forced = false
+      }
+
+      const savedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
+      await saveUnlockedKeys(savedKeys)
+
+      state.unlockedKeys = state.keyConfidences.filter((k) => k.unlocked).map((k) => k.key)
+      const newFocus = getFocusKey(state.keyConfidences, recoverKeys)
+      for (const kc of state.keyConfidences) {
+        kc.focused = kc.key === newFocus
+      }
+      state.focusKey = newFocus
+    }
+  }
+
+  return state
 }
 
 export async function saveUnlockedKeys(keys: string[]): Promise<void> {
@@ -156,45 +233,77 @@ export async function updateKeyStatsFromSession(
 ): Promise<void> {
   const keyMetrics: Record<string, {
     hits: number
+    correctHits: number
     errors: number
-    latencies: number[]
+    correctLatencies: number[]
   }> = {}
 
   for (let i = 0; i < keystrokeLog.length; i++) {
     const entry = keystrokeLog[i]
-    if (entry.key.length !== 1) continue
+    if (entry.key.length !== 1 || entry.key === " ") continue
     const lower = entry.key.toLowerCase()
 
     if (!keyMetrics[lower]) {
-      keyMetrics[lower] = { hits: 0, errors: 0, latencies: [] }
+      keyMetrics[lower] = { hits: 0, correctHits: 0, errors: 0, correctLatencies: [] }
     }
 
     keyMetrics[lower].hits++
-    if (!entry.correct) keyMetrics[lower].errors++
-
-    if (i > 0) {
-      const latency = entry.timestamp - keystrokeLog[i - 1].timestamp
-      if (latency > 0 && latency < 5000) {
-        keyMetrics[lower].latencies.push(latency)
+    if (!entry.correct) {
+      keyMetrics[lower].errors++
+    } else {
+      keyMetrics[lower].correctHits++
+      if (i > 0 && keystrokeLog[i - 1].correct) {
+        const latency = entry.timestamp - keystrokeLog[i - 1].timestamp
+        if (latency >= MIN_LATENCY_MS && latency <= MAX_LATENCY_MS) {
+          keyMetrics[lower].correctLatencies.push(latency)
+        }
       }
     }
   }
 
   await db.transaction("rw", db.keyStats, async () => {
     for (const [key, metrics] of Object.entries(keyMetrics)) {
-      const avgLatency = metrics.latencies.length > 0
-        ? metrics.latencies.reduce((a, b) => a + b, 0) / metrics.latencies.length
+      const avgLatency = metrics.correctLatencies.length > 0
+        ? metrics.correctLatencies.reduce((a, b) => a + b, 0) / metrics.correctLatencies.length
         : 0
 
-      const charPerMin = avgLatency > 0 ? (60000 / avgLatency) : 0
-      const wpm = charPerMin / 5
+      const sessionCpm = avgLatency > 0 ? (60000 / avgLatency) : 0
+      const sessionWpm = sessionCpm / 5
 
       const existing = await db.keyStats.where("key").equals(key).first()
       if (existing) {
         const totalHits = existing.totalHits + metrics.hits
         const totalErrors = existing.errors + metrics.errors
+
         const blendFactor = Math.min(metrics.hits / (metrics.hits + existing.totalHits), 0.4)
-        const blendedSpeed = existing.avgSpeed * (1 - blendFactor) + wpm * blendFactor
+        const blendedSpeed = existing.avgSpeed * (1 - blendFactor) + sessionWpm * blendFactor
+
+        const prevEwma = existing.adaptiveEwmaCpm
+        const newEwma = sessionCpm > 0
+          ? (prevEwma ? prevEwma * (1 - EWMA_ALPHA) + sessionCpm * EWMA_ALPHA : sessionCpm)
+          : prevEwma
+        const prevBest = existing.adaptiveBestCpm ?? 0
+        const newBest = newEwma ? Math.max(prevBest, newEwma) : prevBest
+        const newDecayedCorrectHits =
+          (existing.adaptiveDecayedCorrectHits ?? existing.adaptiveCorrectHits ?? 0) *
+          ACCURACY_DECAY +
+          metrics.correctHits
+        const newDecayedErrorHits =
+          (existing.adaptiveDecayedErrorHits ?? existing.adaptiveErrorHits ?? 0) *
+          ACCURACY_DECAY +
+          metrics.errors
+
+        const prevSamples = existing.adaptiveSamples ?? []
+        const prevIndex = existing.adaptiveSampleIndex ?? prevSamples.length
+        const newSample = sessionCpm > 0 ? {
+          index: prevIndex,
+          timestamp: Date.now(),
+          cpm: sessionCpm,
+          filteredCpm: newEwma ?? sessionCpm,
+        } : null
+        const updatedSamples = newSample
+          ? [...prevSamples, newSample].slice(-30)
+          : prevSamples
 
         await db.keyStats.update(existing.id!, {
           totalHits,
@@ -202,15 +311,38 @@ export async function updateKeyStatsFromSession(
           totalLatency: existing.totalLatency + (avgLatency * metrics.hits),
           avgSpeed: blendedSpeed > 0 ? blendedSpeed : existing.avgSpeed,
           lastUpdated: Date.now(),
+          adaptiveEwmaCpm: newEwma ?? existing.adaptiveEwmaCpm,
+          adaptiveBestCpm: newBest || existing.adaptiveBestCpm,
+          adaptiveCorrectHits: (existing.adaptiveCorrectHits ?? 0) + metrics.correctHits,
+          adaptiveErrorHits: (existing.adaptiveErrorHits ?? 0) + metrics.errors,
+          adaptiveDecayedCorrectHits: newDecayedCorrectHits,
+          adaptiveDecayedErrorHits: newDecayedErrorHits,
+          adaptiveSamples: updatedSamples,
+          adaptiveSampleIndex: prevIndex + 1,
         })
       } else {
+        const newSample = sessionCpm > 0 ? {
+          index: 0,
+          timestamp: Date.now(),
+          cpm: sessionCpm,
+          filteredCpm: sessionCpm,
+        } : null
+
         await db.keyStats.add({
           key,
           totalHits: metrics.hits,
           errors: metrics.errors,
           totalLatency: avgLatency * metrics.hits,
-          avgSpeed: wpm,
+          avgSpeed: sessionWpm,
           lastUpdated: Date.now(),
+          adaptiveEwmaCpm: sessionCpm > 0 ? sessionCpm : undefined,
+          adaptiveBestCpm: sessionCpm > 0 ? sessionCpm : undefined,
+          adaptiveCorrectHits: metrics.correctHits,
+          adaptiveErrorHits: metrics.errors,
+          adaptiveDecayedCorrectHits: metrics.correctHits,
+          adaptiveDecayedErrorHits: metrics.errors,
+          adaptiveSamples: newSample ? [newSample] : [],
+          adaptiveSampleIndex: 1,
         })
       }
     }
@@ -219,29 +351,29 @@ export async function updateKeyStatsFromSession(
 
 export function getConfidenceColorClass(confidence: number, unlocked: boolean): string {
   if (!unlocked) return "bg-muted/30 text-muted-foreground/40 border-border/30"
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+  if (confidence >= 1.0)
     return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
-  if (confidence >= 0.6)
+  if (confidence >= 0.7)
     return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40"
-  if (confidence >= 0.3)
+  if (confidence >= 0.4)
     return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40"
   return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40"
 }
 
 export function getConfidenceBarColorClass(confidence: number): string {
-  if (confidence >= CONFIDENCE_UNLOCK_THRESHOLD) return "bg-emerald-500"
-  if (confidence >= 0.6) return "bg-blue-500"
-  if (confidence >= 0.3) return "bg-amber-500"
+  if (confidence >= 1.0) return "bg-emerald-500"
+  if (confidence >= 0.7) return "bg-blue-500"
+  if (confidence >= 0.4) return "bg-amber-500"
   return "bg-red-500"
 }
 
 export function getAdaptiveKeyColorClass(kc: KeyConfidence): string {
   if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
-  if (kc.confidence >= CONFIDENCE_UNLOCK_THRESHOLD)
+  if (kc.confidence >= 1.0)
     return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
-  if (kc.confidence >= 0.6)
+  if (kc.confidence >= 0.7)
     return "bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-400"
-  if (kc.confidence >= 0.3)
+  if (kc.confidence >= 0.4)
     return "bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-400"
   return "bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-400"
 }
@@ -259,11 +391,11 @@ export function computeKeyWeights(
 
     let weight = 1.0
 
-    if (kc.confidence < 0.3) {
+    if (kc.confidence < 0.4) {
       weight = 4.0
-    } else if (kc.confidence < 0.6) {
+    } else if (kc.confidence < 0.7) {
       weight = 2.5
-    } else if (kc.confidence < CONFIDENCE_UNLOCK_THRESHOLD) {
+    } else if (kc.confidence < 1.0) {
       weight = 1.5
     }
 
@@ -271,7 +403,7 @@ export function computeKeyWeights(
       weight *= 2.0
     }
 
-    if (kc.samples < MIN_SAMPLES_FOR_CONFIDENCE) {
+    if (kc.samples < MIN_HITS_FOR_MASTERY) {
       weight = Math.max(weight, 3.0)
     }
 

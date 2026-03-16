@@ -24,6 +24,8 @@ interface AdaptiveResultsPanelProps {
   keyConfidences: KeyConfidence[]
   newlyUnlocked: string | null
   onRestart: () => void
+  onResume?: () => void
+  roundCount?: number
 }
 
 interface PerKeyResult {
@@ -40,7 +42,7 @@ function computePerKeyResults(log: KeystrokeEntry[]): PerKeyResult[] {
 
   for (let i = 0; i < log.length; i++) {
     const entry = log[i]
-    if (entry.key.length !== 1) continue
+    if (entry.key.length !== 1 || entry.key === " ") continue
     const lower = entry.key.toLowerCase()
     if (!keyMap[lower]) keyMap[lower] = { hits: 0, errors: 0, latencies: [] }
     keyMap[lower].hits++
@@ -79,6 +81,8 @@ export function AdaptiveResultsPanel({
   keyConfidences,
   newlyUnlocked,
   onRestart,
+  onResume,
+  roundCount = 0,
 }: AdaptiveResultsPanelProps) {
   const perKeyResults = useMemo(() => computePerKeyResults(keystrokeLog), [keystrokeLog])
   const grade = getGrade(metrics.wpm, metrics.accuracy)
@@ -190,10 +194,24 @@ export function AdaptiveResultsPanel({
               </div>
             )}
 
+            {roundCount > 0 && (
+              <div className="text-center text-xs text-muted-foreground mb-2">
+                Session: {roundCount} {roundCount === 1 ? "round" : "rounds"} completed
+              </div>
+            )}
+
             <div className="flex gap-3 justify-center">
-              <Button onClick={onRestart} className="gap-2">
+              {onResume && (
+                <Button onClick={onResume} className="gap-2">
+                  Continue Practice
+                  <kbd className="ml-1 rounded border border-primary-foreground/30 bg-primary-foreground/10 px-1 py-0.5 text-[10px] font-mono">
+                    Enter
+                  </kbd>
+                </Button>
+              )}
+              <Button variant="outline" onClick={onRestart} className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Continue Practice
+                New Session
               </Button>
             </div>
           </CardContent>

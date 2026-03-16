@@ -4,8 +4,8 @@ import { ChevronDown, ChevronUp, Lock, Unlock, Star, Crosshair } from "lucide-re
 import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
-  CONFIDENCE_UNLOCK_THRESHOLD,
   LETTER_FREQUENCY_ORDER,
+  DEFAULT_TARGET_CPM,
   getConfidenceColorClass,
   getConfidenceBarColorClass,
 } from "@/engine/typing/adaptiveEngine"
@@ -13,16 +13,17 @@ import {
 interface KeyProgressPanelProps {
   keyConfidences: KeyConfidence[]
   focusKey: string | null
+  targetCpm?: number
   compact?: boolean
 }
 
-function KeyProgressPanelInner({ keyConfidences, focusKey, compact = false }: KeyProgressPanelProps) {
+function KeyProgressPanelInner({ keyConfidences, focusKey, targetCpm = DEFAULT_TARGET_CPM, compact = false }: KeyProgressPanelProps) {
   const [expanded, setExpanded] = useState(false)
 
   const unlockedKeys = keyConfidences.filter((k) => k.unlocked)
   const lockedKeys = keyConfidences.filter((k) => !k.unlocked)
   const masteredCount = unlockedKeys.filter(
-    (k) => k.confidence >= CONFIDENCE_UNLOCK_THRESHOLD,
+    (k) => k.bestConfidence >= 1.0,
   ).length
 
   const avgConfidence =
@@ -121,7 +122,7 @@ function KeyProgressPanelInner({ keyConfidences, focusKey, compact = false }: Ke
             )}
             title={
               kc.unlocked
-                ? `${kc.key.toUpperCase()}: ${Math.round(kc.confidence * 100)}% confidence, ${Math.round(kc.speed)} WPM, ${kc.accuracy.toFixed(0)}% accuracy`
+                ? `${kc.key.toUpperCase()}: ${Math.round(kc.speed * 5)} CPM (target ${targetCpm}), ${Math.round(kc.confidence * 100)}% of target`
                 : `${kc.key.toUpperCase()}: Locked`
             }
           >
@@ -217,14 +218,18 @@ function KeyStatRow({ keyConf, isFocus }: { keyConf: KeyConfidence; isFocus: boo
         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
           <div
             className={cn("h-full rounded-full transition-all duration-300", getConfidenceBarColorClass(keyConf.confidence))}
-            style={{ width: `${Math.min(keyConf.confidence * 100, 100)}%` }}
+            style={{ width: `${Math.min(keyConf.confidence * 100, 100)}%`, transition: "width 0.3s" }}
           />
         </div>
       </div>
       <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground shrink-0">
-        <span>{Math.round(keyConf.speed)} wpm</span>
-        <span>{keyConf.accuracy.toFixed(0)}%</span>
-        <span className="font-medium">{Math.round(keyConf.confidence * 100)}%</span>
+        <span>{Math.round(keyConf.speed * 5)} cpm</span>
+        <span className="font-medium">{Math.min(Math.round(keyConf.confidence * 100), 999)}%</span>
+        {keyConf.learningRate?.remainingLessons != null && (
+          <span className="text-primary/70" title={`R²=${keyConf.learningRate.certainty.toFixed(2)}`}>
+            ~{keyConf.learningRate.remainingLessons}
+          </span>
+        )}
       </div>
       {isFocus && <Crosshair className="h-3 w-3 text-primary shrink-0" />}
     </div>

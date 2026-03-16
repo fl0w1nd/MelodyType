@@ -84,6 +84,9 @@ function VirtualKeyboardInner({
   }, [keyConfidences])
 
   useEffect(() => {
+    const clearPressedKeys = () => {
+      setPressedKeys(new Set())
+    }
     const onDown = (e: KeyboardEvent) => {
       setPressedKeys((prev) => new Set(prev).add(e.key.toLowerCase()))
     }
@@ -94,11 +97,20 @@ function VirtualKeyboardInner({
         return next
       })
     }
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearPressedKeys()
+      }
+    }
     window.addEventListener("keydown", onDown)
     window.addEventListener("keyup", onUp)
+    window.addEventListener("blur", clearPressedKeys)
+    document.addEventListener("visibilitychange", onVisibilityChange)
     return () => {
       window.removeEventListener("keydown", onDown)
       window.removeEventListener("keyup", onUp)
+      window.removeEventListener("blur", clearPressedKeys)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
     }
   }, [])
 

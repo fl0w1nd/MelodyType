@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils"
 import type { AdaptiveState, KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
-  CONFIDENCE_UNLOCK_THRESHOLD,
   LETTER_FREQUENCY_ORDER,
   getConfidenceColorClass,
   getConfidenceBarColorClass,
@@ -31,10 +30,10 @@ export function AdaptiveProgressCard() {
 
     const unlocked = adaptiveState.keyConfidences.filter((k) => k.unlocked)
     const mastered = unlocked.filter(
-      (k) => k.confidence >= CONFIDENCE_UNLOCK_THRESHOLD,
+      (k) => k.bestConfidence >= 1.0,
     )
     const learning = unlocked.filter(
-      (k) => k.confidence > 0 && k.confidence < CONFIDENCE_UNLOCK_THRESHOLD,
+      (k) => k.confidence > 0 && k.bestConfidence < 1.0,
     )
     const avgConfidence =
       unlocked.length > 0
@@ -148,7 +147,7 @@ export function AdaptiveProgressCard() {
                 )}
                 title={
                   kc.unlocked
-                    ? `${kc.key.toUpperCase()}: ${Math.round(kc.confidence * 100)}% • ${Math.round(kc.speed)} WPM • ${kc.accuracy.toFixed(0)}% accuracy`
+                    ? `${kc.key.toUpperCase()}: ${Math.round(kc.speed * 5)} CPM · best ${Math.round(kc.bestConfidence * (adaptiveState?.settings.targetCpm ?? 175))} CPM · target ${adaptiveState?.settings.targetCpm ?? 175} CPM`
                     : `${kc.key.toUpperCase()}: Locked`
                 }
               >

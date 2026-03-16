@@ -1,39 +1,13 @@
 import type { KeyConfidence } from "./adaptiveEngine"
 import { computeKeyWeights } from "./adaptiveEngine"
+import { commonWords } from "./wordLists"
+import { generateMarkovWord } from "./markov/markovModel"
 
-const VOWELS = new Set(["a", "e", "i", "o", "u"])
-
-const BIGRAM_TABLE: Record<string, string[]> = {
-  a: ["n", "t", "l", "r", "s", "d", "c", "b", "m", "p", "k", "g", "i", "y"],
-  b: ["e", "a", "o", "u", "l", "r", "i", "y"],
-  c: ["o", "a", "e", "h", "k", "l", "r", "u", "i", "t"],
-  d: ["e", "i", "o", "a", "u", "r", "l"],
-  e: ["r", "n", "s", "d", "l", "t", "a", "c", "m", "x", "p"],
-  f: ["o", "e", "a", "i", "u", "r", "l"],
-  g: ["e", "a", "o", "r", "i", "u", "l", "h"],
-  h: ["e", "a", "i", "o", "u"],
-  i: ["n", "t", "s", "c", "l", "d", "m", "g", "v", "r", "o", "a"],
-  j: ["u", "o", "a", "e", "i"],
-  k: ["e", "i", "a", "n", "s"],
-  l: ["e", "i", "a", "o", "l", "y", "u", "d"],
-  m: ["a", "e", "o", "i", "u", "p"],
-  n: ["e", "o", "a", "d", "t", "i", "g", "s", "c"],
-  o: ["n", "r", "f", "t", "u", "s", "l", "d", "m", "w", "p", "k"],
-  p: ["r", "e", "a", "o", "l", "i", "h", "u"],
-  q: ["u"],
-  r: ["e", "a", "i", "o", "s", "t", "u", "n"],
-  s: ["t", "e", "o", "i", "a", "h", "u", "p", "s", "c", "k"],
-  t: ["h", "e", "o", "i", "a", "r", "u", "s"],
-  u: ["r", "s", "t", "n", "l", "d", "m", "p", "c"],
-  v: ["e", "i", "a", "o"],
-  w: ["a", "i", "e", "o", "h"],
-  x: ["t", "p", "i", "a"],
-  y: ["e", "o", "s", "a"],
-  z: ["e", "a", "o", "i"],
-}
-
-const COMMON_ENDINGS = ["ed", "er", "le", "ly", "al", "en", "an", "on", "in", "es", "or"]
-const COMMON_STARTS = ["th", "sh", "ch", "wh", "st", "sp", "tr", "pr", "cr", "br", "gr", "fr", "fl", "bl", "cl"]
+const ALL_REAL_WORDS: string[] = [
+  ...commonWords.easy,
+  ...commonWords.medium,
+  ...commonWords.hard,
+]
 
 function pickWeighted(options: string[], weights: Map<string, number>): string {
   const filtered = options.filter((o) => weights.has(o))
@@ -56,81 +30,40 @@ function pickWeighted(options: string[], weights: Map<string, number>): string {
   return filtered[filtered.length - 1]
 }
 
-function pickFromPool(options: string[], available: Set<string>): string | null {
-  const valid = options.filter((o) =>
-    o.split("").every((ch) => available.has(ch))
-  )
-  if (valid.length === 0) return null
-  return valid[Math.floor(Math.random() * valid.length)]
-}
-
-function isVowel(ch: string): boolean {
-  return VOWELS.has(ch)
-}
-
-function generatePseudoWord(
+function filterRealWords(
   availableKeys: Set<string>,
+  focusKey: string | null,
+): string[] {
+  return ALL_REAL_WORDS.filter((word) => {
+    if (!word.split("").every((ch) => availableKeys.has(ch))) return false
+    if (focusKey && !word.includes(focusKey)) return false
+    return true
+  })
+}
+
+function scoreRealWord(
+  word: string,
   keyWeights: Map<string, number>,
-  targetLen: number,
-): string {
-  let word = ""
+  focusKey: string | null,
+): number {
+  let score = 1
+  const uniqueChars = new Set(word)
 
-  if (targetLen >= 3 && Math.random() < 0.3) {
-    const start = pickFromPool(COMMON_STARTS, availableKeys)
-    if (start) {
-      word = start
+  for (const ch of uniqueChars) {
+    const weight = keyWeights.get(ch)
+    if (weight) {
+      score += Math.max(weight - 1, 0)
     }
   }
 
-  if (word.length === 0) {
-    word = pickWeighted(
-      Array.from(availableKeys),
-      keyWeights,
-    )
+  if (focusKey) {
+    const focusCount = word.split(focusKey).length - 1
+    if (focusCount > 0) {
+      score += focusCount * 1.5
+    }
   }
 
-  while (word.length < targetLen) {
-    const lastChar = word[word.length - 1]
-    const secondLast = word.length > 1 ? word[word.length - 2] : ""
-
-    const consecutiveConsonants =
-      !isVowel(lastChar) && secondLast && !isVowel(secondLast)
-    const consecutiveVowels =
-      isVowel(lastChar) && secondLast && isVowel(secondLast)
-
-    let candidates = BIGRAM_TABLE[lastChar] || []
-    candidates = candidates.filter((c) => availableKeys.has(c))
-
-    if (consecutiveConsonants) {
-      const vowelCandidates = candidates.filter(isVowel)
-      if (vowelCandidates.length > 0) candidates = vowelCandidates
-    } else if (consecutiveVowels) {
-      const consonantCandidates = candidates.filter((c) => !isVowel(c))
-      if (consonantCandidates.length > 0) candidates = consonantCandidates
-    }
-
-    if (candidates.length === 0) {
-      const available = Array.from(availableKeys)
-      const needed = consecutiveConsonants
-        ? available.filter(isVowel)
-        : consecutiveVowels
-          ? available.filter((c) => !isVowel(c))
-          : available
-      candidates = needed.length > 0 ? needed : available
-    }
-
-    if (word.length === targetLen - 2 && Math.random() < 0.3) {
-      const ending = pickFromPool(COMMON_ENDINGS, availableKeys)
-      if (ending && word.length + ending.length <= targetLen + 1) {
-        word += ending
-        break
-      }
-    }
-
-    word += pickWeighted(candidates, keyWeights)
-  }
-
-  return word.slice(0, targetLen)
+  return score
 }
 
 export function generateAdaptiveText(
@@ -149,12 +82,36 @@ export function generateAdaptiveText(
 
   const keyWeights = computeKeyWeights(keyConfidences, unlockedKeys, focusKey)
 
+  const realWords = filterRealWords(availableKeys, focusKey)
+  const realWordWeights = new Map(
+    realWords.map((word) => [word, scoreRealWord(word, keyWeights, focusKey)]),
+  )
+
   const words: string[] = []
+  const recentWords: string[] = []
 
   for (let i = 0; i < wordCount; i++) {
-    const len = Math.floor(Math.random() * 5) + 3
-    const word = generatePseudoWord(availableKeys, keyWeights, len)
+    let word: string | undefined
+
+    if (realWords.length > 0) {
+      let attempts = 0
+      do {
+        word = pickWeighted(realWords, realWordWeights)
+        attempts++
+      } while (recentWords.includes(word) && attempts < 3)
+
+      if (recentWords.includes(word) && realWords.length < 10) {
+        word = undefined
+      }
+    }
+
+    if (!word) {
+      word = generateMarkovWord(availableKeys, focusKey)
+    }
+
     words.push(word)
+    recentWords.push(word)
+    if (recentWords.length > 3) recentWords.shift()
   }
 
   return words.join(" ")
