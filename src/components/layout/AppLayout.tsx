@@ -20,10 +20,11 @@ export function AppLayout() {
         <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
             <NavLink to="/" className="flex items-center gap-2.5 group">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
-                <Music className="h-4.5 w-4.5" />
-                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-accent border-2 border-background" />
-              </div>
+              <img
+                src="/favicon.png"
+                alt="MelodyType"
+                className="h-9 w-9 object-contain drop-shadow-[0_6px_14px_rgba(15,23,42,0.18)] transition-transform duration-200 group-hover:scale-105"
+              />
               <span className="font-serif text-xl tracking-tight text-foreground">
                 MelodyType
               </span>
