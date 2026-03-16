@@ -1,19 +1,47 @@
-export const fingerZones: Record<string, string[]> = {
-  "Left Pinky": ["q", "a", "z", "1"],
-  "Left Ring": ["w", "s", "x", "2"],
-  "Left Middle": ["e", "d", "c", "3"],
-  "Left Index": ["r", "f", "v", "t", "g", "b", "4", "5"],
-  "Right Index": ["y", "h", "n", "u", "j", "m", "6", "7"],
-  "Right Middle": ["i", "k", ",", "8"],
-  "Right Ring": ["o", "l", ".", "9"],
-  "Right Pinky": ["p", ";", "/", "0", "[", "]", "'"],
-}
-
-export const fingerForKey: Record<string, string> = {}
-for (const [finger, keys] of Object.entries(fingerZones)) {
-  for (const key of keys) {
-    fingerForKey[key] = finger
-  }
+export const fingerForKey: Record<string, string> = {
+  q: "Left Pinky",
+  a: "Left Pinky",
+  z: "Left Pinky",
+  "1": "Left Pinky",
+  w: "Left Ring",
+  s: "Left Ring",
+  x: "Left Ring",
+  "2": "Left Ring",
+  e: "Left Middle",
+  d: "Left Middle",
+  c: "Left Middle",
+  "3": "Left Middle",
+  r: "Left Index",
+  f: "Left Index",
+  v: "Left Index",
+  t: "Left Index",
+  g: "Left Index",
+  b: "Left Index",
+  "4": "Left Index",
+  "5": "Left Index",
+  y: "Right Index",
+  h: "Right Index",
+  n: "Right Index",
+  u: "Right Index",
+  j: "Right Index",
+  m: "Right Index",
+  "6": "Right Index",
+  "7": "Right Index",
+  i: "Right Middle",
+  k: "Right Middle",
+  ",": "Right Middle",
+  "8": "Right Middle",
+  o: "Right Ring",
+  l: "Right Ring",
+  ".": "Right Ring",
+  "9": "Right Ring",
+  p: "Right Pinky",
+  ";": "Right Pinky",
+  "/": "Right Pinky",
+  "0": "Right Pinky",
+  "[": "Right Pinky",
+  "]": "Right Pinky",
+  "'": "Right Pinky",
 }
 
 export const commonWords: Record<string, string[]> = {

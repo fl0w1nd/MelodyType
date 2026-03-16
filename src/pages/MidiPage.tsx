@@ -51,7 +51,9 @@ const loopOptions = [
 export default function MidiPage() {
   const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(
+    () => presetList[0]?.id ?? null,
+  )
   const [selectedFile, setSelectedFile] = useState<number | null>(null)
   const [testNotes, setTestNotes] = useState<string[]>([])
   const {
@@ -136,10 +138,20 @@ export default function MidiPage() {
   }, [triggerNextFrame, getFrameInfo, selectedPreset])
 
   useEffect(() => {
-    if (!selectedPreset && presetList.length > 0) {
-      handleSelectPreset(presetList[0].id)
+    if (!selectedPreset || selectedFile !== null) {
+      return
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const preset = presetMelodies[selectedPreset]
+    if (!preset) {
+      return
+    }
+
+    void (async () => {
+      await initSynth()
+      await loadFrames(preset.frames)
+    })()
+  }, [initSynth, loadFrames, selectedFile, selectedPreset])
 
   return (
     <div className="flex flex-col gap-6">

@@ -57,7 +57,8 @@ export class Polynomial0 extends Polynomial {
     this.y = y
   }
 
-  eval(_x: number): number {
+  eval(x: number): number {
+    void x
     return this.y
   }
 
