@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 import type { WordState } from "@/engine/typing/types"
 
@@ -17,9 +17,6 @@ function TextDisplayInner({
 }: TextDisplayProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef<HTMLSpanElement>(null)
-  const [shakeKey, setShakeKey] = useState(0)
-  const prevCharIndexRef = useRef(currentCharIndex)
-  const prevWordIndexRef = useRef(currentWordIndex)
 
   useEffect(() => {
     if (cursorRef.current && scrollRef.current) {
@@ -43,24 +40,6 @@ function TextDisplayInner({
     }
   }, [currentWordIndex, currentCharIndex])
 
-  useEffect(() => {
-    const samePos =
-      prevCharIndexRef.current === currentCharIndex &&
-      prevWordIndexRef.current === currentWordIndex
-    prevCharIndexRef.current = currentCharIndex
-    prevWordIndexRef.current = currentWordIndex
-
-    if (samePos && words.length > 0) {
-      const word = words[currentWordIndex]
-      if (word && currentCharIndex < word.chars.length) {
-        const char = word.chars[currentCharIndex]
-        if (char?.status === "incorrect") {
-          setShakeKey((k) => k + 1)
-        }
-      }
-    }
-  }, [words, currentWordIndex, currentCharIndex])
-
   if (words.length === 0) {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground">
@@ -77,7 +56,7 @@ function TextDisplayInner({
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-hidden px-6 sm:px-8 font-mono text-lg sm:text-xl leading-relaxed tracking-wide"
       >
-        <div className="flex flex-wrap items-baseline" key={shakeKey}>
+        <div className="flex flex-wrap items-baseline">
           {words.map((word, wi) => (
             <span
               key={wi}

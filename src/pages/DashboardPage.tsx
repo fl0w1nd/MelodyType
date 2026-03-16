@@ -11,8 +11,12 @@ import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
 import { AdaptiveProgressCard } from "@/components/dashboard/AdaptiveProgressCard"
+import type { DailyGoal, TypingSession } from "@/lib/db"
 
 type DashboardMode = "adaptive" | "time" | "quote"
+
+const EMPTY_SESSIONS: TypingSession[] = []
+const EMPTY_DAILY_GOALS: DailyGoal[] = []
 
 const dashboardModeMeta: Record<
   DashboardMode,
@@ -25,8 +29,8 @@ const dashboardModeMeta: Record<
 
 export default function DashboardPage() {
   const sessions =
-    useLiveQuery(() => db.sessions.orderBy("timestamp").toArray()) ?? []
-  const dailyGoals = useLiveQuery(() => db.dailyGoals.toArray()) ?? []
+    useLiveQuery(() => db.sessions.orderBy("timestamp").toArray()) ?? EMPTY_SESSIONS
+  const dailyGoals = useLiveQuery(() => db.dailyGoals.toArray()) ?? EMPTY_DAILY_GOALS
 
   const today = new Date().toISOString().split("T")[0]
   const todayGoal = dailyGoals.find((goal) => goal.date === today)

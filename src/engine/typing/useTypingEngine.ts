@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type {
   TypingState,
   TypingMetrics,
@@ -42,7 +42,10 @@ export function useTypingEngine(onKeystroke?: () => void) {
   const timeLimitRef = useRef<number | null>(null)
   const finishedRef = useRef(false)
   const onKeystrokeRef = useRef(onKeystroke)
-  onKeystrokeRef.current = onKeystroke
+
+  useEffect(() => {
+    onKeystrokeRef.current = onKeystroke
+  }, [onKeystroke])
 
   const loadText = useCallback((text: string, timeLimit?: number) => {
     if (timerRef.current) {
@@ -205,7 +208,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
         })
       }
     },
-    [doFinish, startTimer],
+    [startTimer],
   )
 
   const getMetrics = useCallback((): TypingMetrics => {

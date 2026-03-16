@@ -121,7 +121,7 @@ export default function PracticePage() {
   const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
     useTypingEngine(onKeystroke)
 
-  const metrics = useMemo(() => getMetrics(), [getMetrics, elapsed, state])
+  const metrics = useMemo(() => getMetrics(), [getMetrics])
   const adaptivePersistMetrics = useMemo(
     () => computeMetricsForWords(state.words, state.keystrokeLog, elapsed),
     [elapsed, state.keystrokeLog, state.words],
@@ -443,7 +443,6 @@ export default function PracticePage() {
     state.isFinished,
     state.isStarted,
     state.keystrokeLog,
-    state.words,
   ])
 
   useEffect(() => {
@@ -484,13 +483,6 @@ export default function PracticePage() {
     state.isStarted,
     state.keystrokeLog.length,
   ])
-
-  const activeKeys = useMemo(() => {
-    if (config.mode === "adaptive" && adaptiveState) {
-      return new Set(adaptiveState.unlockedKeys)
-    }
-    return undefined
-  }, [config, adaptiveState])
 
   const nextKey = useMemo(() => {
     if (state.isFinished || !state.words.length) return undefined
@@ -606,9 +598,7 @@ export default function PracticePage() {
                   transition={{ duration: 0.2 }}
                 >
                   <VirtualKeyboard
-                    activeKeys={activeKeys}
                     nextKey={nextKey}
-                    showFingerHints={false}
                     keyConfidences={
                       isAdaptive ? adaptiveState?.keyConfidences : undefined
                     }

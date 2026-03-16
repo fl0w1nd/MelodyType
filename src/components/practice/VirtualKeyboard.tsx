@@ -1,6 +1,5 @@
 import { memo, useEffect, useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { fingerForKey } from "@/engine/typing/wordLists"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   getAdaptiveKeyColorClass,
@@ -44,31 +43,16 @@ const rows = [
   ],
 ]
 
-const fingerColors: Record<string, string> = {
-  "Left Pinky": "bg-rose-100 dark:bg-rose-900/30 border-rose-300 dark:border-rose-700",
-  "Left Ring": "bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700",
-  "Left Middle": "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700",
-  "Left Index": "bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700",
-  "Right Index": "bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700",
-  "Right Middle": "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
-  "Right Ring": "bg-violet-100 dark:bg-violet-900/30 border-violet-300 dark:border-violet-700",
-  "Right Pinky": "bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700",
-}
-
 interface VirtualKeyboardProps {
-  activeKeys?: Set<string>
   highlightKeys?: Set<string>
   nextKey?: string
-  showFingerHints?: boolean
   keyConfidences?: KeyConfidence[]
   adaptiveMode?: boolean
 }
 
 function VirtualKeyboardInner({
-  activeKeys = new Set(),
   highlightKeys,
   nextKey,
-  showFingerHints = true,
   keyConfidences,
   adaptiveMode = false,
 }: VirtualKeyboardProps) {
@@ -121,11 +105,8 @@ function VirtualKeyboardInner({
           {row.map((keyDef) => {
             const keyLower = keyDef.key.toLowerCase()
             const isPressed = pressedKeys.has(keyLower) || (keyLower === " " && pressedKeys.has(" "))
-            const isActive = activeKeys.has(keyLower)
             const isHighlighted = highlightKeys?.has(keyLower)
             const isNext = nextKey?.toLowerCase() === keyLower
-            const finger = fingerForKey[keyLower]
-            const fingerColor = finger ? fingerColors[finger] : ""
             const kc = confidenceMap.get(keyLower)
             const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColorClass(kc) : ""
             const isFocused = adaptiveMode && kc?.focused
@@ -145,9 +126,7 @@ function VirtualKeyboardInner({
                         ? adaptiveColor
                         : isHighlighted
                           ? "bg-accent/30 border-accent/50 text-accent-foreground"
-                          : isActive && showFingerHints && fingerColor
-                            ? fingerColor
-                            : "bg-card border-border/80 text-muted-foreground",
+                          : "bg-card border-border/80 text-muted-foreground",
                   isFocused && !isPressed && !isNext && "ring-1 ring-primary/40",
                 )}
               >

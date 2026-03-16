@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import { createContext, useContext, useEffect, type ReactNode } from "react"
 import { useMidiTrigger } from "./useMidiTrigger"
 import { presetMelodies } from "./presets"
