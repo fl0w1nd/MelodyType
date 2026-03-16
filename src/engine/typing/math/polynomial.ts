@@ -11,7 +11,7 @@ export class Polynomial {
     coef = trimZeros(coef)
     switch (coef.length) {
       case 0:
-        throw new Error()
+        throw new Error("Polynomial requires at least one coefficient")
       case 1:
         return new Polynomial0(coef[0])
       case 2:
@@ -155,6 +155,8 @@ export class PolynomialN extends Polynomial {
   }
 }
 
+// Trim trailing zero coefficients so specialized polynomial classes can use
+// the smallest representation that still preserves the same curve.
 function trimZeros(coef: readonly number[]): number[] {
   let i = coef.length
   while (i > 1 && coef[i - 1] === 0) {

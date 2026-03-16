@@ -8,6 +8,10 @@ type Matrix = Array<SleVector>
 /**
  * A system of linear equations which solves `A * x = y` for `x`,
  * where `A` is an input matrix, `y` is an input vector.
+ *
+ * The matrix is stored in a transposed layout: `A[col][row]`.
+ * This matches the original keybr implementation and keeps pivoting and
+ * elimination operations cache-friendly for the small matrices we solve here.
  */
 export class Sle {
   readonly size: number
@@ -30,17 +34,17 @@ export class Sle {
     const { size, A } = this
 
     for (let i = 0; i < size; i++) {
-      let maxrow = i
-      for (let j = i + 1; j < size; j++) {
-        if (Math.abs(A[i][j]) > Math.abs(A[i][maxrow])) {
-          maxrow = j
+      let pivotRow = i
+      for (let row = i + 1; row < size; row++) {
+        if (Math.abs(A[i][row]) > Math.abs(A[i][pivotRow])) {
+          pivotRow = row
         }
       }
 
       for (let k = i; k < size + 1; k++) {
         const tmp = A[k][i]
-        A[k][i] = A[k][maxrow]
-        A[k][maxrow] = tmp
+        A[k][i] = A[k][pivotRow]
+        A[k][pivotRow] = tmp
       }
 
       for (let j = i + 1; j < size; j++) {

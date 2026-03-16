@@ -18,12 +18,12 @@ function pickWeighted(options: string[], weights: Map<string, number>): string {
 
   let totalWeight = 0
   for (const o of filtered) {
-    totalWeight += weights.get(o) ?? 1
+    totalWeight += weights.get(o)!
   }
 
   let r = Math.random() * totalWeight
   for (const o of filtered) {
-    r -= weights.get(o) ?? 1
+    r -= weights.get(o)!
     if (r <= 0) return o
   }
 
