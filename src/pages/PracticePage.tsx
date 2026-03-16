@@ -16,9 +16,7 @@ import {
 } from "@/components/practice/NoteParticles"
 import {
   generateWordText,
-  generateTextFromKeys,
   getRandomQuote,
-  beginnerLessons,
 } from "@/engine/typing/wordLists"
 import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
@@ -171,17 +169,8 @@ export default function PracticePage() {
         }
         case "time":
           return generateWordText(cfg.difficulty ?? "easy", 200)
-        case "words":
-          return generateWordText(cfg.difficulty ?? "easy", cfg.wordCount ?? 25)
         case "quote":
           return getRandomQuote()
-        case "lesson": {
-          const lesson = beginnerLessons.find((l) => l.id === cfg.lessonId)
-          if (lesson) return generateTextFromKeys(lesson.keys, 30)
-          return generateWordText("easy", 25)
-        }
-        case "free":
-          return generateWordText("easy", 500)
         default:
           return generateWordText("easy", 25)
       }
@@ -270,23 +259,6 @@ export default function PracticePage() {
     },
     [adaptiveState, config.mode, startAdaptiveNextRound],
   )
-
-  const handleNext = useCallback(() => {
-    if (config.mode === "lesson" && config.lessonId) {
-      const currentIdx = beginnerLessons.findIndex(
-        (l) => l.id === config.lessonId,
-      )
-      if (currentIdx < beginnerLessons.length - 1) {
-        const next = beginnerLessons[currentIdx + 1]
-        const newConfig = { ...config, lessonId: next.id }
-        setConfig(newConfig)
-        reset()
-        startPractice(newConfig)
-        return
-      }
-    }
-    handleRestart()
-  }, [config, reset, startPractice, handleRestart])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -517,10 +489,6 @@ export default function PracticePage() {
     if (config.mode === "adaptive" && adaptiveState) {
       return new Set(adaptiveState.unlockedKeys)
     }
-    if (config.mode === "lesson" && config.lessonId) {
-      const lesson = beginnerLessons.find((l) => l.id === config.lessonId)
-      if (lesson) return new Set(lesson.keys)
-    }
     return undefined
   }, [config, adaptiveState])
 
@@ -575,7 +543,6 @@ export default function PracticePage() {
             key="results"
             metrics={metrics}
             onRestart={handleRestart}
-            onNext={config.mode === "lesson" ? handleNext : undefined}
           />
         ) : (
           <motion.div
@@ -641,7 +608,7 @@ export default function PracticePage() {
                   <VirtualKeyboard
                     activeKeys={activeKeys}
                     nextKey={nextKey}
-                    showFingerHints={config.mode === "lesson"}
+                    showFingerHints={false}
                     keyConfidences={
                       isAdaptive ? adaptiveState?.keyConfidences : undefined
                     }

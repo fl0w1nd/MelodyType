@@ -1,19 +1,12 @@
 export type PracticeMode =
   | "adaptive"
   | "time"
-  | "words"
   | "quote"
-  | "lesson"
-  | "free"
-  | "custom"
 
 export interface PracticeModeConfig {
   mode: PracticeMode
   timeLimit?: number
-  wordCount?: number
   difficulty?: "easy" | "medium" | "hard"
-  lessonId?: string
-  customText?: string
 }
 
 export interface CharState {

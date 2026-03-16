@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Flame } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { KeyStat } from "@/lib/db"
+import type { TypingSession } from "@/lib/db"
 
 const keyboardLayout = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -16,29 +16,45 @@ const keyboardLayout = [
 ]
 
 interface KeyboardHeatmapProps {
-  keyStats: KeyStat[]
+  sessions: TypingSession[]
   mode?: "errors" | "speed"
+  title?: string
 }
 
 export function KeyboardHeatmap({
-  keyStats,
+  sessions,
   mode = "errors",
+  title = "Keyboard Heatmap",
 }: KeyboardHeatmapProps) {
   const statsMap = useMemo(() => {
-    const map = new Map<string, KeyStat>()
-    for (const stat of keyStats) {
-      map.set(stat.key, stat)
+    const map = new Map<string, { totalHits: number; errors: number }>()
+    for (const session of sessions) {
+      for (const stroke of session.keystrokes) {
+        const key = stroke.key.toLowerCase()
+        if (key.length !== 1 || key < "a" || key > "z") continue
+
+        const current = map.get(key) ?? { totalHits: 0, errors: 0 }
+        current.totalHits += 1
+        if (!stroke.correct) {
+          current.errors += 1
+        }
+        map.set(key, current)
+      }
     }
     return map
-  }, [keyStats])
+  }, [sessions])
 
   const maxVal = useMemo(() => {
-    if (keyStats.length === 0) return 1
+    const values = [...statsMap.values()]
+    if (values.length === 0) return 1
     if (mode === "errors") {
-      return Math.max(...keyStats.map((s) => (s.totalHits > 0 ? s.errors / s.totalHits : 0)), 0.01)
+      return Math.max(
+        ...values.map((entry) => (entry.totalHits > 0 ? entry.errors / entry.totalHits : 0)),
+        0.01,
+      )
     }
-    return Math.max(...keyStats.map((s) => s.totalHits), 1)
-  }, [keyStats, mode])
+    return Math.max(...values.map((entry) => entry.totalHits), 1)
+  }, [mode, statsMap])
 
   const getColor = (key: string) => {
     const stat = statsMap.get(key)
@@ -72,7 +88,7 @@ export function KeyboardHeatmap({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Flame className="h-4 w-4 text-primary" />
-          Keyboard Heatmap
+          {title}
           <span className="text-xs font-normal text-muted-foreground ml-auto">
             {mode === "errors" ? "Error Rate" : "Usage Frequency"}
           </span>
