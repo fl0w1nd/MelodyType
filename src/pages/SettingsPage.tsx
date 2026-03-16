@@ -12,7 +12,6 @@ import {
   Check,
   AlertTriangle,
   Music,
-  Brain,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -41,11 +40,8 @@ import { defaultMidiConfig, type SynthType } from "@/engine/midi/types"
 import { presetMelodies } from "@/engine/midi/presets"
 import {
   DEFAULT_ADAPTIVE_SETTINGS,
-  DEFAULT_TARGET_CPM,
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
-  MIN_TARGET_CPM,
-  MAX_TARGET_CPM,
 } from "@/engine/typing/adaptiveEngine"
 
 export default function SettingsPage() {
@@ -68,22 +64,6 @@ export default function SettingsPage() {
     () => getSetting("dailyGoalMinutes"),
     [],
     "30",
-  )
-
-  const adaptiveTargetCpm = useLiveQuery(
-    () => getSetting("adaptive_targetCpm"),
-    [],
-    String(DEFAULT_TARGET_CPM),
-  )
-  const adaptiveRecoverKeys = useLiveQuery(
-    () => getSetting("adaptive_recoverKeys"),
-    [],
-    "false",
-  )
-  const adaptiveAlphabetSize = useLiveQuery(
-    () => getSetting("adaptive_alphabetSize"),
-    [],
-    "0",
   )
 
   const midi = useMidi()
@@ -150,10 +130,7 @@ export default function SettingsPage() {
         "adaptive_recoverKeys",
         String(DEFAULT_ADAPTIVE_SETTINGS.recoverKeys),
       ),
-      setSetting(
-        "adaptive_alphabetSize",
-        String(DEFAULT_ADAPTIVE_SETTINGS.alphabetSize),
-      ),
+      setSetting("adaptive_forcedKeys", JSON.stringify([])),
       setSetting(
         "adaptive_unlocked",
         JSON.stringify(LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)),
@@ -225,84 +202,6 @@ export default function SettingsPage() {
               }}
               min={5}
               max={120}
-              step={5}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Adaptive Practice */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Brain className="h-4 w-4 text-primary" />
-            Adaptive Practice
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Target Speed</div>
-                <div className="text-xs text-muted-foreground">
-                  CPM goal for key mastery
-                </div>
-              </div>
-              <Badge variant="secondary" className="font-mono text-xs">
-                {adaptiveTargetCpm} CPM ({Math.round(Number(adaptiveTargetCpm) / 5)} WPM)
-              </Badge>
-            </div>
-            <Slider
-              value={[Number(adaptiveTargetCpm)]}
-              onValueChange={(v) => {
-                const val = Array.isArray(v) ? v[0] : v
-                setSetting("adaptive_targetCpm", String(val))
-              }}
-              min={MIN_TARGET_CPM}
-              max={MAX_TARGET_CPM}
-              step={5}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Recover Keys</div>
-              <div className="text-xs text-muted-foreground">
-                Require current speed (not just best) to unlock new keys
-              </div>
-            </div>
-            <Switch
-              checked={adaptiveRecoverKeys === "true"}
-              onCheckedChange={(v) =>
-                setSetting("adaptive_recoverKeys", v ? "true" : "false")
-              }
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Forced Unlock</div>
-                <div className="text-xs text-muted-foreground">
-                  Manually expand available keys beyond auto-unlock
-                </div>
-              </div>
-              <Badge variant="secondary" className="font-mono text-xs">
-                {Math.round(Number(adaptiveAlphabetSize) * 100)}%
-              </Badge>
-            </div>
-            <Slider
-              value={[Number(adaptiveAlphabetSize) * 100]}
-              onValueChange={(v) => {
-                const val = Array.isArray(v) ? v[0] : v
-                setSetting("adaptive_alphabetSize", String(val / 100))
-              }}
-              min={0}
-              max={100}
               step={5}
             />
           </div>

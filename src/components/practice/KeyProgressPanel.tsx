@@ -1,4 +1,4 @@
-import { memo, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ChevronDown,
@@ -10,19 +10,35 @@ import {
   Gauge,
   Target,
   Clock,
-  Hash,
   RotateCcw,
   TrendingUp,
   Activity,
+  AlertTriangle,
+  SlidersHorizontal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
 import type {
   AdaptiveGlobalSummary,
   KeyConfidence,
 } from "@/engine/typing/adaptiveEngine"
 import {
+  ADAPTIVE_TARGET_PRESETS,
   LETTER_FREQUENCY_ORDER,
   DEFAULT_TARGET_CPM,
+  MIN_TARGET_CPM,
+  MAX_TARGET_CPM,
   MIN_HITS_FOR_MASTERY,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
@@ -36,10 +52,12 @@ interface KeyProgressPanelProps {
   globalSummary: AdaptiveGlobalSummary
   targetCpm?: number
   recoverKeys?: boolean
-  forcedAlphabetSize?: number
   totalSessions?: number
   roundNumber?: number
   compact?: boolean
+  onUnlockKey?: (key: string) => Promise<void> | void
+  onTargetChange?: (targetCpm: number) => void
+  onRecoverChange?: (recoverKeys: boolean) => void
 }
 
 function KeyProgressPanelInner({
@@ -48,16 +66,22 @@ function KeyProgressPanelInner({
   globalSummary,
   targetCpm = DEFAULT_TARGET_CPM,
   recoverKeys = false,
-  forcedAlphabetSize = 0,
   totalSessions = 0,
   roundNumber = 1,
   compact = false,
+  onUnlockKey,
+  onTargetChange,
+  onRecoverChange,
 }: KeyProgressPanelProps) {
   const [expanded, setExpanded] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [unlockPromptKey, setUnlockPromptKey] = useState<string | null>(null)
+  const [unlockingKey, setUnlockingKey] = useState<string | null>(null)
+  const settingsPanelRef = useRef<HTMLDivElement | null>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
   const unlockedKeys = keyConfidences.filter((k) => k.unlocked)
   const lockedKeys = keyConfidences.filter((k) => !k.unlocked)
-  const forcedKeys = unlockedKeys.filter((k) => k.forced)
   const masteredCount = unlockedKeys.filter(
     (k) => k.bestConfidence >= 1.0,
   ).length
@@ -68,6 +92,35 @@ function KeyProgressPanelInner({
       : 0
   const hasSummaryData = globalSummary.count > 0
   const showDelta = globalSummary.count > 1
+
+  const handleConfirmUnlock = async () => {
+    if (!unlockPromptKey || !onUnlockKey) return
+    setUnlockingKey(unlockPromptKey)
+    try {
+      await onUnlockKey(unlockPromptKey)
+    } finally {
+      setUnlockingKey(null)
+      setUnlockPromptKey(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!settingsOpen) return
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (
+        settingsPanelRef.current?.contains(target) ||
+        settingsButtonRef.current?.contains(target)
+      ) {
+        return
+      }
+      setSettingsOpen(false)
+    }
+
+    window.addEventListener("mousedown", handlePointerDown)
+    return () => window.removeEventListener("mousedown", handlePointerDown)
+  }, [settingsOpen])
 
   if (compact) {
     return (
@@ -109,7 +162,7 @@ function KeyProgressPanelInner({
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto">
+    <div className="relative w-full max-w-5xl mx-auto">
       <div className="rounded-xl bg-secondary/40 border border-border/50 px-4 py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4 min-w-0">
@@ -149,6 +202,15 @@ function KeyProgressPanelInner({
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            <button
+              ref={settingsButtonRef}
+              type="button"
+              onClick={() => setSettingsOpen((open) => !open)}
+              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              Options
+            </button>
             <span className="rounded-full border border-border/50 bg-background/70 px-2 py-1 text-[10px] font-mono text-muted-foreground">
               Round {roundNumber}
             </span>
@@ -162,6 +224,80 @@ function KeyProgressPanelInner({
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {settingsOpen && (
+          <motion.div
+            ref={settingsPanelRef}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="absolute right-0 top-full z-30 mt-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur"
+          >
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-foreground">Adaptive Practice</div>
+                  <div className="text-xs text-muted-foreground">
+                    Fine-tune mastery targets without leaving practice.
+                  </div>
+                </div>
+                <Badge variant="secondary" className="font-mono text-xs">
+                  {targetCpm} CPM ({Math.round(targetCpm / 5)} WPM)
+                </Badge>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {ADAPTIVE_TARGET_PRESETS.map((preset) => {
+                  const isActive = targetCpm === preset.cpm
+                  return (
+                    <Button
+                      key={preset.cpm}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      className="h-auto min-w-[102px] flex-col items-start gap-0.5 px-3 py-2 text-left"
+                      onClick={() => onTargetChange?.(preset.cpm)}
+                    >
+                      <span className="text-xs font-medium">
+                        {preset.label}
+                        {preset.cpm === DEFAULT_TARGET_CPM && " · Default"}
+                      </span>
+                      <span className="font-mono text-[11px]">{preset.cpm} CPM</span>
+                      <span className="text-[10px] opacity-70">{preset.description}</span>
+                    </Button>
+                  )
+                })}
+              </div>
+
+              <Slider
+                value={[targetCpm]}
+                onValueChange={(value) =>
+                  onTargetChange?.(Array.isArray(value) ? value[0] : value)
+                }
+                min={MIN_TARGET_CPM}
+                max={MAX_TARGET_CPM}
+                step={5}
+              />
+
+              <div className="rounded-xl border border-border/50 bg-secondary/30 px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">Require Current Mastery</div>
+                    <div className="text-xs text-muted-foreground">
+                      New keys unlock only if your currently unlocked keys still meet the target, not just their historical best.
+                    </div>
+                  </div>
+                  <Switch
+                    checked={recoverKeys}
+                    onCheckedChange={(checked) => onRecoverChange?.(checked)}
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -212,21 +348,34 @@ function KeyProgressPanelInner({
 
       <div className="mt-2 flex gap-1 flex-wrap justify-center">
         {keyConfidences.map((kc) => (
-          <div
+          <motion.button
             key={kc.key}
+            type="button"
+            onClick={() => {
+              if (!kc.unlocked && onUnlockKey) {
+                setUnlockPromptKey(kc.key)
+              }
+            }}
+            whileHover={
+              !kc.unlocked
+                ? { rotate: [0, -8, 8, -6, 6, 0], scale: 1.06 }
+                : undefined
+            }
+            transition={{ duration: 0.32, ease: "easeOut" }}
             className={cn(
               "w-6 h-6 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
               getConfidenceColorClass(kc.confidence, kc.unlocked),
+              !kc.unlocked && onUnlockKey && "cursor-pointer hover:border-primary/40 hover:bg-primary/5",
               kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
             )}
             title={
               kc.unlocked
                 ? `${kc.key.toUpperCase()}: ${Math.round(kc.speed * 5)} CPM (target ${targetCpm}), ${Math.round(kc.confidence * 100)}% of target`
-                : `${kc.key.toUpperCase()}: Locked`
+                : `${kc.key.toUpperCase()}: Locked · click to unlock manually`
             }
           >
             {kc.unlocked ? kc.key.toUpperCase() : <Lock className="h-2.5 w-2.5" />}
-          </div>
+          </motion.button>
         ))}
       </div>
 
@@ -262,25 +411,10 @@ function KeyProgressPanelInner({
                   icon={<Clock className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Forced Unlocks"
-                  value={`${Math.round(forcedAlphabetSize * 100)}%${forcedKeys.length > 0 ? ` · +${forcedKeys.length}` : ""}`}
-                  icon={<Hash className="h-3.5 w-3.5" />}
+                  label="Average Confidence"
+                  value={`${Math.round(avgConfidence * 100)}%`}
+                  icon={<Activity className="h-3.5 w-3.5" />}
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Overall Progress</span>
-                  <span className="font-mono font-medium">{Math.round(avgConfidence * 100)}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-primary"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${avgConfidence * 100}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                  />
-                </div>
               </div>
 
               <div className="space-y-1">
@@ -301,6 +435,9 @@ function KeyProgressPanelInner({
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground font-medium">
                     Next to Unlock
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Locked keys above can be unlocked manually.
                   </span>
                   <div className="flex gap-1.5 flex-wrap">
                     {lockedKeys.slice(0, 5).map((kc) => (
@@ -326,6 +463,32 @@ function KeyProgressPanelInner({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Dialog open={unlockPromptKey !== null} onOpenChange={(open) => !open && setUnlockPromptKey(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Unlock {unlockPromptKey?.toUpperCase()} early?
+            </DialogTitle>
+            <DialogDescription>
+              Manual unlocks skip the normal progression gate for this key. It will join practice immediately and the current adaptive round will restart with the updated key set.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlockPromptKey(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleConfirmUnlock}
+              disabled={!unlockPromptKey || unlockingKey === unlockPromptKey}
+            >
+              {unlockingKey === unlockPromptKey ? "Unlocking..." : "Unlock Key"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

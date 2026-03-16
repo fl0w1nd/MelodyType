@@ -22,7 +22,6 @@ export const MAX_LATENCY_MS = 3000
 export interface AdaptiveSettings {
   targetCpm: number
   recoverKeys: boolean
-  alphabetSize: number
 }
 
 export interface AdaptiveMetricSummary {
@@ -41,8 +40,15 @@ export interface AdaptiveGlobalSummary {
 export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
   targetCpm: DEFAULT_TARGET_CPM,
   recoverKeys: false,
-  alphabetSize: 0,
 }
+
+export const ADAPTIVE_TARGET_PRESETS = [
+  { label: "Starter", cpm: 125, description: "early practice" },
+  { label: "Balanced", cpm: 175, description: "default" },
+  { label: "Fluent", cpm: 250, description: "daily typing" },
+  { label: "Fast", cpm: 350, description: "speed push" },
+  { label: "Elite", cpm: 500, description: "advanced" },
+] as const
 
 export interface KeyConfidence {
   key: string
@@ -201,23 +207,63 @@ export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean =
 }
 
 export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
-  const [targetCpmStr, recoverKeysStr, alphabetSizeStr] = await Promise.all([
+  const [targetCpmStr, recoverKeysStr] = await Promise.all([
     getSetting("adaptive_targetCpm"),
     getSetting("adaptive_recoverKeys"),
-    getSetting("adaptive_alphabetSize"),
   ])
   return {
     targetCpm: targetCpmStr ? Number(targetCpmStr) : DEFAULT_TARGET_CPM,
     recoverKeys: recoverKeysStr === "true",
-    alphabetSize: alphabetSizeStr ? Number(alphabetSizeStr) : 0,
   }
 }
 
+export async function loadForcedKeys(): Promise<string[]> {
+  const savedForced = await db.settings.where("key").equals("adaptive_forcedKeys").first()
+  if (!savedForced) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(savedForced.value) as string[]
+    return parsed.filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
+  } catch {
+    return []
+  }
+}
+
+export async function saveForcedKeys(keys: string[]): Promise<void> {
+  const uniqueKeys = [...new Set(keys)].filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
+  await setSetting("adaptive_forcedKeys", JSON.stringify(uniqueKeys))
+}
+
+export async function forceUnlockKey(key: string): Promise<void> {
+  const normalizedKey = key.toLowerCase()
+  if (!LETTER_FREQUENCY_ORDER.includes(normalizedKey)) {
+    return
+  }
+
+  const [autoUnlockedKeys, forcedKeys] = await Promise.all([
+    db.settings.where("key").equals("adaptive_unlocked").first(),
+    loadForcedKeys(),
+  ])
+
+  const autoUnlocked = autoUnlockedKeys
+    ? (JSON.parse(autoUnlockedKeys.value) as string[])
+    : LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)
+
+  if (autoUnlocked.includes(normalizedKey) || forcedKeys.includes(normalizedKey)) {
+    return
+  }
+
+  await saveForcedKeys([...forcedKeys, normalizedKey])
+}
+
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
-  const [keyStats, sessions, savedUnlocked, adaptSettings] = await Promise.all([
+  const [keyStats, sessions, savedUnlocked, forcedKeys, adaptSettings] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
     db.settings.where("key").equals("adaptive_unlocked").first(),
+    loadForcedKeys(),
     loadAdaptiveSettings(),
   ])
 
@@ -234,13 +280,14 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
   }
 
   const unlockedSet = new Set(unlockedKeys)
-  const minSize = INITIAL_UNLOCK_COUNT
-  const maxSize = minSize + Math.round((LETTER_FREQUENCY_ORDER.length - minSize) * adaptSettings.alphabetSize)
+  const forcedSet = new Set(
+    forcedKeys.filter((key) => LETTER_FREQUENCY_ORDER.includes(key) && !unlockedSet.has(key)),
+  )
 
-  const keyConfidences: KeyConfidence[] = LETTER_FREQUENCY_ORDER.map((letter, index) => {
+  const keyConfidences: KeyConfidence[] = LETTER_FREQUENCY_ORDER.map((letter) => {
     const stat = statsMap.get(letter)
     const isUnlocked = unlockedSet.has(letter)
-    const isForced = !isUnlocked && index < maxSize
+    const isForced = !isUnlocked && forcedSet.has(letter)
 
     const ewmaCpm = stat?.adaptiveEwmaCpm
     const bestCpm = stat?.adaptiveBestCpm

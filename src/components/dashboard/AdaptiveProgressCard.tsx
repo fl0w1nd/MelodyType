@@ -118,7 +118,7 @@ export function AdaptiveProgressCard() {
               {Math.round(stats.avgConfidence * 100)}%
             </span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Confidence
+              Avg Confidence
             </span>
           </div>
         </div>
