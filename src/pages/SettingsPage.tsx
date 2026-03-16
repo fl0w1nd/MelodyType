@@ -111,6 +111,11 @@ export default function SettingsPage() {
       db.sessions.clear(),
       db.keyStats.clear(),
       db.dailyGoals.clear(),
+      setSetting("adaptive_forcedKeys", JSON.stringify([])),
+      setSetting(
+        "adaptive_unlocked",
+        JSON.stringify(LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)),
+      ),
     ])
     setClearDialogOpen(false)
   }, [])
