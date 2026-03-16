@@ -90,8 +90,22 @@ Your focus key (the weakest unlocked) gets an additional 2× boost.
 | Mode | Description |
 |------|-------------|
 | **Adaptive** | Continuous sessions with progressive key unlocking and smart text generation |
-| **Time** | Fixed duration (15s / 30s / 60s / 120s) with Easy / Medium / Hard word pools |
+| **Time** | Structured level system with 4 tiers, star ratings, and progress tracking |
 | **Quote** | Type famous quotes for variety |
+
+**Time Mode Details**
+
+Time mode features 20 hand-crafted levels across 4 tiers — Beginner, Intermediate, Advanced, and Expert. Each level defines a specific duration, word pool difficulty, and optional punctuation / number challenges.
+
+Earn up to 3 stars per level:
+
+| Stars | Requirement |
+|-------|-------------|
+| ★☆☆ | Complete an attempt |
+| ★★☆ | WPM ≥ 30 and Accuracy ≥ 80% |
+| ★★★ | WPM ≥ 60 and Accuracy ≥ 95% |
+
+Stars are awarded based on single-session performance — your best WPM and accuracy must come from the same attempt. Session results also show a letter grade (S / A / B / C / D / F) based on a combined WPM × Accuracy score.
 
 ### Dashboard
 
@@ -194,6 +208,7 @@ src/
 │   │   ├── pseudoWords.ts       # Adaptive text generation
 │   │   ├── useTypingEngine.ts   # Core typing state machine hook
 │   │   ├── wordLists.ts         # Common words, quotes
+│   │   ├── timeLevels.ts       # Time mode levels & star ratings
 │   │   └── types.ts             # Shared type definitions
 │   ├── midi/                    # MIDI audio system
 │   │   ├── MidiContext.tsx      # React context for MIDI state
@@ -209,6 +224,7 @@ src/
 │   │   ├── MetricsBar.tsx       # WPM, accuracy display
 │   │   ├── ResultsPanel.tsx     # Session results
 │   │   ├── ModeSelector.tsx     # Practice mode selection
+│   │   ├── TimeLevelSelect.tsx  # Time mode level selection
 │   │   ├── KeyProgressPanel.tsx # Adaptive key progress
 │   │   └── NoteParticles.tsx    # Musical note animations
 │   ├── dashboard/               # Dashboard components
