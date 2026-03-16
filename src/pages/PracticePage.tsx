@@ -8,6 +8,7 @@ import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
 import { KeyProgressPanel } from "@/components/practice/KeyProgressPanel"
+import { TimeLevelSelect } from "@/components/practice/TimeLevelSelect"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { useMidi } from "@/engine/midi/MidiContext"
 import {
@@ -31,6 +32,11 @@ import {
 } from "@/engine/typing/adaptiveEngine"
 import { db, setSetting } from "@/lib/db"
 import type { KeystrokeEntry, TypingMetrics, WordState } from "@/engine/typing/types"
+import {
+  TIME_LEVELS,
+  getLevelById,
+  type TimeLevel,
+} from "@/engine/typing/timeLevels"
 
 const ADAPTIVE_WORD_COUNT = 30
 const UNLOCK_TOAST_DURATION_MS = 2500
@@ -109,10 +115,13 @@ export default function PracticePage() {
   const [newlyUnlocked, setNewlyUnlocked] = useState<string | null>(null)
   const adaptiveLoaded = useRef(false)
 
-  // Continuous session state for adaptive mode
   const [roundCount, setRoundCount] = useState(0)
   const adaptiveContinuingRef = useRef(false)
   const newlyUnlockedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Time mode: level selection vs typing
+  const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
+  const [timeLevelKey, setTimeLevelKey] = useState(0)
 
   const { triggerNextFrame } = useMidi()
   const { particles, emit: emitNote } = useNoteParticles()
@@ -169,11 +178,19 @@ export default function PracticePage() {
           }
           return generateWordText("easy", 25)
         }
-        case "time":
+        case "time": {
+          const level = cfg.levelId ? getLevelById(cfg.levelId) : null
+          if (level) {
+            return generateWordText(level.difficulty, level.wordCount, {
+              punctuation: level.punctuation,
+              numbers: level.numbers,
+            })
+          }
           return generateWordText(cfg.difficulty ?? "easy", 200, {
             punctuation: cfg.punctuation,
             numbers: cfg.numbers,
           })
+        }
         case "quote":
           return getRandomQuote()
         default:
@@ -197,6 +214,13 @@ export default function PracticePage() {
     (newConfig: PracticeModeConfig) => {
       setConfig(newConfig)
       setNewlyUnlocked(null)
+      setActiveLevel(null)
+
+      if (newConfig.mode === "time") {
+        reset()
+        return
+      }
+
       if (newConfig.mode === "adaptive") {
         loadAdaptiveState().then((s) => {
           setAdaptiveState(s)
@@ -206,8 +230,42 @@ export default function PracticePage() {
         startPractice(newConfig)
       }
     },
+    [startPractice, reset],
+  )
+
+  const handleSelectLevel = useCallback(
+    (level: TimeLevel) => {
+      setActiveLevel(level)
+      const cfg: PracticeModeConfig = {
+        mode: "time",
+        timeLimit: level.timeLimit,
+        difficulty: level.difficulty,
+        punctuation: level.punctuation,
+        numbers: level.numbers,
+        levelId: level.id,
+      }
+      setConfig(cfg)
+      startPractice(cfg)
+    },
     [startPractice],
   )
+
+  const handleBackToLevels = useCallback(() => {
+    reset()
+    setActiveLevel(null)
+    setTimeLevelKey((k) => k + 1)
+  }, [reset])
+
+  const handleNextLevel = useCallback(() => {
+    if (!activeLevel) return
+    const idx = TIME_LEVELS.findIndex((l) => l.id === activeLevel.id)
+    const next = idx >= 0 && idx < TIME_LEVELS.length - 1 ? TIME_LEVELS[idx + 1] : null
+    if (next) {
+      handleSelectLevel(next)
+    } else {
+      handleBackToLevels()
+    }
+  }, [activeLevel, handleSelectLevel, handleBackToLevels])
 
   const handleRestart = useCallback(() => {
     reset()
@@ -301,6 +359,9 @@ export default function PracticePage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isAdaptiveMode = config.mode === "adaptive"
+      const isTimeLevelSelect = config.mode === "time" && !activeLevel
+
+      if (isTimeLevelSelect) return
 
       if (state.isFinished && !isAdaptiveMode) {
         if (e.key === "Enter" || e.key === "Tab") {
@@ -321,6 +382,9 @@ export default function PracticePage() {
         if (isAdaptiveMode && state.isStarted && !state.isFinished) {
           discardAdaptiveSession()
         }
+        if (config.mode === "time" && activeLevel) {
+          handleBackToLevels()
+        }
         return
       }
 
@@ -331,8 +395,10 @@ export default function PracticePage() {
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [
+    activeLevel,
     config.mode,
     discardAdaptiveSession,
+    handleBackToLevels,
     handleKeyDown,
     handleRestart,
     state.isFinished,
@@ -533,7 +599,8 @@ export default function PracticePage() {
   }, [state])
 
   const isAdaptive = config.mode === "adaptive"
-  const showResults = !isAdaptive && state.isFinished && state.isStarted
+  const isTimeLevelSelect = config.mode === "time" && !activeLevel
+  const showResults = !isAdaptive && !isTimeLevelSelect && state.isFinished && state.isStarted
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -558,7 +625,6 @@ export default function PracticePage() {
         />
       )}
 
-      {/* New key unlocked toast */}
       <AnimatePresence>
         {isAdaptive && newlyUnlocked && (
           <motion.div
@@ -573,90 +639,113 @@ export default function PracticePage() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {showResults ? (
-          <ResultsPanel
-            key="results"
-            metrics={metrics}
-            onRestart={handleRestart}
-            modeConfig={config}
-            keystrokeLog={state.keystrokeLog}
-            wordsCompleted={state.words.filter((w) => w.completed).length}
-          />
-        ) : (
-          <motion.div
-            key="practice"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full flex flex-col gap-4"
-          >
-            <MetricsBar
-              metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
-              isStarted={isAdaptive ? state.isStarted && !state.isFinished : state.isStarted}
-              timeLimit={config.mode === "time" ? config.timeLimit : undefined}
+      {/* Time mode: level selection */}
+      {isTimeLevelSelect && (
+        <TimeLevelSelect key={timeLevelKey} onSelectLevel={handleSelectLevel} />
+      )}
+
+      {/* Active practice or results */}
+      {!isTimeLevelSelect && (
+        <AnimatePresence mode="wait">
+          {showResults ? (
+            <ResultsPanel
+              key="results"
+              metrics={metrics}
+              onRestart={handleRestart}
+              onBackToLevels={activeLevel ? handleBackToLevels : undefined}
+              onNextLevel={activeLevel ? handleNextLevel : undefined}
+              modeConfig={config}
+              keystrokeLog={state.keystrokeLog}
+              wordsCompleted={state.words.filter((w) => w.completed).length}
             />
-
-            <div className="relative">
-              <TextDisplay
-                words={state.words}
-                currentWordIndex={state.currentWordIndex}
-                currentCharIndex={state.currentCharIndex}
-                isFinished={state.isFinished}
+          ) : (
+            <motion.div
+              key="practice"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full flex flex-col gap-4"
+            >
+              <MetricsBar
+                metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
+                isStarted={isAdaptive ? state.isStarted && !state.isFinished : state.isStarted}
+                timeLimit={config.mode === "time" ? config.timeLimit : undefined}
               />
-              <NoteParticles particles={particles} />
-            </div>
 
-            <div className="flex justify-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground text-xs"
-                onClick={handleRestart}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Restart
-                <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
-                  Tab
-                </kbd>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground text-xs"
-                onClick={() => setShowKeyboard((v) => !v)}
-              >
-                {showKeyboard ? "Hide" : "Show"} Keyboard
-              </Button>
-            </div>
-
-            {isAdaptive && roundCount > 0 && (
-              <div className="text-center text-[10px] text-muted-foreground/60 font-mono">
-                Round {roundCount + 1} · current session · Esc resets
+              <div className="relative">
+                <TextDisplay
+                  words={state.words}
+                  currentWordIndex={state.currentWordIndex}
+                  currentCharIndex={state.currentCharIndex}
+                  isFinished={state.isFinished}
+                />
+                <NoteParticles particles={particles} />
               </div>
-            )}
 
-            <AnimatePresence>
-              {showKeyboard && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground text-xs"
+                  onClick={handleRestart}
                 >
-                  <VirtualKeyboard
-                    nextKey={nextKey}
-                    keyConfidences={
-                      isAdaptive ? adaptiveState?.keyConfidences : undefined
-                    }
-                    adaptiveMode={isAdaptive}
-                  />
-                </motion.div>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restart
+                  <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
+                    Tab
+                  </kbd>
+                </Button>
+                {activeLevel && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground text-xs"
+                    onClick={handleBackToLevels}
+                  >
+                    All Levels
+                    <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
+                      Esc
+                    </kbd>
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground text-xs"
+                  onClick={() => setShowKeyboard((v) => !v)}
+                >
+                  {showKeyboard ? "Hide" : "Show"} Keyboard
+                </Button>
+              </div>
+
+              {isAdaptive && roundCount > 0 && (
+                <div className="text-center text-[10px] text-muted-foreground/60 font-mono">
+                  Round {roundCount + 1} · current session · Esc resets
+                </div>
               )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              <AnimatePresence>
+                {showKeyboard && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <VirtualKeyboard
+                      nextKey={nextKey}
+                      keyConfidences={
+                        isAdaptive ? adaptiveState?.keyConfidences : undefined
+                      }
+                      adaptiveMode={isAdaptive}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   )
 }

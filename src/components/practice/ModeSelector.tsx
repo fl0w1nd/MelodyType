@@ -1,7 +1,6 @@
 import { useState } from "react"
-import { Clock, Quote, Brain, Hash, AtSign } from "lucide-react"
+import { Clock, Quote, Brain } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
 import type { PracticeMode, PracticeModeConfig } from "@/engine/typing/types"
 
 interface ModeSelectorProps {
@@ -14,16 +13,6 @@ const modeIcons: Record<PracticeMode, React.ReactNode> = {
   time: <Clock className="h-3.5 w-3.5" />,
   quote: <Quote className="h-3.5 w-3.5" />,
 }
-
-const timeOptions = [15, 30, 60, 120]
-const difficultyOptions: Array<{
-  value: "easy" | "medium" | "hard"
-  label: string
-}> = [
-  { value: "easy", label: "Easy" },
-  { value: "medium", label: "Medium" },
-  { value: "hard", label: "Hard" },
-]
 
 export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
   const [mode, setMode] = useState<PracticeMode>(currentConfig.mode)
@@ -38,13 +27,7 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
     }
 
     if (nextMode === "time") {
-      onSelect({
-        mode: "time",
-        timeLimit: currentConfig.timeLimit ?? 30,
-        difficulty: currentConfig.difficulty ?? "easy",
-        punctuation: currentConfig.punctuation ?? false,
-        numbers: currentConfig.numbers ?? false,
-      })
+      onSelect({ mode: "time" })
       return
     }
 
@@ -67,81 +50,6 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
           ))}
         </TabsList>
       </Tabs>
-
-      {mode === "time" && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <div className="flex gap-1 items-center">
-            <span className="text-xs text-muted-foreground mr-1">
-              Duration:
-            </span>
-            {timeOptions.map((timeLimit) => (
-              <Button
-                key={timeLimit}
-                variant={currentConfig.timeLimit === timeLimit ? "default" : "ghost"}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() =>
-                  onSelect({ ...currentConfig, mode: "time", timeLimit })
-                }
-              >
-                {timeLimit}s
-              </Button>
-            ))}
-          </div>
-          <div className="w-px h-5 bg-border/60 mx-1" />
-          <div className="flex gap-1 items-center">
-            <span className="text-xs text-muted-foreground mr-1">Level:</span>
-            {difficultyOptions.map((difficulty) => (
-              <Button
-                key={difficulty.value}
-                variant={
-                  currentConfig.difficulty === difficulty.value ? "default" : "ghost"
-                }
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() =>
-                  onSelect({ ...currentConfig, mode: "time", difficulty: difficulty.value })
-                }
-              >
-                {difficulty.label}
-              </Button>
-            ))}
-          </div>
-          <div className="w-px h-5 bg-border/60 mx-1" />
-          <div className="flex gap-1 items-center">
-            <Button
-              variant={currentConfig.punctuation ? "default" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              onClick={() =>
-                onSelect({
-                  ...currentConfig,
-                  mode: "time",
-                  punctuation: !currentConfig.punctuation,
-                })
-              }
-            >
-              <AtSign className="h-3 w-3" />
-              Punctuation
-            </Button>
-            <Button
-              variant={currentConfig.numbers ? "default" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              onClick={() =>
-                onSelect({
-                  ...currentConfig,
-                  mode: "time",
-                  numbers: !currentConfig.numbers,
-                })
-              }
-            >
-              <Hash className="h-3 w-3" />
-              Numbers
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
