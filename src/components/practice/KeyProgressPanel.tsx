@@ -7,6 +7,7 @@ import {
   Unlock,
   Star,
   Crosshair,
+  CircleCheck,
   Gauge,
   Target,
   Clock,
@@ -41,11 +42,14 @@ import {
   DEFAULT_TARGET_CPM,
   MIN_TARGET_CPM,
   MAX_TARGET_CPM,
+  getAdaptiveKeyToneClass,
+  getAdaptiveKeyBarClass,
+  getKeyUnlockChecks,
+  isKeyReadyToUnlock,
+  isKeyStrictlyMastered,
   MIN_HITS_FOR_MASTERY,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
-  getConfidenceColorClass,
-  getConfidenceBarColorClass,
 } from "@/engine/typing/adaptiveEngine"
 
 interface KeyProgressPanelProps {
@@ -84,9 +88,12 @@ function KeyProgressPanelInner({
 
   const unlockedKeys = keyConfidences.filter((k) => k.unlocked)
   const lockedKeys = keyConfidences.filter((k) => !k.unlocked)
-  const masteredCount = unlockedKeys.filter(
-    (k) => k.bestConfidence >= 1.0,
+  const progressionKeys = unlockedKeys.filter((k) => !k.forced)
+  const masteredCount = unlockedKeys.filter((k) => isKeyStrictlyMastered(k)).length
+  const readyToUnlockCount = progressionKeys.filter((k) =>
+    isKeyReadyToUnlock(k, recoverKeys),
   ).length
+  const blockingKeys = progressionKeys.filter((k) => !isKeyReadyToUnlock(k, recoverKeys))
 
   const avgConfidence =
     unlockedKeys.length > 0
@@ -140,7 +147,7 @@ function KeyProgressPanelInner({
               key={kc.key}
               className={cn(
                 "w-5 h-5 flex items-center justify-center rounded text-[9px] font-mono font-medium border transition-colors",
-                getConfidenceColorClass(kc.confidence, kc.unlocked),
+                getAdaptiveKeyToneClass(kc),
                 kc.focused && "ring-1 ring-primary ring-offset-1 ring-offset-background",
               )}
             >
@@ -183,9 +190,9 @@ function KeyProgressPanelInner({
                 <span className="text-muted-foreground"> mastered</span>
               </span>
             </div>
-            {focusKey && (
-              <>
-                <div className="w-px h-5 bg-border/60" />
+            <div className="w-px h-5 bg-border/60" />
+            {focusKey ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <Crosshair className="h-3.5 w-3.5 text-primary" />
                   <span className="text-xs font-medium">
@@ -199,7 +206,12 @@ function KeyProgressPanelInner({
                   recoverKeys={recoverKeys}
                   inline
                 />
-              </>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CircleCheck className="h-3.5 w-3.5" />
+                Ready for next unlock
+              </div>
             )}
           </div>
 
@@ -370,7 +382,7 @@ function KeyProgressPanelInner({
             transition={{ duration: 0.32, ease: "easeOut" }}
             className={cn(
               "w-6 h-6 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
-              getConfidenceColorClass(kc.confidence, kc.unlocked),
+              getAdaptiveKeyToneClass(kc),
               !kc.unlocked && onUnlockKey && "cursor-pointer hover:border-primary/40 hover:bg-primary/5",
               kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
             )}
@@ -431,17 +443,52 @@ function KeyProgressPanelInner({
                   value={`${Math.round(avgConfidence * 100)}%`}
                   icon={<Activity className="h-3.5 w-3.5" />}
                 />
+                <SummaryMetricCard
+                  label="Unlock Readiness"
+                  value={`${readyToUnlockCount}/${progressionKeys.length || 0} keys ready`}
+                  icon={<CircleCheck className="h-3.5 w-3.5" />}
+                />
               </div>
 
-              <div className="space-y-1">
+              <div className="rounded-xl border border-border/40 bg-background/40 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-medium text-foreground">Unlock Readiness</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {readyToUnlockCount === progressionKeys.length
+                        ? "All active keys meet the next unlock requirements."
+                        : `${blockingKeys.length} key${blockingKeys.length === 1 ? "" : "s"} still blocking the next letter.`}
+                    </div>
+                  </div>
+                  {blockingKeys.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {blockingKeys.slice(0, 4).map((kc) => (
+                        <UnlockBlockerBadge
+                          key={kc.key}
+                          keyConf={kc}
+                          recoverKeys={recoverKeys}
+                        />
+                      ))}
+                      {blockingKeys.length > 4 && (
+                        <span className="self-center text-[10px] text-muted-foreground">
+                          +{blockingKeys.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <span className="text-xs text-muted-foreground font-medium">Unlocked Keys</span>
-                <div className="grid gap-1.5">
+                <div className="grid gap-2 lg:grid-cols-2">
                   {unlockedKeys.map((kc) => (
-                    <KeyStatRow
+                    <KeyStatCard
                       key={kc.key}
                       keyConf={kc}
                       isFocus={kc.key === focusKey}
                       targetCpm={targetCpm}
+                      recoverKeys={recoverKeys}
                     />
                   ))}
                 </div>
@@ -509,54 +556,143 @@ function KeyProgressPanelInner({
   )
 }
 
-function KeyStatRow({
+function KeyStatCard({
   keyConf,
   isFocus,
   targetCpm,
+  recoverKeys,
 }: {
   keyConf: KeyConfidence
   isFocus: boolean
   targetCpm: number
+  recoverKeys: boolean
 }) {
   const ewmaCpm = Math.round(keyConf.speed * 5)
   const bestCpm = Math.round(keyConf.bestConfidence * targetCpm)
+  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
+  const readiness = Object.values(checks).filter(Boolean).length
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-2 py-1 rounded-md",
+        "rounded-xl border border-border/40 bg-background/50 p-3",
         isFocus && "bg-primary/5 border border-primary/20",
       )}
     >
-      <div
-        className={cn(
-          "w-5 h-5 flex items-center justify-center rounded text-[10px] font-mono font-bold border",
-          getConfidenceColorClass(keyConf.confidence, true),
-        )}
-      >
-        {keyConf.key.toUpperCase()}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "w-7 h-7 flex items-center justify-center rounded text-xs font-mono font-bold border",
+              getAdaptiveKeyToneClass(keyConf),
+            )}
+          >
+            {keyConf.key.toUpperCase()}
+          </div>
+          <div>
+            <div className="text-sm font-medium text-foreground">
+              {keyConf.key.toUpperCase()}
+              {isFocus && <span className="ml-1.5 text-xs text-primary">Focus</span>}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {readiness}/4 unlock checks passed
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-mono font-medium text-foreground">{ewmaCpm} cpm</div>
+          <div className="text-[11px] text-muted-foreground">
+            {Math.round(keyConf.confidence * 100)}% target
+          </div>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
+
+      <div className="mt-3">
         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all duration-300", getConfidenceBarColorClass(keyConf.confidence))}
+            className={cn("h-full rounded-full transition-all duration-300", getAdaptiveKeyBarClass(keyConf))}
             style={{ width: `${Math.min(keyConf.confidence * 100, 100)}%`, transition: "width 0.3s" }}
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-1.5 text-[10px] font-mono text-muted-foreground shrink-0">
-        <span>{ewmaCpm} cpm</span>
-        <span>best {bestCpm}</span>
-        <span>{keyConf.accuracy.toFixed(0)}%</span>
-        <span>life {keyConf.lifetimeAccuracy.toFixed(0)}%</span>
-        <span>{keyConf.samples} hits</span>
-        {keyConf.learningRate?.remainingLessons != null && (
-          <span className="text-primary/70" title={`R²=${keyConf.learningRate.certainty.toFixed(2)}`}>
-            ~{keyConf.learningRate.remainingLessons}
-          </span>
-        )}
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+        <StatChip label="Current" value={`${ewmaCpm} cpm`} />
+        <StatChip label="Best" value={`${bestCpm} cpm`} />
+        <StatChip label="Recent" value={`${keyConf.accuracy.toFixed(0)}%`} />
+        <StatChip label="Lifetime" value={`${keyConf.lifetimeAccuracy.toFixed(0)}%`} />
+        <StatChip label="Hits" value={`${keyConf.samples}`} />
+        <StatChip
+          label="Forecast"
+          value={
+            keyConf.learningRate?.remainingLessons != null
+              ? `~${keyConf.learningRate.remainingLessons}`
+              : "—"
+          }
+        />
       </div>
-      {isFocus && <Crosshair className="h-3 w-3 text-primary shrink-0" />}
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <GateChip label={`Target ${targetCpm} cpm`} met={checks.speed} />
+        <GateChip label={`${MIN_HITS_FOR_MASTERY}+ hits`} met={checks.hits} />
+        <GateChip
+          label={`${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}% recent`}
+          met={checks.recentAccuracy}
+        />
+        <GateChip
+          label={`${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}% lifetime`}
+          met={checks.lifetimeAccuracy}
+        />
+      </div>
     </div>
+  )
+}
+
+function UnlockBlockerBadge({
+  keyConf,
+  recoverKeys,
+}: {
+  keyConf: KeyConfidence
+  recoverKeys: boolean
+}) {
+  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
+  const missing = [
+    !checks.speed && "speed",
+    !checks.hits && "hits",
+    !checks.recentAccuracy && "recent",
+    !checks.lifetimeAccuracy && "lifetime",
+  ].filter(Boolean)
+
+  return (
+    <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] text-amber-700 dark:text-amber-400">
+      <span className="font-mono font-medium">{keyConf.key.toUpperCase()}</span>
+      <span className="ml-1 opacity-80">{missing.join(" · ")}</span>
+    </div>
+  )
+}
+
+function StatChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/30 bg-secondary/20 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </div>
+      <div className="mt-0.5 font-mono font-medium text-foreground">{value}</div>
+    </div>
+  )
+}
+
+function GateChip({ label, met }: { label: string; met: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-[10px] font-medium",
+        met
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+      )}
+    >
+      {label}
+    </span>
   )
 }
 
@@ -667,23 +803,23 @@ function FocusThresholds({
     )
   }
 
-  const speedGate = recoverKeys ? focus.confidence : focus.bestConfidence
+  const unlockChecks = getKeyUnlockChecks(focus, recoverKeys)
   const checks = [
     {
       label: `Target ${targetCpm} CPM`,
-      met: speedGate >= 1.0,
+      met: unlockChecks.speed,
     },
     {
       label: `${MIN_HITS_FOR_MASTERY}+ hits`,
-      met: focus.samples >= MIN_HITS_FOR_MASTERY,
+      met: unlockChecks.hits,
     },
     {
       label: `${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}% recent`,
-      met: focus.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100,
+      met: unlockChecks.recentAccuracy,
     },
     {
       label: `${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}% lifetime`,
-      met: focus.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100,
+      met: unlockChecks.lifetimeAccuracy,
     },
   ]
 
