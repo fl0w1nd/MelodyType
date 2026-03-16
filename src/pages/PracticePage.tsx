@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { RotateCcw, Pause } from "lucide-react"
+import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
@@ -7,7 +7,6 @@ import { MetricsBar } from "@/components/practice/MetricsBar"
 import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
-import { AdaptiveResultsPanel } from "@/components/practice/AdaptiveResultsPanel"
 import { KeyProgressPanel } from "@/components/practice/KeyProgressPanel"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { useMidi } from "@/engine/midi/MidiContext"
@@ -25,6 +24,7 @@ import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
 import type { PracticeModeConfig } from "@/engine/typing/types"
 import type { AdaptiveState } from "@/engine/typing/adaptiveEngine"
 import {
+  INITIAL_UNLOCK_COUNT,
   loadAdaptiveState,
   recomputeAndUnlock,
   updateKeyStatsFromSession,
@@ -34,6 +34,7 @@ import type { KeystrokeEntry, TypingMetrics, WordState } from "@/engine/typing/t
 
 const ADAPTIVE_WORD_COUNT = 30
 const UNLOCK_TOAST_DURATION_MS = 2500
+const ADAPTIVE_INACTIVITY_TIMEOUT_MS = 10000
 
 function computeMetricsForWords(
   words: WordState[],
@@ -103,17 +104,13 @@ export default function PracticePage() {
     mode: "adaptive",
   })
   const [showKeyboard, setShowKeyboard] = useState(true)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   const [adaptiveState, setAdaptiveState] = useState<AdaptiveState | null>(null)
   const [newlyUnlocked, setNewlyUnlocked] = useState<string | null>(null)
   const adaptiveLoaded = useRef(false)
 
   // Continuous session state for adaptive mode
-  const [adaptivePaused, setAdaptivePaused] = useState(false)
   const [roundCount, setRoundCount] = useState(0)
-  const roundKeystrokeStartRef = useRef(0)
-  const roundStartTimeRef = useRef(0)
   const adaptiveContinuingRef = useRef(false)
   const newlyUnlockedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -123,18 +120,22 @@ export default function PracticePage() {
     triggerNextFrame()
     emitNote()
   }, [triggerNextFrame, emitNote])
-  const { state, elapsed, loadText, continueWithText, handleKeyDown, getMetrics, reset } =
+  const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
     useTypingEngine(onKeystroke)
 
   const metrics = useMemo(() => getMetrics(), [getMetrics, elapsed, state])
-  const adaptiveRoundLog = useMemo(
-    () => state.keystrokeLog.slice(roundKeystrokeStartRef.current),
-    [state.keystrokeLog],
+  const adaptivePersistMetrics = useMemo(
+    () => computeMetricsForWords(state.words, state.keystrokeLog, elapsed),
+    [elapsed, state.keystrokeLog, state.words],
   )
-  const adaptiveRoundMetrics = useMemo(() => {
-    const roundElapsed = Math.max(elapsed - roundStartTimeRef.current, 0)
-    return computeMetricsForWords(state.words, adaptiveRoundLog, roundElapsed)
-  }, [state.words, adaptiveRoundLog, elapsed])
+  const adaptiveDisplayMetrics = useMemo(
+    () => computeMetricsForWords(
+      state.words,
+      state.keystrokeLog,
+      state.isFinished ? 0 : elapsed,
+    ),
+    [elapsed, state.isFinished, state.keystrokeLog, state.words],
+  )
 
   useEffect(() => {
     if (adaptiveLoaded.current) return
@@ -193,9 +194,6 @@ export default function PracticePage() {
       const text = generateText(cfg, aState)
       loadText(text, cfg.mode === "time" ? cfg.timeLimit : undefined)
       setRoundCount(0)
-      roundKeystrokeStartRef.current = 0
-      roundStartTimeRef.current = 0
-      setAdaptivePaused(false)
       adaptiveContinuingRef.current = false
     },
     [generateText, loadText],
@@ -220,7 +218,6 @@ export default function PracticePage() {
   const handleRestart = useCallback(() => {
     reset()
     setNewlyUnlocked(null)
-    setAdaptivePaused(false)
     adaptiveContinuingRef.current = false
     if (config.mode === "adaptive") {
       loadAdaptiveState().then((s) => {
@@ -232,28 +229,47 @@ export default function PracticePage() {
     }
   }, [reset, startPractice, config])
 
-  const handleAdaptivePause = useCallback(() => {
-    setAdaptivePaused(true)
-  }, [])
+  const discardAdaptiveSession = useCallback(() => {
+    if (config.mode !== "adaptive") return
+    if (state.isFinished) return
 
-  const handleAdaptiveResume = useCallback(() => {
-    setAdaptivePaused(false)
+    reset()
+    setNewlyUnlocked(null)
     adaptiveContinuingRef.current = false
-    if (state.isFinished) {
-      loadAdaptiveState().then((s) => {
-        setAdaptiveState(s)
-        const text = generateAdaptiveText(
-          s.keyConfidences,
-          s.unlockedKeys,
-          s.focusKey,
-          ADAPTIVE_WORD_COUNT,
-        )
-        continueWithText(text)
-        roundKeystrokeStartRef.current = state.keystrokeLog.length
-        roundStartTimeRef.current = elapsed
-      })
-    }
-  }, [state.isFinished, state.keystrokeLog.length, continueWithText, elapsed])
+    loadAdaptiveState().then((s) => {
+      setAdaptiveState(s)
+      startPractice(config, s)
+    })
+  }, [config, reset, startPractice, state.isFinished])
+
+  const startAdaptiveNextRound = useCallback((nextState: AdaptiveState) => {
+    const text = generateAdaptiveText(
+      nextState.keyConfidences,
+      nextState.unlockedKeys,
+      nextState.focusKey,
+      ADAPTIVE_WORD_COUNT,
+    )
+    loadText(text)
+    setAdaptiveState(nextState)
+    setRoundCount((count) => count + 1)
+    adaptiveContinuingRef.current = false
+  }, [loadText])
+
+  const handleAdaptiveRoundAdvance = useCallback(
+    async (roundLog: KeystrokeEntry[]) => {
+      if (config.mode !== "adaptive") return
+
+      const prevUnlocked = adaptiveState?.unlockedKeys ?? []
+      await updateKeyStatsFromSession(roundLog)
+      const nextState = await recomputeAndUnlock()
+      const newKeys = nextState.unlockedKeys.filter((key) => !prevUnlocked.includes(key))
+      if (newKeys.length > 0) {
+        setNewlyUnlocked(newKeys[0])
+      }
+      startAdaptiveNextRound(nextState)
+    },
+    [adaptiveState, config.mode, startAdaptiveNextRound],
+  )
 
   const handleNext = useCallback(() => {
     if (config.mode === "lesson" && config.lessonId) {
@@ -276,18 +292,6 @@ export default function PracticePage() {
     const handler = (e: KeyboardEvent) => {
       const isAdaptiveMode = config.mode === "adaptive"
 
-      if (isAdaptiveMode && adaptivePaused) {
-        if (e.key === "Enter" || e.key === "Tab") {
-          e.preventDefault()
-          handleAdaptiveResume()
-        }
-        if (e.key === "Escape") {
-          e.preventDefault()
-          handleRestart()
-        }
-        return
-      }
-
       if (state.isFinished && !isAdaptiveMode) {
         if (e.key === "Enter" || e.key === "Tab") {
           e.preventDefault()
@@ -304,8 +308,8 @@ export default function PracticePage() {
 
       if (e.key === "Escape") {
         e.preventDefault()
-        if (isAdaptiveMode && state.isStarted) {
-          handleAdaptivePause()
+        if (isAdaptiveMode && state.isStarted && !state.isFinished) {
+          discardAdaptiveSession()
         }
         return
       }
@@ -316,24 +320,45 @@ export default function PracticePage() {
 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [handleKeyDown, handleRestart, handleAdaptivePause, handleAdaptiveResume, state.isFinished, state.isStarted, config.mode, adaptivePaused])
+  }, [
+    config.mode,
+    discardAdaptiveSession,
+    handleKeyDown,
+    handleRestart,
+    state.isFinished,
+    state.isStarted,
+  ])
+
+  useEffect(() => {
+    if (config.mode !== "adaptive") return
+
+    const onBlur = () => {
+      if (state.isStarted && !state.isFinished) {
+        discardAdaptiveSession()
+      }
+    }
+    const onVisibilityChange = () => {
+      if (document.hidden && state.isStarted && !state.isFinished) {
+        discardAdaptiveSession()
+      }
+    }
+
+    window.addEventListener("blur", onBlur)
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => {
+      window.removeEventListener("blur", onBlur)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [config.mode, discardAdaptiveSession, state.isFinished, state.isStarted])
 
   const persistFinishedRound = useCallback(() => {
     if (!state.isFinished || !state.isStarted) return
     if (adaptiveContinuingRef.current) return
     adaptiveContinuingRef.current = true
 
-    const roundLog = state.keystrokeLog.slice(roundKeystrokeStartRef.current)
-    const m = getMetrics()
-
-    const roundElapsed =
-      config.mode === "adaptive"
-        ? Math.max(m.elapsedTime - roundStartTimeRef.current, 0)
-        : m.elapsedTime
+    const roundLog = state.keystrokeLog
     const roundMetrics =
-      config.mode === "adaptive"
-        ? computeMetricsForWords(state.words, roundLog, roundElapsed)
-        : m
+      config.mode === "adaptive" ? adaptivePersistMetrics : metrics
     const sessionWpm = roundMetrics.wpm
     const sessionRawWpm = roundMetrics.rawWpm
     const sessionAccuracy = roundMetrics.accuracy
@@ -341,116 +366,108 @@ export default function PracticePage() {
     const sessionTotalChars = roundMetrics.totalChars
     const sessionCorrectChars = roundMetrics.correctChars
     const sessionErrorChars = roundMetrics.incorrectChars
+    const sessionModeConfig =
+      config.mode === "adaptive"
+        ? JSON.stringify({
+            ...config,
+            adaptiveMeta: {
+              unlockedKeyCount:
+                adaptiveState?.unlockedKeys.length ?? INITIAL_UNLOCK_COUNT,
+            },
+          })
+        : JSON.stringify(config)
 
-    void db.sessions.add({
-      timestamp: Date.now(),
-      mode: config.mode,
-      modeConfig: JSON.stringify(config),
-      wpm: sessionWpm,
-      rawWpm: sessionRawWpm,
-      accuracy: sessionAccuracy,
-      duration: sessionDuration,
-      totalChars: sessionTotalChars,
-      correctChars: sessionCorrectChars,
-      errorChars: sessionErrorChars,
-      keystrokes: roundLog.map((k) => ({
-        key: k.key,
-        correct: k.correct,
-        timestamp: k.timestamp,
-        latency: 0,
-      })),
-    })
+    void (async () => {
+      try {
+        await db.sessions.add({
+          timestamp: Date.now(),
+          mode: config.mode,
+          modeConfig: sessionModeConfig,
+          wpm: sessionWpm,
+          rawWpm: sessionRawWpm,
+          accuracy: sessionAccuracy,
+          duration: sessionDuration,
+          totalChars: sessionTotalChars,
+          correctChars: sessionCorrectChars,
+          errorChars: sessionErrorChars,
+          keystrokes: roundLog.map((k) => ({
+            key: k.key,
+            correct: k.correct,
+            timestamp: k.timestamp,
+            latency: 0,
+          })),
+        })
 
-    if (config.mode === "adaptive") {
-      const prevUnlocked = adaptiveState?.unlockedKeys ?? []
-      void updateKeyStatsFromSession(roundLog).then(() =>
-        recomputeAndUnlock().then((s) => {
-          const newKeys = s.unlockedKeys.filter(
-            (k) => !prevUnlocked.includes(k),
-          )
-          if (newKeys.length > 0) {
-            setNewlyUnlocked(newKeys[0])
+        if (config.mode === "adaptive") {
+          await handleAdaptiveRoundAdvance(roundLog)
+        } else {
+          const keyCounts: Record<string, { hits: number; errors: number }> = {}
+          for (const k of roundLog) {
+            if (k.key.length !== 1 || k.key === " ") continue
+            const lower = k.key.toLowerCase()
+            if (!keyCounts[lower]) keyCounts[lower] = { hits: 0, errors: 0 }
+            keyCounts[lower].hits++
+            if (!k.correct) keyCounts[lower].errors++
           }
-          setAdaptiveState(s)
-          setRoundCount((c) => c + 1)
 
-          if (!adaptivePaused) {
-            const text = generateAdaptiveText(
-              s.keyConfidences,
-              s.unlockedKeys,
-              s.focusKey,
-              ADAPTIVE_WORD_COUNT,
-            )
-            continueWithText(text)
-            roundKeystrokeStartRef.current = state.keystrokeLog.length
-            roundStartTimeRef.current = m.elapsedTime
-            adaptiveContinuingRef.current = false
-          }
-        }),
-      )
-    } else {
-      const keyCounts: Record<string, { hits: number; errors: number }> = {}
-      for (const k of roundLog) {
-        if (k.key.length !== 1 || k.key === " ") continue
-        const lower = k.key.toLowerCase()
-        if (!keyCounts[lower]) keyCounts[lower] = { hits: 0, errors: 0 }
-        keyCounts[lower].hits++
-        if (!k.correct) keyCounts[lower].errors++
-      }
+          await db.transaction("rw", db.keyStats, async () => {
+            for (const [key, counts] of Object.entries(keyCounts)) {
+              const existing = await db.keyStats.where("key").equals(key).first()
+              if (existing) {
+                await db.keyStats.update(existing.id!, {
+                  totalHits: existing.totalHits + counts.hits,
+                  errors: existing.errors + counts.errors,
+                  lastUpdated: Date.now(),
+                })
+              } else {
+                await db.keyStats.add({
+                  key,
+                  totalHits: counts.hits,
+                  errors: counts.errors,
+                  totalLatency: 0,
+                  avgSpeed: 0,
+                  lastUpdated: Date.now(),
+                })
+              }
+            }
+          })
+        }
 
-      void db.transaction("rw", db.keyStats, async () => {
-        for (const [key, counts] of Object.entries(keyCounts)) {
-          const existing = await db.keyStats.where("key").equals(key).first()
+        const today = new Date().toISOString().split("T")[0]
+        await db.transaction("rw", db.dailyGoals, async () => {
+          const existing = await db.dailyGoals.where("date").equals(today).first()
+          const roundMinutes = sessionDuration / 60
           if (existing) {
-            await db.keyStats.update(existing.id!, {
-              totalHits: existing.totalHits + counts.hits,
-              errors: existing.errors + counts.errors,
-              lastUpdated: Date.now(),
+            await db.dailyGoals.update(existing.id!, {
+              completedMinutes: existing.completedMinutes + roundMinutes,
+              sessionsCount: existing.sessionsCount + 1,
+              bestWpm: Math.max(existing.bestWpm, sessionWpm),
+              avgAccuracy:
+                (existing.avgAccuracy * existing.sessionsCount + sessionAccuracy) /
+                (existing.sessionsCount + 1),
             })
           } else {
-            await db.keyStats.add({
-              key,
-              totalHits: counts.hits,
-              errors: counts.errors,
-              totalLatency: 0,
-              avgSpeed: 0,
-              lastUpdated: Date.now(),
+            await db.dailyGoals.add({
+              date: today,
+              targetMinutes: 30,
+              completedMinutes: roundMinutes,
+              sessionsCount: 1,
+              bestWpm: sessionWpm,
+              avgAccuracy: sessionAccuracy,
             })
           }
-        }
-      })
-    }
-
-    const today = new Date().toISOString().split("T")[0]
-    void db.transaction("rw", db.dailyGoals, async () => {
-      const existing = await db.dailyGoals.where("date").equals(today).first()
-      const roundMinutes = sessionDuration / 60
-      if (existing) {
-        await db.dailyGoals.update(existing.id!, {
-          completedMinutes: existing.completedMinutes + roundMinutes,
-          sessionsCount: existing.sessionsCount + 1,
-          bestWpm: Math.max(existing.bestWpm, sessionWpm),
-          avgAccuracy:
-            (existing.avgAccuracy * existing.sessionsCount + sessionAccuracy) /
-            (existing.sessionsCount + 1),
         })
-      } else {
-        await db.dailyGoals.add({
-          date: today,
-          targetMinutes: 30,
-          completedMinutes: roundMinutes,
-          sessionsCount: 1,
-          bestWpm: sessionWpm,
-          avgAccuracy: sessionAccuracy,
-        })
+      } catch (error) {
+        adaptiveContinuingRef.current = false
+        console.error("Failed to persist completed round", error)
       }
-    })
+    })()
   }, [
-    adaptivePaused,
+    adaptivePersistMetrics,
     adaptiveState,
     config,
-    continueWithText,
-    getMetrics,
+    handleAdaptiveRoundAdvance,
+    metrics,
     state.isFinished,
     state.isStarted,
     state.keystrokeLog,
@@ -462,7 +479,7 @@ export default function PracticePage() {
   }, [persistFinishedRound])
 
   useEffect(() => {
-    if (!newlyUnlocked || adaptivePaused) return
+    if (!newlyUnlocked) return
     if (newlyUnlockedTimeoutRef.current) {
       clearTimeout(newlyUnlockedTimeoutRef.current)
     }
@@ -476,7 +493,25 @@ export default function PracticePage() {
         newlyUnlockedTimeoutRef.current = null
       }
     }
-  }, [adaptivePaused, newlyUnlocked])
+  }, [newlyUnlocked])
+
+  useEffect(() => {
+    if (config.mode !== "adaptive" || !state.isStarted || state.isFinished) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      discardAdaptiveSession()
+    }, ADAPTIVE_INACTIVITY_TIMEOUT_MS)
+
+    return () => clearTimeout(timeoutId)
+  }, [
+    config.mode,
+    discardAdaptiveSession,
+    state.isFinished,
+    state.isStarted,
+    state.keystrokeLog.length,
+  ])
 
   const activeKeys = useMemo(() => {
     if (config.mode === "adaptive" && adaptiveState) {
@@ -500,44 +535,28 @@ export default function PracticePage() {
   }, [state])
 
   const isAdaptive = config.mode === "adaptive"
-  const showAdaptiveResults = isAdaptive && adaptivePaused && adaptiveState
-  const showNonAdaptiveResults = !isAdaptive && state.isFinished && state.isStarted
-  const showResults = showAdaptiveResults || showNonAdaptiveResults
+  const showResults = !isAdaptive && state.isFinished && state.isStarted
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col items-center gap-6"
-      tabIndex={-1}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-      >
-        <h1 className="font-serif text-2xl sm:text-3xl tracking-tight mb-1">
-          Practice
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {isAdaptive
-            ? "Adaptive practice — focuses on your weakest keys"
-            : "Focus on accuracy first, speed will follow"}
-        </p>
-      </motion.div>
-
+    <div className="flex flex-col items-center gap-6">
       <ModeSelector onSelect={handleConfigChange} currentConfig={config} />
 
-      {isAdaptive && adaptiveState && !showResults && (
+      {isAdaptive && adaptiveState && (
         <KeyProgressPanel
           keyConfidences={adaptiveState.keyConfidences}
           focusKey={adaptiveState.focusKey}
+          globalSummary={adaptiveState.globalSummary}
           targetCpm={adaptiveState.settings.targetCpm}
+          recoverKeys={adaptiveState.settings.recoverKeys}
+          forcedAlphabetSize={adaptiveState.settings.alphabetSize}
+          totalSessions={adaptiveState.totalSessions}
+          roundNumber={roundCount + 1}
         />
       )}
 
       {/* New key unlocked toast */}
       <AnimatePresence>
-        {isAdaptive && newlyUnlocked && !adaptivePaused && (
+        {isAdaptive && newlyUnlocked && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -552,25 +571,12 @@ export default function PracticePage() {
 
       <AnimatePresence mode="wait">
         {showResults ? (
-          showAdaptiveResults ? (
-            <AdaptiveResultsPanel
-              key="adaptive-results"
-              metrics={adaptiveRoundMetrics}
-              keystrokeLog={adaptiveRoundLog}
-              keyConfidences={adaptiveState.keyConfidences}
-              newlyUnlocked={newlyUnlocked}
-              onRestart={handleRestart}
-              onResume={handleAdaptiveResume}
-              roundCount={roundCount}
-            />
-          ) : (
-            <ResultsPanel
-              key="results"
-              metrics={metrics}
-              onRestart={handleRestart}
-              onNext={config.mode === "lesson" ? handleNext : undefined}
-            />
-          )
+          <ResultsPanel
+            key="results"
+            metrics={metrics}
+            onRestart={handleRestart}
+            onNext={config.mode === "lesson" ? handleNext : undefined}
+          />
         ) : (
           <motion.div
             key="practice"
@@ -580,8 +586,8 @@ export default function PracticePage() {
             className="w-full flex flex-col gap-4"
           >
             <MetricsBar
-              metrics={metrics}
-              isStarted={state.isStarted}
+              metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
+              isStarted={isAdaptive ? state.isStarted && !state.isFinished : state.isStarted}
               timeLimit={config.mode === "time" ? config.timeLimit : undefined}
             />
 
@@ -608,20 +614,6 @@ export default function PracticePage() {
                   Tab
                 </kbd>
               </Button>
-              {isAdaptive && state.isStarted && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-muted-foreground text-xs"
-                  onClick={handleAdaptivePause}
-                >
-                  <Pause className="h-3.5 w-3.5" />
-                  Results
-                  <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
-                    Esc
-                  </kbd>
-                </Button>
-              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -634,7 +626,7 @@ export default function PracticePage() {
 
             {isAdaptive && roundCount > 0 && (
               <div className="text-center text-[10px] text-muted-foreground/60 font-mono">
-                Round {roundCount + 1} · continuous session
+                Round {roundCount + 1} · current session · Esc resets
               </div>
             )}
 

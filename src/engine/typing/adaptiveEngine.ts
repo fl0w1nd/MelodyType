@@ -1,4 +1,4 @@
-import { db, getSetting, setSetting, type KeyStat } from "@/lib/db"
+import { db, getSetting, setSetting, type KeyStat, type TypingSession } from "@/lib/db"
 import { computeLearningRate, type LearningRateResult } from "./learningRate.ts"
 
 export const LETTER_FREQUENCY_ORDER = [
@@ -23,6 +23,19 @@ export interface AdaptiveSettings {
   targetCpm: number
   recoverKeys: boolean
   alphabetSize: number
+}
+
+export interface AdaptiveMetricSummary {
+  last: number
+  delta: number
+  avg: number
+}
+
+export interface AdaptiveGlobalSummary {
+  count: number
+  speed: AdaptiveMetricSummary
+  accuracy: AdaptiveMetricSummary
+  score: AdaptiveMetricSummary
 }
 
 export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
@@ -50,6 +63,7 @@ export interface AdaptiveState {
   focusKey: string | null
   keyConfidences: KeyConfidence[]
   totalSessions: number
+  globalSummary: AdaptiveGlobalSummary
   settings: AdaptiveSettings
 }
 
@@ -61,6 +75,90 @@ export function computeMastery(ewmaCpm: number | undefined, targetCpm: number = 
 function computeAccuracyPercent(correctHits: number, errorHits: number): number {
   const totalHits = correctHits + errorHits
   return totalHits > 0 ? (correctHits / totalHits) * 100 : 100
+}
+
+function makeMetricSummary(values: number[]): AdaptiveMetricSummary {
+  if (values.length === 0) {
+    return { last: 0, delta: 0, avg: 0 }
+  }
+
+  const last = values[values.length - 1]
+  if (values.length === 1) {
+    return { last, delta: last, avg: last }
+  }
+
+  const previousValues = values.slice(0, -1)
+  const previousAverage =
+    previousValues.reduce((sum, value) => sum + value, 0) / previousValues.length
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length
+
+  return {
+    last,
+    delta: last - previousAverage,
+    avg: average,
+  }
+}
+
+function parseAdaptiveSessionMeta(session: TypingSession): {
+  unlockedKeyCount?: number
+} | null {
+  try {
+    const parsed = JSON.parse(session.modeConfig) as {
+      adaptiveMeta?: { unlockedKeyCount?: number }
+    }
+    return parsed?.adaptiveMeta ?? null
+  } catch {
+    return null
+  }
+}
+
+function getAdaptiveAlphabetComplexity(session: TypingSession): number {
+  const stored = parseAdaptiveSessionMeta(session)?.unlockedKeyCount
+  if (Number.isFinite(stored) && stored != null) {
+    return Math.min(
+      LETTER_FREQUENCY_ORDER.length,
+      Math.max(INITIAL_UNLOCK_COUNT, Math.round(stored)),
+    )
+  }
+
+  const distinctKeys = new Set(
+    session.keystrokes
+      .map((entry) => entry.key.toLowerCase())
+      .filter((key) => key.length === 1 && key >= "a" && key <= "z"),
+  ).size
+
+  return Math.min(
+    LETTER_FREQUENCY_ORDER.length,
+    Math.max(INITIAL_UNLOCK_COUNT, distinctKeys),
+  )
+}
+
+function computeAdaptiveScore(session: TypingSession): number {
+  const cpm = session.wpm * 5
+  const alphabetComplexity = getAdaptiveAlphabetComplexity(session)
+  const errors = session.errorChars
+  const length = session.totalChars
+
+  if (cpm <= 0 || alphabetComplexity <= 0 || length <= 0) {
+    return 0
+  }
+
+  return ((cpm * alphabetComplexity) / (errors + 1)) * (length / 50)
+}
+
+function computeAdaptiveGlobalSummary(
+  sessions: TypingSession[],
+): AdaptiveGlobalSummary {
+  const speeds = sessions.map((session) => session.wpm)
+  const accuracies = sessions.map((session) => session.accuracy)
+  const scores = sessions.map(computeAdaptiveScore)
+
+  return {
+    count: sessions.length,
+    speed: makeMetricSummary(speeds),
+    accuracy: makeMetricSummary(accuracies),
+    score: makeMetricSummary(scores),
+  }
 }
 
 export function shouldUnlockNextKey(confidences: KeyConfidence[], recoverKeys: boolean = false): boolean {
@@ -118,7 +216,7 @@ export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
   const [keyStats, sessions, savedUnlocked, adaptSettings] = await Promise.all([
     db.keyStats.toArray(),
-    db.sessions.where("mode").equals("adaptive").count(),
+    db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
     db.settings.where("key").equals("adaptive_unlocked").first(),
     loadAdaptiveSettings(),
   ])
@@ -189,7 +287,8 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     unlockedKeys: keyConfidences.filter((k) => k.unlocked).map((k) => k.key),
     focusKey,
     keyConfidences,
-    totalSessions: sessions,
+    totalSessions: sessions.length,
+    globalSummary: computeAdaptiveGlobalSummary(sessions),
     settings: adaptSettings,
   }
 }

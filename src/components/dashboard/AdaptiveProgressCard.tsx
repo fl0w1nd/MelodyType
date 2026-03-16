@@ -8,6 +8,8 @@ import {
   Star,
   Crosshair,
   TrendingUp,
+  Gauge,
+  Target,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -50,6 +52,9 @@ export function AdaptiveProgressCard() {
       mastered,
       learning,
       avgConfidence,
+      averageSpeed: adaptiveState.globalSummary.speed.avg,
+      averageAccuracy: adaptiveState.globalSummary.accuracy.avg,
+      averageScore: adaptiveState.globalSummary.score.avg,
       weakest,
       strongest,
       totalSessions: adaptiveState.totalSessions,
@@ -116,6 +121,24 @@ export function AdaptiveProgressCard() {
               Confidence
             </span>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <AverageMetricCard
+            label="Average Speed"
+            value={`${stats.totalSessions > 0 ? stats.averageSpeed.toFixed(1) : "—"} wpm`}
+            icon={<Gauge className="h-4 w-4 text-primary" />}
+          />
+          <AverageMetricCard
+            label="Average Accuracy"
+            value={stats.totalSessions > 0 ? `${stats.averageAccuracy.toFixed(1)}%` : "—"}
+            icon={<Target className="h-4 w-4 text-primary" />}
+          />
+          <AverageMetricCard
+            label="Average Score"
+            value={stats.totalSessions > 0 ? stats.averageScore.toFixed(0) : "—"}
+            icon={<TrendingUp className="h-4 w-4 text-primary" />}
+          />
         </div>
 
         <div>
@@ -240,6 +263,30 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     <div className="flex items-center gap-1">
       <div className={cn("h-2 w-2 rounded-full", color)} />
       <span className="text-[9px] text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+function AverageMetricCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-secondary/30 p-3">
+      {icon}
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {label}
+        </div>
+        <div className="font-mono text-sm font-semibold text-foreground">
+          {value}
+        </div>
+      </div>
     </div>
   )
 }

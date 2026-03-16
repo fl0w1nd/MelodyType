@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
 import { StatsOverview } from "@/components/dashboard/StatsOverview"
@@ -26,19 +25,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-      >
-        <h1 className="font-serif text-2xl sm:text-3xl tracking-tight mb-1">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Track your progress and identify areas for improvement
-        </p>
-      </motion.div>
-
       <StatsOverview sessions={sessions} dailyGoals={dailyGoals} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
