@@ -107,15 +107,77 @@ export const quotes = [
   "Do not go where the path may lead. Go instead where there is no path and leave a trail.",
 ]
 
+const punctuationMarks = [".", ",", ";", ":", "!", "?", "-", "'"]
+const sentenceEnders = [".", "!", "?"]
+
+function applyPunctuation(words: string[]): string[] {
+  const result = [...words]
+  let sentenceLen = 0
+  const targetSentenceLen = () => 5 + Math.floor(Math.random() * 8)
+  let nextEnd = targetSentenceLen()
+
+  for (let i = 0; i < result.length; i++) {
+    sentenceLen++
+
+    if (sentenceLen >= nextEnd && i < result.length - 1) {
+      const ender = sentenceEnders[Math.floor(Math.random() * sentenceEnders.length)]
+      result[i] = result[i] + ender
+      if (i + 1 < result.length) {
+        result[i + 1] = result[i + 1].charAt(0).toUpperCase() + result[i + 1].slice(1)
+      }
+      sentenceLen = 0
+      nextEnd = targetSentenceLen()
+    } else if (Math.random() < 0.08 && sentenceLen > 2) {
+      const mid = punctuationMarks[Math.floor(Math.random() * 3)]
+      result[i] = result[i] + mid
+    }
+  }
+
+  if (result.length > 0) {
+    result[0] = result[0].charAt(0).toUpperCase() + result[0].slice(1)
+  }
+
+  return result
+}
+
+function injectNumbers(words: string[]): string[] {
+  const result = [...words]
+  const numCount = Math.max(1, Math.floor(words.length * 0.08))
+
+  for (let n = 0; n < numCount; n++) {
+    const idx = Math.floor(Math.random() * result.length)
+    const style = Math.random()
+    if (style < 0.4) {
+      result[idx] = String(Math.floor(Math.random() * 1000))
+    } else if (style < 0.7) {
+      result[idx] = String(Math.floor(Math.random() * 100)) + result[idx]
+    } else {
+      result[idx] = result[idx] + String(Math.floor(Math.random() * 100))
+    }
+  }
+
+  return result
+}
+
 export function generateWordText(
   difficulty: "easy" | "medium" | "hard",
   wordCount: number,
+  options?: { punctuation?: boolean; numbers?: boolean },
 ): string {
   const pool = commonWords[difficulty]
-  const words: string[] = []
+  let words: string[] = []
   for (let i = 0; i < wordCount; i++) {
     words.push(pool[Math.floor(Math.random() * pool.length)])
   }
+
+  if (options?.numbers) {
+    words = injectNumbers(words)
+  }
+
+  if (options?.punctuation) {
+    words = applyPunctuation(words)
+  }
+
   return words.join(" ")
 }
 

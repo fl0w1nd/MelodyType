@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import {
   Trophy,
@@ -7,19 +8,103 @@ import {
   Zap,
   RotateCcw,
   TrendingUp,
+  Crown,
+  Type,
+  Keyboard,
 } from "lucide-react"
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import type { TypingMetrics } from "@/engine/typing/types"
+import type { TypingMetrics, PracticeModeConfig, KeystrokeEntry } from "@/engine/typing/types"
+import { db } from "@/lib/db"
 
 interface ResultsPanelProps {
   metrics: TypingMetrics
   onRestart: () => void
   onNext?: () => void
+  modeConfig?: PracticeModeConfig
+  keystrokeLog?: KeystrokeEntry[]
+  wordsCompleted?: number
 }
 
-export function ResultsPanel({ metrics, onRestart, onNext }: ResultsPanelProps) {
+export function ResultsPanel({
+  metrics,
+  onRestart,
+  onNext,
+  modeConfig,
+  keystrokeLog,
+  wordsCompleted,
+}: ResultsPanelProps) {
   const grade = getGrade(metrics.wpm, metrics.accuracy)
+  const isTimeMode = modeConfig?.mode === "time"
+  const cpm = metrics.elapsedTime > 0 ? Math.round((metrics.correctChars / metrics.elapsedTime) * 60) : 0
+  const [personalBest, setPersonalBest] = useState<number | null>(null)
+  const isNewPB = personalBest != null && metrics.wpm > personalBest
+
+  useEffect(() => {
+    if (!isTimeMode || !modeConfig) return
+
+    void (async () => {
+      try {
+        const sessions = await db.sessions
+          .where("mode")
+          .equals("time")
+          .toArray()
+
+        const matching = sessions.filter((s) => {
+          try {
+            const cfg = JSON.parse(s.modeConfig) as PracticeModeConfig
+            return (
+              cfg.timeLimit === modeConfig.timeLimit &&
+              cfg.difficulty === modeConfig.difficulty
+            )
+          } catch {
+            return false
+          }
+        })
+
+        if (matching.length > 0) {
+          const best = Math.max(...matching.map((s) => s.wpm))
+          setPersonalBest(best)
+        }
+      } catch {
+        // ignore db errors
+      }
+    })()
+  }, [isTimeMode, modeConfig])
+
+  const wpmOverTime = useMemo(() => {
+    if (!keystrokeLog || keystrokeLog.length < 2) return []
+
+    const firstTs = keystrokeLog[0].timestamp
+    const totalDuration = keystrokeLog[keystrokeLog.length - 1].timestamp - firstTs
+    if (totalDuration <= 0) return []
+
+    const intervalMs = Math.max(1000, totalDuration / 20)
+    const points: { time: number; wpm: number }[] = []
+
+    for (let t = intervalMs; t <= totalDuration + intervalMs / 2; t += intervalMs) {
+      const windowStart = firstTs + t - intervalMs
+      const windowEnd = firstTs + t
+      const correctInWindow = keystrokeLog.filter(
+        (e) => e.timestamp >= windowStart && e.timestamp < windowEnd && e.correct,
+      ).length
+      const windowMinutes = intervalMs / 60000
+      const wpm = windowMinutes > 0 ? Math.round(correctInWindow / 5 / windowMinutes) : 0
+      points.push({ time: Math.round(t / 1000), wpm })
+    }
+
+    return points
+  }, [keystrokeLog])
 
   return (
     <motion.div
@@ -40,9 +125,22 @@ export function ResultsPanel({ metrics, onRestart, onNext }: ResultsPanelProps) 
                   Practice Complete
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Here&apos;s your performance summary
+                  {isTimeMode
+                    ? `${modeConfig?.timeLimit}s · ${modeConfig?.difficulty ?? "easy"} · Here's your performance`
+                    : "Here\u0027s your performance summary"}
                 </p>
               </div>
+              {isNewPB && (
+                <motion.div
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.4 }}
+                  className="ml-auto flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 text-sm font-medium text-amber-600 dark:text-amber-400"
+                >
+                  <Crown className="h-4 w-4" />
+                  New PB!
+                </motion.div>
+              )}
             </div>
 
             <div className="flex items-center justify-center mb-8">
@@ -68,7 +166,7 @@ export function ResultsPanel({ metrics, onRestart, onNext }: ResultsPanelProps) 
               </motion.div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"} gap-4 mb-8`}>
               <StatCard
                 icon={<Gauge className="h-4 w-4" />}
                 label="WPM"
@@ -93,9 +191,17 @@ export function ResultsPanel({ metrics, onRestart, onNext }: ResultsPanelProps) 
                 value={`${metrics.consistency}%`}
                 delay={0.25}
               />
+              {isTimeMode && (
+                <StatCard
+                  icon={<Keyboard className="h-4 w-4" />}
+                  label="CPM"
+                  value={String(cpm)}
+                  delay={0.3}
+                />
+              )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-8 text-center">
+            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"} gap-3 mb-8 text-center`}>
               <div className="rounded-lg bg-secondary/50 p-3">
                 <div className="text-lg font-mono font-semibold text-foreground">
                   {metrics.correctChars}
@@ -114,7 +220,105 @@ export function ResultsPanel({ metrics, onRestart, onNext }: ResultsPanelProps) 
                 </div>
                 <div className="text-xs text-muted-foreground">Raw WPM</div>
               </div>
+              {isTimeMode && wordsCompleted != null && (
+                <div className="rounded-lg bg-secondary/50 p-3">
+                  <div className="text-lg font-mono font-semibold text-foreground flex items-center justify-center gap-1">
+                    <Type className="h-3.5 w-3.5 text-muted-foreground" />
+                    {wordsCompleted}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Words</div>
+                </div>
+              )}
             </div>
+
+            {isTimeMode && personalBest != null && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="mb-6 rounded-lg border border-border/50 bg-secondary/30 px-4 py-3 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Crown className="h-4 w-4 text-amber-500" />
+                  <span>Personal Best ({modeConfig?.timeLimit}s · {modeConfig?.difficulty})</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-semibold text-foreground">
+                    {isNewPB ? metrics.wpm.toFixed(0) : personalBest.toFixed(0)} WPM
+                  </span>
+                  {!isNewPB && (
+                    <span className={`text-xs font-mono ${metrics.wpm >= personalBest ? "text-emerald-500" : "text-muted-foreground"}`}>
+                      {metrics.wpm >= personalBest ? "=" : `${(metrics.wpm - personalBest).toFixed(0)}`}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {isTimeMode && wpmOverTime.length > 2 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mb-8"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">WPM Over Time</span>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-secondary/20 p-4">
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={wpmOverTime}>
+                      <defs>
+                        <linearGradient id="resultWpmGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="oklch(0.55 0.15 55)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="oklch(0.55 0.15 55)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fontSize: 10 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v}s`}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10 }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={30}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "1px solid oklch(0.9 0.01 75)",
+                          backgroundColor: "oklch(0.995 0.003 80)",
+                          fontSize: "12px",
+                        }}
+                        formatter={(value) => [`${value} WPM`, "Speed"]}
+                        labelFormatter={(label) => `${label}s`}
+                      />
+                      {personalBest != null && (
+                        <ReferenceLine
+                          y={personalBest}
+                          stroke="oklch(0.75 0.14 65)"
+                          strokeDasharray="4 4"
+                          strokeWidth={1}
+                        />
+                      )}
+                      <Area
+                        type="monotone"
+                        dataKey="wpm"
+                        stroke="oklch(0.55 0.15 55)"
+                        strokeWidth={2}
+                        fill="url(#resultWpmGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
+            )}
 
             <div className="flex gap-3 justify-center">
               <Button

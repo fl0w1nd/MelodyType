@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Clock, Quote, Brain } from "lucide-react"
+import { Clock, Quote, Brain, Hash, AtSign } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import type { PracticeMode, PracticeModeConfig } from "@/engine/typing/types"
@@ -42,6 +42,8 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
         mode: "time",
         timeLimit: currentConfig.timeLimit ?? 30,
         difficulty: currentConfig.difficulty ?? "easy",
+        punctuation: currentConfig.punctuation ?? false,
+        numbers: currentConfig.numbers ?? false,
       })
       return
     }
@@ -104,6 +106,39 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
                 {difficulty.label}
               </Button>
             ))}
+          </div>
+          <div className="w-px h-5 bg-border/60 mx-1" />
+          <div className="flex gap-1 items-center">
+            <Button
+              variant={currentConfig.punctuation ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() =>
+                onSelect({
+                  ...currentConfig,
+                  mode: "time",
+                  punctuation: !currentConfig.punctuation,
+                })
+              }
+            >
+              <AtSign className="h-3 w-3" />
+              Punctuation
+            </Button>
+            <Button
+              variant={currentConfig.numbers ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() =>
+                onSelect({
+                  ...currentConfig,
+                  mode: "time",
+                  numbers: !currentConfig.numbers,
+                })
+              }
+            >
+              <Hash className="h-3 w-3" />
+              Numbers
+            </Button>
           </div>
         </div>
       )}

@@ -170,7 +170,10 @@ export default function PracticePage() {
           return generateWordText("easy", 25)
         }
         case "time":
-          return generateWordText(cfg.difficulty ?? "easy", 200)
+          return generateWordText(cfg.difficulty ?? "easy", 200, {
+            punctuation: cfg.punctuation,
+            numbers: cfg.numbers,
+          })
         case "quote":
           return getRandomQuote()
         default:
@@ -576,6 +579,9 @@ export default function PracticePage() {
             key="results"
             metrics={metrics}
             onRestart={handleRestart}
+            modeConfig={config}
+            keystrokeLog={state.keystrokeLog}
+            wordsCompleted={state.words.filter((w) => w.completed).length}
           />
         ) : (
           <motion.div

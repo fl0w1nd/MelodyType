@@ -1,5 +1,6 @@
-import { memo } from "react"
+import { memo, useMemo } from "react"
 import { Gauge, Target, Clock, Zap } from "lucide-react"
+import { motion } from "framer-motion"
 import type { TypingMetrics } from "@/engine/typing/types"
 
 interface MetricsBarProps {
@@ -19,31 +20,91 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
     return formatTime(remaining != null ? remaining : metrics.elapsedTime)
   })()
 
+  const progress = useMemo(() => {
+    if (timeLimit == null || !isStarted) return null
+    return Math.max(0, Math.min(1, 1 - metrics.elapsedTime / timeLimit))
+  }, [timeLimit, isStarted, metrics.elapsedTime])
+
+  const isUrgent = remaining != null && isStarted && remaining <= 10
+  const isCritical = remaining != null && isStarted && remaining <= 5
+
   return (
-    <div className="flex items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
-      <MetricItem
-        icon={<Gauge className="h-4 w-4" />}
-        label="WPM"
-        value={isStarted ? metrics.wpm.toFixed(0) : "—"}
-        accent
-      />
-      <div className="w-px h-8 bg-border/60" />
-      <MetricItem
-        icon={<Target className="h-4 w-4" />}
-        label="Accuracy"
-        value={isStarted ? `${metrics.accuracy.toFixed(1)}%` : "—"}
-      />
-      <div className="w-px h-8 bg-border/60" />
-      <MetricItem
-        icon={<Clock className="h-4 w-4" />}
-        label={remaining != null ? "Remaining" : "Time"}
-        value={timeValue}
-      />
-      <div className="w-px h-8 bg-border/60" />
-      <MetricItem
-        icon={<Zap className="h-4 w-4" />}
-        label="Raw"
-        value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
+    <div className="flex flex-col gap-0">
+      <div className="flex items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
+        <MetricItem
+          icon={<Gauge className="h-4 w-4" />}
+          label="WPM"
+          value={isStarted ? metrics.wpm.toFixed(0) : "—"}
+          accent
+        />
+        <div className="w-px h-8 bg-border/60" />
+        <MetricItem
+          icon={<Target className="h-4 w-4" />}
+          label="Accuracy"
+          value={isStarted ? `${metrics.accuracy.toFixed(1)}%` : "—"}
+        />
+        <div className="w-px h-8 bg-border/60" />
+        <MetricItem
+          icon={<Clock className="h-4 w-4" />}
+          label={remaining != null ? "Remaining" : "Time"}
+          value={timeValue}
+          urgent={isUrgent}
+          critical={isCritical}
+        />
+        <div className="w-px h-8 bg-border/60" />
+        <MetricItem
+          icon={<Zap className="h-4 w-4" />}
+          label="Raw"
+          value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
+        />
+      </div>
+
+      {timeLimit != null && (
+        <TimeProgressBar
+          progress={progress}
+          isStarted={isStarted}
+          isUrgent={isUrgent}
+          isCritical={isCritical}
+        />
+      )}
+    </div>
+  )
+}
+
+function TimeProgressBar({
+  progress,
+  isStarted,
+  isUrgent,
+  isCritical,
+}: {
+  progress: number | null
+  isStarted: boolean
+  isUrgent: boolean
+  isCritical: boolean
+}) {
+  const width = progress != null ? progress * 100 : 100
+
+  const barColor = isCritical
+    ? "bg-destructive"
+    : isUrgent
+      ? "bg-amber-500"
+      : "bg-primary"
+
+  return (
+    <div className="w-full h-1 bg-secondary/60 rounded-b-xl overflow-hidden">
+      <motion.div
+        className={`h-full rounded-b-xl transition-colors duration-300 ${barColor}`}
+        initial={{ width: "100%" }}
+        animate={{
+          width: `${width}%`,
+          opacity: isCritical ? [1, 0.5, 1] : 1,
+        }}
+        transition={
+          isCritical
+            ? { opacity: { repeat: Infinity, duration: 0.5 }, width: { duration: 0.3 } }
+            : { duration: 0.3 }
+        }
+        style={{ willChange: isStarted ? "width, opacity" : "auto" }}
       />
     </div>
   )
@@ -54,21 +115,35 @@ function MetricItem({
   label,
   value,
   accent,
+  urgent,
+  critical,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   accent?: boolean
+  urgent?: boolean
+  critical?: boolean
 }) {
+  const valueColor = critical
+    ? "text-destructive"
+    : urgent
+      ? "text-amber-500"
+      : accent
+        ? "text-primary"
+        : "text-foreground"
+
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground/60">{icon}</span>
+      <span className={`transition-colors duration-300 ${critical ? "text-destructive/60" : urgent ? "text-amber-500/60" : "text-muted-foreground/60"}`}>
+        {icon}
+      </span>
       <div className="flex flex-col">
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
           {label}
         </span>
         <span
-          className={`text-base font-mono font-semibold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}
+          className={`text-base font-mono font-semibold tabular-nums transition-colors duration-300 ${valueColor}`}
         >
           {value}
         </span>
