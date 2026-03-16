@@ -55,7 +55,7 @@ export function KeyDetailPanel({ keyStats, sessions }: KeyDetailPanelProps) {
       const session = recentSessions[si]
       const keyHits: Record<string, { correct: number; total: number }> = {}
       for (const k of session.keystrokes) {
-        if (k.key.length !== 1) continue
+        if (k.key.length !== 1 || k.key === " ") continue
         const lower = k.key.toLowerCase()
         if (!keyHits[lower]) keyHits[lower] = { correct: 0, total: 0 }
         keyHits[lower].total++

@@ -23,6 +23,13 @@ export interface KeystrokeRecord {
   latency: number
 }
 
+export interface KeySample {
+  index: number
+  timestamp: number
+  cpm: number
+  filteredCpm: number
+}
+
 export interface KeyStat {
   id?: number
   key: string
@@ -31,6 +38,14 @@ export interface KeyStat {
   totalLatency: number
   avgSpeed: number
   lastUpdated: number
+  adaptiveEwmaCpm?: number
+  adaptiveBestCpm?: number
+  adaptiveCorrectHits?: number
+  adaptiveErrorHits?: number
+  adaptiveDecayedCorrectHits?: number
+  adaptiveDecayedErrorHits?: number
+  adaptiveSamples?: KeySample[]
+  adaptiveSampleIndex?: number
 }
 
 export interface MidiFile {
@@ -68,6 +83,13 @@ class MelodyTypeDB extends Dexie {
   constructor() {
     super("MelodyTypeDB")
     this.version(1).stores({
+      sessions: "++id, timestamp, mode",
+      keyStats: "++id, &key, lastUpdated",
+      midiFiles: "++id, name, isPreset",
+      settings: "++id, &key",
+      dailyGoals: "++id, &date",
+    })
+    this.version(2).stores({
       sessions: "++id, timestamp, mode",
       keyStats: "++id, &key, lastUpdated",
       midiFiles: "++id, name, isPreset",
