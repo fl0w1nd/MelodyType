@@ -43,7 +43,7 @@ export const TIER_META: Record<TimeTier, { label: string; color: string; gradien
 }
 
 export const TIME_LEVELS: TimeLevel[] = [
-  // ── Beginner ──────────────────────────────────────────
+  // ── Beginner (targets 20-35 WPM) ─────────────────────
   {
     id: "b-1",
     name: "First Steps",
@@ -53,7 +53,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: false,
-    wordCount: 60,
+    wordCount: 15,
     order: 1,
   },
   {
@@ -65,7 +65,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: false,
-    wordCount: 120,
+    wordCount: 28,
     order: 2,
   },
   {
@@ -77,7 +77,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: false,
-    wordCount: 200,
+    wordCount: 55,
     order: 3,
   },
   {
@@ -89,7 +89,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: true,
-    wordCount: 120,
+    wordCount: 28,
     order: 4,
   },
   {
@@ -101,11 +101,11 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: false,
-    wordCount: 350,
+    wordCount: 105,
     order: 5,
   },
 
-  // ── Intermediate ──────────────────────────────────────
+  // ── Intermediate (targets 30-55 WPM) ─────────────────
   {
     id: "i-1",
     name: "Stepping Up",
@@ -115,7 +115,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "medium",
     punctuation: false,
     numbers: false,
-    wordCount: 60,
+    wordCount: 22,
     order: 1,
   },
   {
@@ -127,7 +127,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "medium",
     punctuation: false,
     numbers: false,
-    wordCount: 120,
+    wordCount: 42,
     order: 2,
   },
   {
@@ -139,7 +139,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: true,
     numbers: false,
-    wordCount: 120,
+    wordCount: 42,
     order: 3,
   },
   {
@@ -151,7 +151,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "easy",
     punctuation: false,
     numbers: true,
-    wordCount: 120,
+    wordCount: 42,
     order: 4,
   },
   {
@@ -163,7 +163,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "medium",
     punctuation: true,
     numbers: false,
-    wordCount: 200,
+    wordCount: 85,
     order: 5,
   },
   {
@@ -175,11 +175,11 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "medium",
     punctuation: false,
     numbers: false,
-    wordCount: 350,
+    wordCount: 165,
     order: 6,
   },
 
-  // ── Advanced ──────────────────────────────────────────
+  // ── Advanced (targets 50-85 WPM) ─────────────────────
   {
     id: "a-1",
     name: "Complex Words",
@@ -189,7 +189,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: false,
     numbers: false,
-    wordCount: 120,
+    wordCount: 65,
     order: 1,
   },
   {
@@ -201,7 +201,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "medium",
     punctuation: true,
     numbers: true,
-    wordCount: 200,
+    wordCount: 130,
     order: 2,
   },
   {
@@ -213,7 +213,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: false,
     numbers: true,
-    wordCount: 120,
+    wordCount: 65,
     order: 3,
   },
   {
@@ -225,7 +225,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: true,
     numbers: false,
-    wordCount: 200,
+    wordCount: 130,
     order: 4,
   },
   {
@@ -237,7 +237,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: true,
     numbers: true,
-    wordCount: 200,
+    wordCount: 130,
     order: 5,
   },
   {
@@ -249,11 +249,11 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: false,
     numbers: false,
-    wordCount: 350,
+    wordCount: 255,
     order: 6,
   },
 
-  // ── Expert ────────────────────────────────────────────
+  // ── Expert (targets 80-120 WPM) ──────────────────────
   {
     id: "e-1",
     name: "Speed Demon",
@@ -263,7 +263,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: true,
     numbers: true,
-    wordCount: 60,
+    wordCount: 45,
     order: 1,
   },
   {
@@ -275,7 +275,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: true,
     numbers: true,
-    wordCount: 200,
+    wordCount: 180,
     order: 2,
   },
   {
@@ -287,7 +287,7 @@ export const TIME_LEVELS: TimeLevel[] = [
     difficulty: "hard",
     punctuation: true,
     numbers: true,
-    wordCount: 350,
+    wordCount: 360,
     order: 3,
   },
 ]

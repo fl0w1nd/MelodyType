@@ -42,6 +42,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
   const timeLimitRef = useRef<number | null>(null)
   const finishedRef = useRef(false)
   const onKeystrokeRef = useRef(onKeystroke)
+  const shouldStartTimerRef = useRef(false)
 
   useEffect(() => {
     onKeystrokeRef.current = onKeystroke
@@ -57,6 +58,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
     startTimeRef.current = null
     timeLimitRef.current = timeLimit ?? null
     finishedRef.current = false
+    shouldStartTimerRef.current = false
     setState({
       ...initialState,
       words: textToWords(text),
@@ -93,12 +95,18 @@ export function useTypingEngine(onKeystroke?: () => void) {
     }, 200)
   }, [doFinish])
 
+  useEffect(() => {
+    if (state.isStarted && shouldStartTimerRef.current) {
+      shouldStartTimerRef.current = false
+      startTimer()
+    }
+  }, [state.isStarted, startTimer])
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (finishedRef.current) return
 
       let didType = false
-      let shouldStartTimer = false
 
       setState((prev) => {
         if (prev.isFinished) return prev
@@ -113,7 +121,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
         if (!next.isStarted && e.key.length === 1) {
           next.isStarted = true
           next.startTime = Date.now()
-          shouldStartTimer = true
+          shouldStartTimerRef.current = true
         }
 
         if (!next.isStarted) return prev
@@ -198,17 +206,13 @@ export function useTypingEngine(onKeystroke?: () => void) {
         return next
       })
 
-      if (shouldStartTimer) {
-        startTimer()
-      }
-
       if (didType) {
         queueMicrotask(() => {
           onKeystrokeRef.current?.()
         })
       }
     },
-    [startTimer],
+    [],
   )
 
   const getMetrics = useCallback((): TypingMetrics => {
@@ -301,6 +305,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
     timerRef.current = null
     startTimeRef.current = null
     finishedRef.current = false
+    shouldStartTimerRef.current = false
     elapsedRef.current = 0
     setElapsed(0)
     setState({ ...initialState })
