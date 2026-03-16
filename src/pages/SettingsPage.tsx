@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import { motion } from "framer-motion"
 import {
   Settings,
   Download,
   Upload,
   Trash2,
+  RotateCcw,
   Database,
   Monitor,
   Info,
@@ -37,9 +37,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { db, exportAllData, importAllData, getSetting, setSetting } from "@/lib/db"
 import { useMidi } from "@/engine/midi/MidiContext"
-import type { SynthType } from "@/engine/midi/types"
+import { defaultMidiConfig, type SynthType } from "@/engine/midi/types"
+import { presetMelodies } from "@/engine/midi/presets"
 import {
+  DEFAULT_ADAPTIVE_SETTINGS,
   DEFAULT_TARGET_CPM,
+  INITIAL_UNLOCK_COUNT,
+  LETTER_FREQUENCY_ORDER,
   MIN_TARGET_CPM,
   MAX_TARGET_CPM,
 } from "@/engine/typing/adaptiveEngine"
@@ -48,6 +52,7 @@ export default function SettingsPage() {
   const [exportStatus, setExportStatus] = useState<"idle" | "success" | "error">("idle")
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle")
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [resetSettingsDialogOpen, setResetSettingsDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const sessionCount = useLiveQuery(() => db.sessions.count()) ?? 0
@@ -130,21 +135,50 @@ export default function SettingsPage() {
     setClearDialogOpen(false)
   }, [])
 
+  const handleResetSettings = useCallback(async () => {
+    const defaultPresetId = Object.keys(presetMelodies)[0]
+
+    await db.settings.clear()
+    await Promise.all([
+      setSetting("showKeyboard", "true"),
+      setSetting("dailyGoalMinutes", "30"),
+      setSetting(
+        "adaptive_targetCpm",
+        String(DEFAULT_ADAPTIVE_SETTINGS.targetCpm),
+      ),
+      setSetting(
+        "adaptive_recoverKeys",
+        String(DEFAULT_ADAPTIVE_SETTINGS.recoverKeys),
+      ),
+      setSetting(
+        "adaptive_alphabetSize",
+        String(DEFAULT_ADAPTIVE_SETTINGS.alphabetSize),
+      ),
+      setSetting(
+        "adaptive_unlocked",
+        JSON.stringify(LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)),
+      ),
+      setSetting("midiConfig", JSON.stringify(defaultMidiConfig)),
+      ...(defaultPresetId
+        ? [
+            setSetting(
+              "selectedMidi",
+              JSON.stringify({ type: "preset", id: defaultPresetId }),
+            ),
+          ]
+        : []),
+    ])
+
+    midi.updateConfig(defaultMidiConfig)
+    if (defaultPresetId) {
+      midi.loadFramesOnly(presetMelodies[defaultPresetId].frames)
+    }
+
+    setResetSettingsDialogOpen(false)
+  }, [midi])
+
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-      >
-        <h1 className="font-serif text-2xl sm:text-3xl tracking-tight mb-1">
-          Settings
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Customize your experience and manage your data
-        </p>
-      </motion.div>
-
       {/* Display Settings */}
       <Card>
         <CardHeader className="pb-4">
@@ -419,7 +453,42 @@ export default function SettingsPage() {
                     Cancel
                   </Button>
                   <Button variant="destructive" onClick={handleClearAll}>
-                    Delete All Data
+                    Delete Statistics
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={resetSettingsDialogOpen}
+              onOpenChange={setResetSettingsDialogOpen}
+            >
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setResetSettingsDialogOpen(true)}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset Settings
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reset All Settings?</DialogTitle>
+                  <DialogDescription>
+                    This restores MelodyType to its default configuration,
+                    including adaptive practice, display, and MIDI preferences.
+                    Your practice statistics and MIDI files will be preserved.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setResetSettingsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={handleResetSettings}>
+                    Reset Settings
                   </Button>
                 </DialogFooter>
               </DialogContent>

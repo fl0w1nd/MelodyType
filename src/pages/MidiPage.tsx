@@ -143,19 +143,6 @@ export default function MidiPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-      >
-        <h1 className="font-serif text-2xl sm:text-3xl tracking-tight mb-1">
-          MIDI Manager
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Configure melodies that play as you type
-        </p>
-      </motion.div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Synth Settings */}
         <Card className="lg:col-span-1">
