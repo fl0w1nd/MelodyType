@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -10,644 +9,43 @@ import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
 import { KeyProgressPanel } from "@/components/practice/KeyProgressPanel"
 import { TimeLevelSelect } from "@/components/practice/TimeLevelSelect"
-import { useTypingEngine } from "@/engine/typing/useTypingEngine"
-import { useMidi } from "@/engine/midi/MidiContext"
 import {
   NoteParticles,
   useNoteParticles,
 } from "@/components/practice/NoteParticles"
-import { generateWordText } from "@/engine/typing/wordLists"
-import { getRandomQuoteAsync, preloadQuotes } from "@/engine/typing/quoteLoader"
-import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
-import type { PracticeModeConfig } from "@/engine/typing/types"
-import type { AdaptiveSettings, AdaptiveState } from "@/engine/typing/adaptiveEngine"
-import {
-  DEFAULT_TARGET_CPM,
-  INITIAL_UNLOCK_COUNT,
-  forceUnlockKey,
-  loadAdaptiveState,
-  recomputeAndUnlock,
-  updateKeyStatsFromSession,
-} from "@/engine/typing/adaptiveEngine"
-import { db, setSetting } from "@/lib/db"
-import type { KeystrokeEntry, TypingMetrics, WordState } from "@/engine/typing/types"
-import {
-  TIME_LEVELS,
-  getLevelById,
-  type TimeLevel,
-} from "@/engine/typing/timeLevels"
-
-const ADAPTIVE_WORD_COUNT = 30
-const UNLOCK_TOAST_DURATION_MS = 2500
-const ADAPTIVE_INACTIVITY_TIMEOUT_MS = 10000
-const DEFAULT_QUOTE_TARGET_CPM = 200
-const TIER_TARGET_CPM: Record<string, number> = {
-  beginner: 150,
-  intermediate: 250,
-  advanced: 350,
-  expert: 450,
-}
-
-function computeMetricsForWords(
-  words: WordState[],
-  keystrokeLog: KeystrokeEntry[],
-  elapsedTime: number,
-): TypingMetrics {
-  const timeInMinutes = elapsedTime > 0 ? elapsedTime / 60 : 0
-
-  let typedChars = 0
-  let charsWithError = 0
-
-  for (const word of words) {
-    for (const char of word.chars) {
-      if (char.status !== "pending") {
-        typedChars++
-        if (char.hadError) charsWithError++
-      }
-    }
-  }
-
-  const correctChars = typedChars - charsWithError
-  const wpm = timeInMinutes > 0 ? correctChars / 5 / timeInMinutes : 0
-  const rawWpm = timeInMinutes > 0 ? typedChars / 5 / timeInMinutes : 0
-  const accuracy = typedChars > 0 ? (correctChars / typedChars) * 100 : 100
-
-  let consistency = 100
-  if (keystrokeLog.length > 2) {
-    const windowSize = 5000
-    const wpmSamples: number[] = []
-    for (const entry of keystrokeLog) {
-      const correctInWindow = keystrokeLog.filter(
-        (e) =>
-          e.timestamp >= entry.timestamp - windowSize &&
-          e.timestamp <= entry.timestamp &&
-          e.correct,
-      ).length
-      const sample = correctInWindow / 5 / (windowSize / 60000)
-      if (Number.isFinite(sample)) wpmSamples.push(sample)
-    }
-
-    if (wpmSamples.length > 1) {
-      const mean = wpmSamples.reduce((a, b) => a + b, 0) / wpmSamples.length
-      if (mean > 0) {
-        const variance =
-          wpmSamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
-          wpmSamples.length
-        const stdDev = Math.sqrt(variance)
-        consistency = Math.max(0, 100 - (stdDev / mean) * 100)
-      }
-    }
-  }
-
-  return {
-    wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
-    rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
-    accuracy: Number.isFinite(accuracy) ? Math.round(accuracy * 100) / 100 : 100,
-    correctChars,
-    incorrectChars: charsWithError,
-    totalChars: typedChars,
-    elapsedTime,
-    consistency: Number.isFinite(consistency) ? Math.round(consistency) : 100,
-  }
-}
+import { usePracticeSessionController } from "@/engine/practice/usePracticeSessionController"
+import { setAppSetting, useAppSetting } from "@/lib/settings"
 
 export default function PracticePage() {
-  const [config, setConfig] = useState<PracticeModeConfig>({
-    mode: "adaptive",
-  })
-  const [showKeyboard, setShowKeyboard] = useState(true)
-
-  const [adaptiveState, setAdaptiveState] = useState<AdaptiveState | null>(null)
-  const [newlyUnlocked, setNewlyUnlocked] = useState<string | null>(null)
-  const adaptiveLoaded = useRef(false)
-
-  const [roundCount, setRoundCount] = useState(0)
-  const adaptiveContinuingRef = useRef(false)
-  const newlyUnlockedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Quote mode: author attribution
-  const [quoteAuthor, setQuoteAuthor] = useState<string | null>(null)
-
-  // Time mode: level selection vs typing
-  const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
-  const [timeLevelKey, setTimeLevelKey] = useState(0)
-
-  const { feedKeystroke, startMelody, stopMelody, melodyState, updateTargetCPM } = useMidi()
-  const { particles, emit: emitNote } = useNoteParticles()
-  const onKeystroke = useCallback(() => {
-    feedKeystroke(true)
-    emitNote()
-  }, [feedKeystroke, emitNote])
-  const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
-    useTypingEngine(onKeystroke)
-
-  const metrics = useMemo(() => getMetrics(), [getMetrics])
-  const adaptivePersistMetrics = useMemo(
-    () => computeMetricsForWords(state.words, state.keystrokeLog, elapsed),
-    [elapsed, state.keystrokeLog, state.words],
-  )
-  const adaptiveDisplayMetrics = useMemo(
-    () => computeMetricsForWords(
-      state.words,
-      state.keystrokeLog,
-      state.isFinished ? 0 : elapsed,
-    ),
-    [elapsed, state.isFinished, state.keystrokeLog, state.words],
-  )
-
-  useEffect(() => {
-    if (adaptiveLoaded.current) return
-    adaptiveLoaded.current = true
-    loadAdaptiveState().then((s) => {
-      setAdaptiveState(s)
-      if (config.mode === "adaptive") {
-        const text = generateAdaptiveText(
-          s.keyConfidences,
-          s.unlockedKeys,
-          s.focusKey,
-          ADAPTIVE_WORD_COUNT,
-        )
-        loadText(text)
-      }
-    })
-  }, [config.mode, loadText])
-
-  useEffect(() => {
-    preloadQuotes()
-  }, [])
-
-  const generateText = useCallback(
-    async (cfg: PracticeModeConfig, aState?: AdaptiveState | null): Promise<string> => {
-      switch (cfg.mode) {
-        case "adaptive": {
-          const st = aState ?? adaptiveState
-          if (st) {
-            return generateAdaptiveText(
-              st.keyConfidences,
-              st.unlockedKeys,
-              st.focusKey,
-              ADAPTIVE_WORD_COUNT,
-            )
-          }
-          return generateWordText("easy", 25)
-        }
-        case "time": {
-          const level = cfg.levelId ? getLevelById(cfg.levelId) : null
-          if (level) {
-            return generateWordText(level.difficulty, level.wordCount, {
-              punctuation: level.punctuation,
-              numbers: level.numbers,
-            })
-          }
-          return generateWordText(cfg.difficulty ?? "easy", 200, {
-            punctuation: cfg.punctuation,
-            numbers: cfg.numbers,
-          })
-        }
-        case "quote": {
-          const quote = await getRandomQuoteAsync()
-          setQuoteAuthor(quote.author)
-          return quote.text
-        }
-        default:
-          return generateWordText("easy", 25)
-      }
-    },
-    [adaptiveState],
-  )
-
-  const getTargetCPM = useCallback(
-    (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
-      if (cfg.mode === "adaptive") {
-        return (aState ?? adaptiveState)?.settings.targetCpm ?? DEFAULT_TARGET_CPM
-      }
-      if (cfg.mode === "time" && cfg.levelId) {
-        const level = getLevelById(cfg.levelId)
-        return level ? (TIER_TARGET_CPM[level.tier] ?? DEFAULT_QUOTE_TARGET_CPM) : DEFAULT_QUOTE_TARGET_CPM
-      }
-      return DEFAULT_QUOTE_TARGET_CPM
-    },
-    [adaptiveState],
-  )
-
-  const startPractice = useCallback(
-    async (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
-      if (cfg.mode !== "quote") setQuoteAuthor(null)
-      const text = await generateText(cfg, aState)
-      loadText(text, cfg.mode === "time" ? cfg.timeLimit : undefined)
-      setRoundCount(0)
-      adaptiveContinuingRef.current = false
-      stopMelody()
-      void startMelody(getTargetCPM(cfg, aState))
-    },
-    [generateText, loadText, startMelody, stopMelody, getTargetCPM],
-  )
-
-  const handleConfigChange = useCallback(
-    (newConfig: PracticeModeConfig) => {
-      setConfig(newConfig)
-      setNewlyUnlocked(null)
-      setActiveLevel(null)
-
-      if (newConfig.mode === "time") {
-        reset()
-        stopMelody()
-        return
-      }
-
-      if (newConfig.mode === "adaptive") {
-        loadAdaptiveState().then((s) => {
-          setAdaptiveState(s)
-          startPractice(newConfig, s)
-        })
-      } else {
-        startPractice(newConfig)
-      }
-    },
-    [startPractice, reset],
-  )
-
-  const handleSelectLevel = useCallback(
-    (level: TimeLevel) => {
-      setActiveLevel(level)
-      const cfg: PracticeModeConfig = {
-        mode: "time",
-        timeLimit: level.timeLimit,
-        difficulty: level.difficulty,
-        punctuation: level.punctuation,
-        numbers: level.numbers,
-        levelId: level.id,
-      }
-      setConfig(cfg)
-      startPractice(cfg)
-    },
-    [startPractice],
-  )
-
-  const handleBackToLevels = useCallback(() => {
-    reset()
-    stopMelody()
-    setActiveLevel(null)
-    setTimeLevelKey((k) => k + 1)
-  }, [reset, stopMelody])
-
-  const handleNextLevel = useCallback(() => {
-    if (!activeLevel) return
-    const idx = TIME_LEVELS.findIndex((l) => l.id === activeLevel.id)
-    const next = idx >= 0 && idx < TIME_LEVELS.length - 1 ? TIME_LEVELS[idx + 1] : null
-    if (next) {
-      handleSelectLevel(next)
-    } else {
-      handleBackToLevels()
-    }
-  }, [activeLevel, handleSelectLevel, handleBackToLevels])
-
-  const handleRestart = useCallback(() => {
-    reset()
-    stopMelody()
-    setNewlyUnlocked(null)
-    adaptiveContinuingRef.current = false
-    if (config.mode === "adaptive") {
-      loadAdaptiveState().then((s) => {
-        setAdaptiveState(s)
-        startPractice(config, s)
-      })
-    } else {
-      startPractice(config)
-    }
-  }, [reset, stopMelody, startPractice, config])
-
-  const discardAdaptiveSession = useCallback(() => {
-    if (config.mode !== "adaptive") return
-    if (state.isFinished) return
-
-    reset()
-    stopMelody()
-    setNewlyUnlocked(null)
-    adaptiveContinuingRef.current = false
-    loadAdaptiveState().then((s) => {
-      setAdaptiveState(s)
-      startPractice(config, s)
-    })
-  }, [config, reset, stopMelody, startPractice, state.isFinished])
-
-  const updateAdaptiveSettings = useCallback(
-    async (updates: Partial<AdaptiveSettings>) => {
-      const nextTarget =
-        updates.targetCpm ?? adaptiveState?.settings.targetCpm ?? DEFAULT_TARGET_CPM
-      const nextRecover =
-        updates.recoverKeys ?? adaptiveState?.settings.recoverKeys ?? false
-
-      await Promise.all([
-        setSetting("adaptive_targetCpm", String(nextTarget)),
-        setSetting("adaptive_recoverKeys", String(nextRecover)),
-      ])
-
-      if (updates.targetCpm != null) {
-        updateTargetCPM(updates.targetCpm)
-      }
-
-      const nextState = await loadAdaptiveState()
-      setAdaptiveState(nextState)
-    },
-    [adaptiveState, updateTargetCPM],
-  )
-
-  const handleManualUnlock = useCallback(
-    async (key: string) => {
-      if (config.mode !== "adaptive") return
-
-      await forceUnlockKey(key)
-      setNewlyUnlocked(key)
-      reset()
-      adaptiveContinuingRef.current = false
-      const nextState = await loadAdaptiveState()
-      setAdaptiveState(nextState)
-      startPractice(config, nextState)
-    },
-    [config, reset, startPractice],
-  )
-
-  const startAdaptiveNextRound = useCallback((nextState: AdaptiveState) => {
-    const text = generateAdaptiveText(
-      nextState.keyConfidences,
-      nextState.unlockedKeys,
-      nextState.focusKey,
-      ADAPTIVE_WORD_COUNT,
-    )
-    loadText(text)
-    setAdaptiveState(nextState)
-    setRoundCount((count) => count + 1)
-    adaptiveContinuingRef.current = false
-  }, [loadText])
-
-  const handleAdaptiveRoundAdvance = useCallback(
-    async (roundLog: KeystrokeEntry[]) => {
-      if (config.mode !== "adaptive") return
-
-      const prevUnlocked = adaptiveState?.unlockedKeys ?? []
-      await updateKeyStatsFromSession(roundLog)
-      const nextState = await recomputeAndUnlock()
-      const newKeys = nextState.unlockedKeys.filter((key) => !prevUnlocked.includes(key))
-      if (newKeys.length > 0) {
-        setNewlyUnlocked(newKeys[0])
-      }
-      startAdaptiveNextRound(nextState)
-    },
-    [adaptiveState, config.mode, startAdaptiveNextRound],
-  )
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const isAdaptiveMode = config.mode === "adaptive"
-      const isTimeLevelSelect = config.mode === "time" && !activeLevel
-
-      if (isTimeLevelSelect) return
-
-      if (state.isFinished && !isAdaptiveMode) {
-        if (e.key === "Enter" || e.key === "Tab") {
-          e.preventDefault()
-          handleRestart()
-        }
-        return
-      }
-
-      if (e.key === "Tab") {
-        e.preventDefault()
-        handleRestart()
-        return
-      }
-
-      if (e.key === "Escape") {
-        e.preventDefault()
-        if (isAdaptiveMode && state.isStarted && !state.isFinished) {
-          discardAdaptiveSession()
-        }
-        if (config.mode === "time" && activeLevel) {
-          handleBackToLevels()
-        }
-        return
-      }
-
-      e.preventDefault()
-      handleKeyDown(e)
-    }
-
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [
-    activeLevel,
-    config.mode,
-    discardAdaptiveSession,
-    handleBackToLevels,
-    handleKeyDown,
-    handleRestart,
-    state.isFinished,
-    state.isStarted,
-  ])
-
-  useEffect(() => {
-    if (config.mode !== "adaptive") return
-
-    const onBlur = () => {
-      if (state.isStarted && !state.isFinished) {
-        discardAdaptiveSession()
-      }
-    }
-    const onVisibilityChange = () => {
-      if (document.hidden && state.isStarted && !state.isFinished) {
-        discardAdaptiveSession()
-      }
-    }
-
-    window.addEventListener("blur", onBlur)
-    document.addEventListener("visibilitychange", onVisibilityChange)
-    return () => {
-      window.removeEventListener("blur", onBlur)
-      document.removeEventListener("visibilitychange", onVisibilityChange)
-    }
-  }, [config.mode, discardAdaptiveSession, state.isFinished, state.isStarted])
-
-  const persistFinishedRound = useCallback(() => {
-    if (!state.isFinished || !state.isStarted) return
-    if (adaptiveContinuingRef.current) return
-    adaptiveContinuingRef.current = true
-    stopMelody()
-
-    const roundLog = state.keystrokeLog
-    const roundMetrics =
-      config.mode === "adaptive" ? adaptivePersistMetrics : metrics
-    const sessionWpm = roundMetrics.wpm
-    const sessionRawWpm = roundMetrics.rawWpm
-    const sessionAccuracy = roundMetrics.accuracy
-    const sessionDuration = roundMetrics.elapsedTime
-    const sessionTotalChars = roundMetrics.totalChars
-    const sessionCorrectChars = roundMetrics.correctChars
-    const sessionErrorChars = roundMetrics.incorrectChars
-    const sessionModeConfig =
-      config.mode === "adaptive"
-        ? JSON.stringify({
-            ...config,
-            adaptiveMeta: {
-              unlockedKeyCount:
-                adaptiveState?.unlockedKeys.length ?? INITIAL_UNLOCK_COUNT,
-            },
-          })
-        : JSON.stringify(config)
-
-    void (async () => {
-      try {
-        await db.sessions.add({
-          timestamp: Date.now(),
-          mode: config.mode,
-          modeConfig: sessionModeConfig,
-          wpm: sessionWpm,
-          rawWpm: sessionRawWpm,
-          accuracy: sessionAccuracy,
-          duration: sessionDuration,
-          totalChars: sessionTotalChars,
-          correctChars: sessionCorrectChars,
-          errorChars: sessionErrorChars,
-          keystrokes: roundLog.map((k) => ({
-            key: k.key,
-            correct: k.correct,
-            timestamp: k.timestamp,
-            latency: 0,
-          })),
-        })
-
-        if (config.mode === "adaptive") {
-          await handleAdaptiveRoundAdvance(roundLog)
-        } else {
-          const keyCounts: Record<string, { hits: number; errors: number }> = {}
-          for (const k of roundLog) {
-            if (k.key.length !== 1 || k.key === " ") continue
-            const lower = k.key.toLowerCase()
-            if (!keyCounts[lower]) keyCounts[lower] = { hits: 0, errors: 0 }
-            keyCounts[lower].hits++
-            if (!k.correct) keyCounts[lower].errors++
-          }
-
-          await db.transaction("rw", db.keyStats, async () => {
-            for (const [key, counts] of Object.entries(keyCounts)) {
-              const existing = await db.keyStats.where("key").equals(key).first()
-              if (existing) {
-                await db.keyStats.update(existing.id!, {
-                  totalHits: existing.totalHits + counts.hits,
-                  errors: existing.errors + counts.errors,
-                  lastUpdated: Date.now(),
-                })
-              } else {
-                await db.keyStats.add({
-                  key,
-                  totalHits: counts.hits,
-                  errors: counts.errors,
-                  totalLatency: 0,
-                  avgSpeed: 0,
-                  lastUpdated: Date.now(),
-                })
-              }
-            }
-          })
-        }
-
-        const today = new Date().toISOString().split("T")[0]
-        await db.transaction("rw", db.dailyGoals, async () => {
-          const existing = await db.dailyGoals.where("date").equals(today).first()
-          const roundMinutes = sessionDuration / 60
-          if (existing) {
-            await db.dailyGoals.update(existing.id!, {
-              completedMinutes: existing.completedMinutes + roundMinutes,
-              sessionsCount: existing.sessionsCount + 1,
-              bestWpm: Math.max(existing.bestWpm, sessionWpm),
-              avgAccuracy:
-                (existing.avgAccuracy * existing.sessionsCount + sessionAccuracy) /
-                (existing.sessionsCount + 1),
-            })
-          } else {
-            await db.dailyGoals.add({
-              date: today,
-              targetMinutes: 30,
-              completedMinutes: roundMinutes,
-              sessionsCount: 1,
-              bestWpm: sessionWpm,
-              avgAccuracy: sessionAccuracy,
-            })
-          }
-        })
-      } catch (error) {
-        adaptiveContinuingRef.current = false
-        console.error("Failed to persist completed round", error)
-      }
-    })()
-  }, [
-    adaptivePersistMetrics,
-    adaptiveState,
+  const { particles, emit } = useNoteParticles()
+  const showKeyboard = useAppSetting("showKeyboard")
+  const {
     config,
-    handleAdaptiveRoundAdvance,
+    state,
     metrics,
-    state.isFinished,
-    state.isStarted,
-    state.keystrokeLog,
-    stopMelody,
-  ])
-
-  useEffect(() => {
-    persistFinishedRound()
-  }, [persistFinishedRound])
-
-  useEffect(() => {
-    if (!newlyUnlocked) return
-    if (newlyUnlockedTimeoutRef.current) {
-      clearTimeout(newlyUnlockedTimeoutRef.current)
-    }
-    newlyUnlockedTimeoutRef.current = setTimeout(() => {
-      setNewlyUnlocked(null)
-      newlyUnlockedTimeoutRef.current = null
-    }, UNLOCK_TOAST_DURATION_MS)
-    return () => {
-      if (newlyUnlockedTimeoutRef.current) {
-        clearTimeout(newlyUnlockedTimeoutRef.current)
-        newlyUnlockedTimeoutRef.current = null
-      }
-    }
-  }, [newlyUnlocked])
-
-  useEffect(() => {
-    if (config.mode !== "adaptive" || !state.isStarted || state.isFinished) {
-      return
-    }
-
-    const timeoutId = setTimeout(() => {
-      discardAdaptiveSession()
-    }, ADAPTIVE_INACTIVITY_TIMEOUT_MS)
-
-    return () => clearTimeout(timeoutId)
-  }, [
-    config.mode,
-    discardAdaptiveSession,
-    state.isFinished,
-    state.isStarted,
-    state.keystrokeLog.length,
-  ])
-
-  const nextKey = useMemo(() => {
-    if (state.isFinished || !state.words.length) return undefined
-    const word = state.words[state.currentWordIndex]
-    if (!word) return undefined
-    if (state.currentCharIndex < word.chars.length) {
-      return word.chars[state.currentCharIndex].char
-    }
-    return " "
-  }, [state])
-
-  const isAdaptive = config.mode === "adaptive"
-  const isTimeLevelSelect = config.mode === "time" && !activeLevel
-  const showResults = !isAdaptive && !isTimeLevelSelect && state.isFinished && state.isStarted
+    adaptiveState,
+    adaptiveDisplayMetrics,
+    melodyState,
+    activeLevel,
+    quoteAuthor,
+    newlyUnlocked,
+    roundCount,
+    timeLevelKey,
+    nextKey,
+    isAdaptive,
+    isTimeLevelSelect,
+    showResults,
+    actions,
+  } = usePracticeSessionController({
+    onCorrectInput: emit,
+  })
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <ModeSelector onSelect={handleConfigChange} currentConfig={config} />
+      <ModeSelector
+        onSelect={actions.handleConfigChange}
+        currentConfig={config}
+      />
 
       {isAdaptive && adaptiveState && (
         <KeyProgressPanel
@@ -658,12 +56,12 @@ export default function PracticePage() {
           recoverKeys={adaptiveState.settings.recoverKeys}
           totalSessions={adaptiveState.totalSessions}
           roundNumber={roundCount + 1}
-          onUnlockKey={handleManualUnlock}
+          onUnlockKey={actions.handleManualUnlock}
           onTargetChange={(targetCpm) => {
-            void updateAdaptiveSettings({ targetCpm })
+            void actions.updateAdaptiveSettings({ targetCpm })
           }}
           onRecoverChange={(recoverKeys) => {
-            void updateAdaptiveSettings({ recoverKeys })
+            void actions.updateAdaptiveSettings({ recoverKeys })
           }}
         />
       )}
@@ -675,31 +73,35 @@ export default function PracticePage() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ type: "spring", damping: 20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-sm font-medium text-emerald-700 dark:text-emerald-400 shadow-lg"
+            className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg dark:text-emerald-400"
           >
-            🔓 New key unlocked: <span className="font-mono font-bold text-base">{newlyUnlocked.toUpperCase()}</span>
+            🔓 New key unlocked:{" "}
+            <span className="font-mono text-base font-bold">
+              {newlyUnlocked.toUpperCase()}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Time mode: level selection */}
       {isTimeLevelSelect && (
-        <TimeLevelSelect key={timeLevelKey} onSelectLevel={handleSelectLevel} />
+        <TimeLevelSelect
+          key={timeLevelKey}
+          onSelectLevel={actions.handleSelectLevel}
+        />
       )}
 
-      {/* Active practice or results */}
       {!isTimeLevelSelect && (
         <AnimatePresence mode="wait">
           {showResults ? (
             <ResultsPanel
               key="results"
               metrics={metrics}
-              onRestart={handleRestart}
-              onBackToLevels={activeLevel ? handleBackToLevels : undefined}
-              onNextLevel={activeLevel ? handleNextLevel : undefined}
+              onRestart={actions.handleRestart}
+              onBackToLevels={activeLevel ? actions.handleBackToLevels : undefined}
+              onNextLevel={activeLevel ? actions.handleNextLevel : undefined}
               modeConfig={config}
               keystrokeLog={state.keystrokeLog}
-              wordsCompleted={state.words.filter((w) => w.completed).length}
+              wordsCompleted={state.words.filter((word) => word.completed).length}
             />
           ) : (
             <motion.div
@@ -707,18 +109,19 @@ export default function PracticePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full flex flex-col gap-4"
+              className="flex w-full flex-col gap-4"
             >
               <MetricsBar
                 metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
-                isStarted={isAdaptive ? state.isStarted && !state.isFinished : state.isStarted}
+                isStarted={
+                  isAdaptive
+                    ? state.isStarted && !state.isFinished
+                    : state.isStarted
+                }
                 timeLimit={config.mode === "time" ? config.timeLimit : undefined}
               />
 
-              <FlowMeter
-                melodyState={melodyState}
-                isStarted={state.isStarted}
-              />
+              <FlowMeter melodyState={melodyState} isStarted={state.isStarted} />
 
               <div className="relative">
                 <TextDisplay
@@ -731,7 +134,7 @@ export default function PracticePage() {
               </div>
 
               {quoteAuthor && (
-                <div className="text-center text-xs text-muted-foreground/70 italic">
+                <div className="text-center text-xs italic text-muted-foreground/70">
                   — {quoteAuthor}
                 </div>
               )}
@@ -740,8 +143,8 @@ export default function PracticePage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1.5 text-muted-foreground text-xs"
-                  onClick={handleRestart}
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={actions.handleRestart}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   Restart
@@ -753,8 +156,8 @@ export default function PracticePage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 text-muted-foreground text-xs"
-                    onClick={handleBackToLevels}
+                    className="gap-1.5 text-xs text-muted-foreground"
+                    onClick={actions.handleBackToLevels}
                   >
                     All Levels
                     <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
@@ -765,15 +168,15 @@ export default function PracticePage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1.5 text-muted-foreground text-xs"
-                  onClick={() => setShowKeyboard((v) => !v)}
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => void setAppSetting("showKeyboard", !showKeyboard)}
                 >
                   {showKeyboard ? "Hide" : "Show"} Keyboard
                 </Button>
               </div>
 
               {isAdaptive && roundCount > 0 && (
-                <div className="text-center text-[10px] text-muted-foreground/60 font-mono">
+                <div className="text-center font-mono text-[10px] text-muted-foreground/60">
                   Round {roundCount + 1} · current session · Esc resets
                 </div>
               )}

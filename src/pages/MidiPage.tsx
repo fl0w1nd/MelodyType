@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import {
   Music,
@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import { db } from "@/lib/db"
 import type { MidiFile } from "@/lib/db"
 import { parseMidiToFrames, getMidiInfo } from "@/engine/midi/midiParser"
-import { presetMelodies, presetList } from "@/engine/midi/presets"
+import { presetList } from "@/engine/midi/presets"
 import { useMidi } from "@/engine/midi/MidiContext"
 import type { SynthType } from "@/engine/midi/types"
 import { cn } from "@/lib/utils"
@@ -51,23 +51,23 @@ const loopOptions = [
 export default function MidiPage() {
   const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(
-    () => presetList[0]?.id ?? null,
-  )
-  const [selectedFile, setSelectedFile] = useState<number | null>(null)
   const [testNotes, setTestNotes] = useState<string[]>([])
   const {
     config,
     updateConfig,
-    loadFrames,
+    selectedSource,
     triggerNextFrame,
     changeSynth,
     changeVolume,
-    currentIndex,
-    totalFrames,
-    getFrameInfo,
-    initSynth,
+    testFrameInfo,
+    getCurrentTestFrame,
+    selectPreset,
+    selectMidiFile,
+    resetMidiState,
   } = useMidi()
+
+  const selectedPreset = selectedSource?.type === "preset" ? selectedSource.id : null
+  const selectedFile = selectedSource?.type === "file" ? selectedSource.id : null
 
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,61 +97,39 @@ export default function MidiPage() {
 
   const handleDeleteFile = useCallback(async (id: number) => {
     await db.midiFiles.delete(id)
-    setSelectedFile((prev) => (prev === id ? null : prev))
-  }, [])
+    if (selectedSource?.type === "file" && selectedSource.id === id) {
+      const fallbackPreset = presetList[0]
+      if (fallbackPreset) {
+        await selectPreset(fallbackPreset.id)
+      } else {
+        await resetMidiState()
+      }
+    }
+  }, [resetMidiState, selectPreset, selectedSource])
 
   const handleSelectPreset = useCallback(
     async (presetId: string) => {
-      setSelectedPreset(presetId)
-      setSelectedFile(null)
-      const preset = presetMelodies[presetId]
-      if (preset) {
-        await initSynth()
-        await loadFrames(preset.frames)
-      }
+      await selectPreset(presetId)
     },
-    [loadFrames, initSynth],
+    [selectPreset],
   )
 
   const handleSelectFile = useCallback(
     async (file: MidiFile) => {
-      setSelectedFile(file.id ?? null)
-      setSelectedPreset(null)
-      const frames = parseMidiToFrames(file.data)
-      await initSynth()
-      await loadFrames(frames)
+      if (file.id == null) return
+      await selectMidiFile(file.id)
     },
-    [loadFrames, initSynth],
+    [selectMidiFile],
   )
 
   const handleTestPlay = useCallback(() => {
-    const info = getFrameInfo()
+    const frame = getCurrentTestFrame()
     triggerNextFrame()
-    const frame =
-      selectedPreset && presetMelodies[selectedPreset]
-        ? presetMelodies[selectedPreset].frames[info.current]
-        : null
     if (frame) {
       setTestNotes(frame.notes.map((n) => n.name))
       setTimeout(() => setTestNotes([]), 400)
     }
-  }, [triggerNextFrame, getFrameInfo, selectedPreset])
-
-  useEffect(() => {
-    if (!selectedPreset || selectedFile !== null) {
-      return
-    }
-
-    const preset = presetMelodies[selectedPreset]
-    if (!preset) {
-      return
-    }
-
-    void (async () => {
-      await initSynth()
-      await loadFrames(preset.frames)
-    })()
-  }, [initSynth, loadFrames, selectedFile, selectedPreset])
+  }, [getCurrentTestFrame, triggerNextFrame])
 
   return (
     <div className="flex flex-col gap-6">
@@ -239,14 +217,14 @@ export default function MidiPage() {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Test Play</label>
                 <Badge variant="secondary" className="text-xs font-mono">
-                  {currentIndex + 1} / {totalFrames}
+                  {testFrameInfo.total > 0 ? testFrameInfo.current + 1 : 0} / {testFrameInfo.total}
                 </Badge>
               </div>
               <Button
                 onClick={handleTestPlay}
                 variant="outline"
                 className="w-full gap-2"
-                disabled={totalFrames === 0}
+                disabled={testFrameInfo.total === 0}
               >
                 <Play className="h-4 w-4" />
                 Play Next Frame

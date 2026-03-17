@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Clock, Quote, Brain } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PracticeMode, PracticeModeConfig } from "@/engine/typing/types"
@@ -15,11 +14,8 @@ const modeIcons: Record<PracticeMode, React.ReactNode> = {
 }
 
 export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
-  const [mode, setMode] = useState<PracticeMode>(currentConfig.mode)
-
   const handleModeChange = (newMode: string) => {
     const nextMode = newMode as PracticeMode
-    setMode(nextMode)
 
     if (nextMode === "adaptive") {
       onSelect({ mode: "adaptive" })
@@ -36,7 +32,7 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
 
   return (
     <div className="flex flex-col gap-2 items-center w-full">
-      <Tabs value={mode} onValueChange={handleModeChange}>
+      <Tabs value={currentConfig.mode} onValueChange={handleModeChange}>
         <TabsList className="h-auto flex-wrap">
           {(["adaptive", "time", "quote"] as PracticeMode[]).map((practiceMode) => (
             <TabsTrigger

@@ -1,14 +1,20 @@
-import { db, getSetting, setSetting, type KeyStat, type TypingSession } from "@/lib/db"
+import { db, type KeyStat, type TypingSession } from "@/lib/db"
+import { getAppSetting, setAppSetting } from "@/lib/settings"
+import {
+  DEFAULT_RECOVER_KEYS,
+  DEFAULT_TARGET_CPM,
+  INITIAL_UNLOCK_COUNT,
+  LETTER_FREQUENCY_ORDER,
+} from "./adaptiveConstants"
 import { computeLearningRate, type LearningRateResult } from "./learningRate.ts"
 
-export const LETTER_FREQUENCY_ORDER = [
-  "e", "n", "i", "t", "r", "l", "s", "a", "u",
-  "o", "d", "y", "c", "h", "g", "m", "p", "b",
-  "k", "v", "w", "f", "z", "x", "q", "j",
-]
+export {
+  DEFAULT_RECOVER_KEYS,
+  DEFAULT_TARGET_CPM,
+  INITIAL_UNLOCK_COUNT,
+  LETTER_FREQUENCY_ORDER,
+} from "./adaptiveConstants"
 
-export const INITIAL_UNLOCK_COUNT = 6
-export const DEFAULT_TARGET_CPM = 175
 export const MIN_TARGET_CPM = 75
 export const MAX_TARGET_CPM = 750
 export const EWMA_ALPHA = 0.1
@@ -41,7 +47,7 @@ export interface AdaptiveGlobalSummary {
 
 export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
   targetCpm: DEFAULT_TARGET_CPM,
-  recoverKeys: false,
+  recoverKeys: DEFAULT_RECOVER_KEYS,
 }
 
 export const ADAPTIVE_TARGET_PRESETS = [
@@ -275,33 +281,24 @@ export function getAdaptiveKeyTier(keyConfidence: KeyConfidence): AdaptiveKeyTie
 }
 
 export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
-  const [targetCpmStr, recoverKeysStr] = await Promise.all([
-    getSetting("adaptive_targetCpm"),
-    getSetting("adaptive_recoverKeys"),
+  const [targetCpm, recoverKeys] = await Promise.all([
+    getAppSetting("adaptiveTargetCpm"),
+    getAppSetting("adaptiveRecoverKeys"),
   ])
   return {
-    targetCpm: targetCpmStr ? Number(targetCpmStr) : DEFAULT_TARGET_CPM,
-    recoverKeys: recoverKeysStr === "true",
+    targetCpm,
+    recoverKeys,
   }
 }
 
 export async function loadForcedKeys(): Promise<string[]> {
-  const savedForced = await db.settings.where("key").equals("adaptive_forcedKeys").first()
-  if (!savedForced) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(savedForced.value) as string[]
-    return parsed.filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
-  } catch {
-    return []
-  }
+  const parsed = await getAppSetting("adaptiveForcedKeys")
+  return parsed.filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
 }
 
 export async function saveForcedKeys(keys: string[]): Promise<void> {
   const uniqueKeys = [...new Set(keys)].filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
-  await setSetting("adaptive_forcedKeys", JSON.stringify(uniqueKeys))
+  await setAppSetting("adaptiveForcedKeys", uniqueKeys)
 }
 
 export async function forceUnlockKey(key: string): Promise<void> {
@@ -310,14 +307,10 @@ export async function forceUnlockKey(key: string): Promise<void> {
     return
   }
 
-  const [autoUnlockedKeys, forcedKeys] = await Promise.all([
-    db.settings.where("key").equals("adaptive_unlocked").first(),
+  const [autoUnlocked, forcedKeys] = await Promise.all([
+    getAppSetting("adaptiveUnlocked"),
     loadForcedKeys(),
   ])
-
-  const autoUnlocked = autoUnlockedKeys
-    ? (JSON.parse(autoUnlockedKeys.value) as string[])
-    : LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)
 
   if (autoUnlocked.includes(normalizedKey) || forcedKeys.includes(normalizedKey)) {
     return
@@ -327,10 +320,10 @@ export async function forceUnlockKey(key: string): Promise<void> {
 }
 
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
-  const [keyStats, sessions, savedUnlocked, forcedKeys, adaptSettings] = await Promise.all([
+  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
-    db.settings.where("key").equals("adaptive_unlocked").first(),
+    getAppSetting("adaptiveUnlocked"),
     loadForcedKeys(),
     loadAdaptiveSettings(),
   ])
@@ -338,13 +331,6 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
   const statsMap = new Map<string, KeyStat>()
   for (const stat of keyStats) {
     statsMap.set(stat.key, stat)
-  }
-
-  let unlockedKeys: string[]
-  if (savedUnlocked) {
-    unlockedKeys = JSON.parse(savedUnlocked.value)
-  } else {
-    unlockedKeys = LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)
   }
 
   const unlockedSet = new Set(unlockedKeys)
@@ -439,7 +425,7 @@ export async function recomputeAndUnlock(): Promise<AdaptiveState> {
 }
 
 export async function saveUnlockedKeys(keys: string[]): Promise<void> {
-  await setSetting("adaptive_unlocked", JSON.stringify(keys))
+  await setAppSetting("adaptiveUnlocked", keys)
 }
 
 export async function updateKeyStatsFromSession(

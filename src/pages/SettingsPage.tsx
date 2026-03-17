@@ -34,12 +34,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { db, exportAllData, importAllData, getSetting, setSetting } from "@/lib/db"
+import { db, exportAllData, importAllData } from "@/lib/db"
+import { resetAppSettings, setAppSetting, useAppSetting } from "@/lib/settings"
 import { useMidi } from "@/engine/midi/MidiContext"
-import { defaultMidiConfig, type SynthType } from "@/engine/midi/types"
-import { presetMelodies } from "@/engine/midi/presets"
+import type { SynthType } from "@/engine/midi/types"
 import {
-  DEFAULT_ADAPTIVE_SETTINGS,
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
 } from "@/engine/typing/adaptiveEngine"
@@ -55,16 +54,8 @@ export default function SettingsPage() {
   const keyStatCount = useLiveQuery(() => db.keyStats.count()) ?? 0
   const midiFileCount = useLiveQuery(() => db.midiFiles.count()) ?? 0
 
-  const showKeyboard = useLiveQuery(
-    () => getSetting("showKeyboard"),
-    [],
-    "true",
-  )
-  const dailyGoalMinutes = useLiveQuery(
-    () => getSetting("dailyGoalMinutes"),
-    [],
-    "30",
-  )
+  const showKeyboard = useAppSetting("showKeyboard")
+  const dailyGoalMinutes = useAppSetting("dailyGoalMinutes")
 
   const midi = useMidi()
 
@@ -94,6 +85,7 @@ export default function SettingsPage() {
       try {
         const text = await file.text()
         await importAllData(text)
+        await midi.resetMidiState()
         setImportStatus("success")
         setTimeout(() => setImportStatus("idle"), 3000)
       } catch {
@@ -103,7 +95,7 @@ export default function SettingsPage() {
 
       if (fileInputRef.current) fileInputRef.current.value = ""
     },
-    [],
+    [midi],
   )
 
   const handleClearAll = useCallback(async () => {
@@ -111,51 +103,18 @@ export default function SettingsPage() {
       db.sessions.clear(),
       db.keyStats.clear(),
       db.dailyGoals.clear(),
-      setSetting("adaptive_forcedKeys", JSON.stringify([])),
-      setSetting(
-        "adaptive_unlocked",
-        JSON.stringify(LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)),
+      setAppSetting("adaptiveForcedKeys", []),
+      setAppSetting(
+        "adaptiveUnlocked",
+        LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT),
       ),
     ])
     setClearDialogOpen(false)
   }, [])
 
   const handleResetSettings = useCallback(async () => {
-    const defaultPresetId = Object.keys(presetMelodies)[0]
-
-    await db.settings.clear()
-    await Promise.all([
-      setSetting("showKeyboard", "true"),
-      setSetting("dailyGoalMinutes", "30"),
-      setSetting(
-        "adaptive_targetCpm",
-        String(DEFAULT_ADAPTIVE_SETTINGS.targetCpm),
-      ),
-      setSetting(
-        "adaptive_recoverKeys",
-        String(DEFAULT_ADAPTIVE_SETTINGS.recoverKeys),
-      ),
-      setSetting("adaptive_forcedKeys", JSON.stringify([])),
-      setSetting(
-        "adaptive_unlocked",
-        JSON.stringify(LETTER_FREQUENCY_ORDER.slice(0, INITIAL_UNLOCK_COUNT)),
-      ),
-      setSetting("midiConfig", JSON.stringify(defaultMidiConfig)),
-      ...(defaultPresetId
-        ? [
-            setSetting(
-              "selectedMidi",
-              JSON.stringify({ type: "preset", id: defaultPresetId }),
-            ),
-          ]
-        : []),
-    ])
-
-    midi.updateConfig(defaultMidiConfig)
-    if (defaultPresetId) {
-      midi.loadFramesOnly(presetMelodies[defaultPresetId].frames)
-    }
-
+    await resetAppSettings()
+    await midi.resetMidiState()
     setResetSettingsDialogOpen(false)
   }, [midi])
 
@@ -178,10 +137,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <Switch
-              checked={showKeyboard === "true"}
-              onCheckedChange={(v) =>
-                setSetting("showKeyboard", v ? "true" : "false")
-              }
+              checked={showKeyboard}
+              onCheckedChange={(value) => void setAppSetting("showKeyboard", value)}
             />
           </div>
 
@@ -200,10 +157,10 @@ export default function SettingsPage() {
               </Badge>
             </div>
             <Slider
-              value={[Number(dailyGoalMinutes)]}
+              value={[dailyGoalMinutes]}
               onValueChange={(v) => {
                 const val = Array.isArray(v) ? v[0] : v
-                setSetting("dailyGoalMinutes", String(val))
+                void setAppSetting("dailyGoalMinutes", val)
               }}
               min={5}
               max={120}

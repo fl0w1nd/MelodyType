@@ -9,7 +9,7 @@ export type LoopMode = "loop" | "once" | "random"
 export interface SchedulerOptions {
   frames: MidiFrame[]
   targetCPM: number
-  synth: Tone.PolySynth
+  synth: Tone.PolySynth | null
   loopMode: LoopMode
   onStateChange?: (state: MelodyState) => void
 }
@@ -86,12 +86,53 @@ export class MelodyScheduler {
     this.fuel = Math.min(this.fuel, this.maxFuel)
   }
 
+  updateLoopMode(loopMode: LoopMode) {
+    this.loopMode = loopMode
+  }
+
+  get isActive(): boolean {
+    return this.rafId !== null
+  }
+
+  /**
+   * Reset session-level state (fuel, input flag, flow) while preserving
+   * the current playback position (frameIndex, virtualTime). Resumes the
+   * RAF loop if it was stopped.
+   */
+  resetSession(targetCPM?: number) {
+    if (targetCPM != null) {
+      this.targetCPS = targetCPM / 60
+      this.maxFuel = this.targetCPS * BUFFER_SECONDS
+    }
+
+    this.fuel = this.maxFuel * INITIAL_FUEL_RATIO
+    this.hasReceivedInput = false
+    this.flowState = "idle"
+    this.lastTickTime = null
+
+    if (this.synth) {
+      try {
+        this.synth.volume.rampTo(0, 0.05)
+      } catch { /* synth may be disposed */ }
+    }
+
+    this.notifyState()
+
+    if (this.rafId === null && this.frames.length > 0) {
+      this.scheduleTick()
+    }
+  }
+
   stop() {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
     }
+    this.frameIndex = 0
+    this.virtualTime = 0
+    this.fuel = 0
     this.lastTickTime = null
+    this.lastNotifyTime = 0
     this.hasReceivedInput = false
     this.flowState = "idle"
     // Restore synth volume when stopping

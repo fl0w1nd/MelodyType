@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import {
   Clock,
@@ -21,58 +21,18 @@ import {
   type TimeTier,
   type LevelRecord,
 } from "@/engine/typing/timeLevels"
-import { db } from "@/lib/db"
-import type { PracticeModeConfig } from "@/engine/typing/types"
+import { getTimeLevelRecords } from "@/engine/practice/sessionQueries"
 
 interface TimeLevelSelectProps {
   onSelectLevel: (level: TimeLevel) => void
 }
 
 export function TimeLevelSelect({ onSelectLevel }: TimeLevelSelectProps) {
-  const [records, setRecords] = useState<Record<string, LevelRecord>>({})
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const sessions = await db.sessions
-          .where("mode")
-          .equals("time")
-          .toArray()
-
-        const map: Record<string, LevelRecord> = {}
-        for (const s of sessions) {
-          try {
-            const cfg = JSON.parse(s.modeConfig) as PracticeModeConfig
-            const lid = cfg.levelId
-            if (!lid) continue
-            if (!map[lid]) {
-              map[lid] = { bestWpm: 0, bestAccuracy: 0, attempts: 0 }
-            }
-            map[lid].attempts++
-            const currentStars = getStars(map[lid])
-            const candidateRecord: LevelRecord = {
-              bestWpm: s.wpm,
-              bestAccuracy: s.accuracy,
-              attempts: map[lid].attempts,
-            }
-            const candidateStars = getStars(candidateRecord)
-            if (
-              candidateStars > currentStars ||
-              (candidateStars === currentStars && s.wpm > map[lid].bestWpm)
-            ) {
-              map[lid].bestWpm = s.wpm
-              map[lid].bestAccuracy = s.accuracy
-            }
-          } catch {
-            /* skip malformed config */
-          }
-        }
-        setRecords(map)
-      } catch {
-        /* ignore db errors */
-      }
-    })()
-  }, [])
+  const records = useLiveQuery(
+    () => getTimeLevelRecords(),
+    [],
+    {} as Record<string, LevelRecord>,
+  )
 
   const totalStars = TIME_LEVELS.reduce(
     (sum, l) => sum + getStars(records[l.id] ?? null),

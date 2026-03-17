@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import {
   Trophy,
@@ -28,8 +29,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { TypingMetrics, PracticeModeConfig, KeystrokeEntry } from "@/engine/typing/types"
-import { db } from "@/lib/db"
 import { getLevelById, getStars, TIER_META, type LevelRecord } from "@/engine/typing/timeLevels"
+import { getLevelPersonalBest } from "@/engine/practice/sessionQueries"
 
 interface ResultsPanelProps {
   metrics: TypingMetrics
@@ -56,7 +57,11 @@ export function ResultsPanel({
   const isTimeMode = modeConfig?.mode === "time"
   const level = modeConfig?.levelId ? getLevelById(modeConfig.levelId) : null
   const cpm = metrics.elapsedTime > 0 ? Math.round((metrics.correctChars / metrics.elapsedTime) * 60) : 0
-  const [personalBest, setPersonalBest] = useState<number | null>(null)
+  const personalBest = useLiveQuery(
+    () => (isTimeMode && modeConfig?.levelId ? getLevelPersonalBest(modeConfig.levelId) : Promise.resolve(null)),
+    [isTimeMode, modeConfig?.levelId],
+    null,
+  )
   const isNewPB = personalBest != null && metrics.wpm > personalBest
 
   const currentRecord: LevelRecord = {
@@ -65,35 +70,6 @@ export function ResultsPanel({
     attempts: 1,
   }
   const earnedStars = getStars(currentRecord)
-
-  useEffect(() => {
-    if (!isTimeMode || !modeConfig?.levelId) return
-
-    void (async () => {
-      try {
-        const sessions = await db.sessions
-          .where("mode")
-          .equals("time")
-          .toArray()
-
-        const matching = sessions.filter((s) => {
-          try {
-            const cfg = JSON.parse(s.modeConfig) as PracticeModeConfig
-            return cfg.levelId === modeConfig.levelId
-          } catch {
-            return false
-          }
-        })
-
-        if (matching.length > 0) {
-          const best = Math.max(...matching.map((s) => s.wpm))
-          setPersonalBest(best)
-        }
-      } catch {
-        /* ignore */
-      }
-    })()
-  }, [isTimeMode, modeConfig])
 
   const wpmOverTime = useMemo(() => {
     if (!keystrokeLog || keystrokeLog.length < 2) return []
