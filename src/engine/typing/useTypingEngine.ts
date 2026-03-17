@@ -182,7 +182,6 @@ export function useTypingEngine(onKeystroke?: () => void) {
             char.typedChar = e.key
             char.hadError = true
             next.errorKeystrokes++
-            didType = true
           }
         }
 
