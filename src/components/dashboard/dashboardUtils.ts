@@ -87,14 +87,3 @@ export function aggregateSessionsByRange(
   })
 }
 
-export function formatDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m`
-}
-
-export function getPercentChange(current: number, previous: number): number | null {
-  if (previous === 0) return null
-  return Math.round(((current - previous) / previous) * 100)
-}

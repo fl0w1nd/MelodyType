@@ -55,7 +55,8 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
       grid.push(currentWeek)
     }
 
-    const maxCount = Math.max(...[...dayMap.values()].map((v) => v.count), 1)
+    const visibleCounts = grid.flat().map((d) => d.count)
+    const maxCount = Math.max(...visibleCounts, 1)
     return { grid, maxCount, totalDays }
   }, [sessions, weeks])
 
@@ -113,7 +114,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
           style={{ gridTemplateColumns: `repeat(${grid.length}, 1fr)` }}
         >
           {grid.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[5px]">
+            <div key={wi} className="grid gap-[5px]" style={{ gridTemplateRows: "repeat(7, 1fr)" }}>
               {week.map((day) => (
                 <Tooltip key={day.date}>
                   <TooltipTrigger>
@@ -122,6 +123,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
                         "h-4 w-full rounded transition-colors duration-200",
                         getIntensityClass(day.count),
                       )}
+                      style={{ gridRow: day.dayOfWeek + 1 }}
                     />
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
