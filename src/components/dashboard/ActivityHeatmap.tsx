@@ -85,7 +85,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.15, ease: [0.25, 1, 0.5, 1] }}
-      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-5"
+      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-5 flex flex-col"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
@@ -99,24 +99,27 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
         </span>
       </div>
 
-      <div className="flex gap-1">
-        <div className="flex flex-col gap-1 mr-1 pt-0">
+      <div className="flex flex-1 items-center gap-2">
+        <div className="flex flex-col gap-[5px]">
           {dayLabels.map((label, i) => (
-            <div key={i} className="h-3 flex items-center">
-              <span className="text-[9px] text-muted-foreground w-6 text-right">{label}</span>
+            <div key={i} className="h-4 flex items-center">
+              <span className="text-xs text-muted-foreground w-8 text-right">{label}</span>
             </div>
           ))}
         </div>
 
-        <div className="flex gap-[3px] flex-1 overflow-hidden">
+        <div
+          className="grid flex-1 gap-[5px]"
+          style={{ gridTemplateColumns: `repeat(${grid.length}, 1fr)` }}
+        >
           {grid.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
+            <div key={wi} className="flex flex-col gap-[5px]">
               {week.map((day) => (
                 <Tooltip key={day.date}>
                   <TooltipTrigger>
                     <div
                       className={cn(
-                        "h-3 w-3 rounded-sm transition-colors duration-200",
+                        "h-4 w-full rounded transition-colors duration-200",
                         getIntensityClass(day.count),
                       )}
                     />
@@ -144,14 +147,14 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-1 mt-3">
-        <span className="text-[9px] text-muted-foreground mr-1">Less</span>
-        <div className="h-3 w-3 rounded-sm bg-secondary/40 dark:bg-secondary/30" />
-        <div className="h-3 w-3 rounded-sm bg-emerald-300/50 dark:bg-emerald-400/25" />
-        <div className="h-3 w-3 rounded-sm bg-emerald-400/50 dark:bg-emerald-400/40" />
-        <div className="h-3 w-3 rounded-sm bg-emerald-400/80 dark:bg-emerald-400/70" />
-        <div className="h-3 w-3 rounded-sm bg-emerald-500 dark:bg-emerald-500" />
-        <span className="text-[9px] text-muted-foreground ml-1">More</span>
+      <div className="flex items-center justify-end gap-1.5 mt-auto pt-3">
+        <span className="text-[10px] text-muted-foreground mr-0.5">Less</span>
+        <div className="h-3.5 w-3.5 rounded bg-secondary/40 dark:bg-secondary/30" />
+        <div className="h-3.5 w-3.5 rounded bg-emerald-300/50 dark:bg-emerald-400/25" />
+        <div className="h-3.5 w-3.5 rounded bg-emerald-400/50 dark:bg-emerald-400/40" />
+        <div className="h-3.5 w-3.5 rounded bg-emerald-400/80 dark:bg-emerald-400/70" />
+        <div className="h-3.5 w-3.5 rounded bg-emerald-500 dark:bg-emerald-500" />
+        <span className="text-[10px] text-muted-foreground ml-0.5">More</span>
       </div>
     </motion.div>
   )

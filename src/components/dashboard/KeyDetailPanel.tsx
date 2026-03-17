@@ -269,8 +269,8 @@ export function KeyDetailPanel({ sessions, title = "Per-Key Analysis" }: KeyDeta
                     <div className="text-xs text-muted-foreground mb-2">
                       Accuracy per session (recent {selected.recentSamples.length})
                     </div>
-                    <ResponsiveContainer width="100%" height={140}>
-                      <ScatterChart margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <ScatterChart margin={{ top: 4, right: 4, bottom: 16, left: -10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                         <XAxis
                           dataKey="session"

@@ -222,12 +222,12 @@ function ChartShell({
         className,
       )}
     >
-      <div className="flex items-center justify-between px-5 pt-4 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-2">
         <div className="flex items-center gap-2.5">
-          <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconColor)}>
+          <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg shrink-0", iconColor)}>
             {icon}
           </div>
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight whitespace-nowrap">{title}</h3>
         </div>
         <TimeRangeSelector value={range} onChange={setRange} />
       </div>
