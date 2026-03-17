@@ -380,7 +380,7 @@ export function usePracticeSessionController({
       setAdaptiveState(nextAdaptiveState)
       setRoundCount((value) => value + 1)
       adaptiveContinuingRef.current = false
-      resetMelodySession(getTargetCPM(config, nextAdaptiveState))
+      resetMelodySession(getTargetCPM(config, nextAdaptiveState), true)
     },
     [config, getTargetCPM, loadText, resetMelodySession],
   )

@@ -16,6 +16,7 @@ export interface SchedulerOptions {
 
 const BUFFER_SECONDS = 3
 const INITIAL_FUEL_RATIO = 0
+const SESSION_BRIDGE_SECONDS = 1
 const FADE_DRAIN_FACTOR = 0.95
 const MAX_DT = 0.1
 
@@ -99,16 +100,21 @@ export class MelodyScheduler {
    * the current playback position (frameIndex, virtualTime). Resumes the
    * RAF loop if it was stopped.
    */
-  resetSession(targetCPM?: number) {
+  resetSession(targetCPM?: number, bridge = false) {
     if (targetCPM != null) {
       this.targetCPS = targetCPM / 60
       this.maxFuel = this.targetCPS * BUFFER_SECONDS
     }
 
-    this.fuel = this.maxFuel * INITIAL_FUEL_RATIO
-    this.hasReceivedInput = false
-    this.flowState = "idle"
-    this.lastTickTime = null
+    if (bridge && this.hasReceivedInput) {
+      this.fuel = this.targetCPS * SESSION_BRIDGE_SECONDS
+      this.flowState = "flowing"
+    } else {
+      this.fuel = this.maxFuel * INITIAL_FUEL_RATIO
+      this.hasReceivedInput = false
+      this.flowState = "idle"
+      this.lastTickTime = null
+    }
 
     if (this.synth) {
       try {

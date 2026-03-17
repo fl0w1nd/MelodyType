@@ -94,8 +94,8 @@ export function useMidiTrigger() {
     [],
   )
 
-  const resetMelodySession = useCallback((targetCPM?: number) => {
-    schedulerRef.current.resetSession(targetCPM)
+  const resetMelodySession = useCallback((targetCPM?: number, bridge = false) => {
+    schedulerRef.current.resetSession(targetCPM, bridge)
   }, [])
 
   const applyFrames = useCallback(
