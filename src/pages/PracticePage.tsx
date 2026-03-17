@@ -3,6 +3,7 @@ import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
+import { FlowMeter } from "@/components/practice/FlowMeter"
 import { MetricsBar } from "@/components/practice/MetricsBar"
 import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
@@ -39,6 +40,13 @@ import {
 const ADAPTIVE_WORD_COUNT = 30
 const UNLOCK_TOAST_DURATION_MS = 2500
 const ADAPTIVE_INACTIVITY_TIMEOUT_MS = 10000
+const DEFAULT_QUOTE_TARGET_CPM = 200
+const TIER_TARGET_CPM: Record<string, number> = {
+  beginner: 150,
+  intermediate: 250,
+  advanced: 350,
+  expert: 450,
+}
 
 function computeMetricsForWords(
   words: WordState[],
@@ -124,12 +132,12 @@ export default function PracticePage() {
   const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
   const [timeLevelKey, setTimeLevelKey] = useState(0)
 
-  const { triggerNextFrame } = useMidi()
+  const { feedKeystroke, startMelody, stopMelody, melodyState, updateTargetCPM } = useMidi()
   const { particles, emit: emitNote } = useNoteParticles()
   const onKeystroke = useCallback(() => {
-    triggerNextFrame()
+    feedKeystroke(true)
     emitNote()
-  }, [triggerNextFrame, emitNote])
+  }, [feedKeystroke, emitNote])
   const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
     useTypingEngine(onKeystroke)
 
@@ -208,6 +216,20 @@ export default function PracticePage() {
     [adaptiveState],
   )
 
+  const getTargetCPM = useCallback(
+    (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
+      if (cfg.mode === "adaptive") {
+        return (aState ?? adaptiveState)?.settings.targetCpm ?? DEFAULT_TARGET_CPM
+      }
+      if (cfg.mode === "time" && cfg.levelId) {
+        const level = getLevelById(cfg.levelId)
+        return level ? (TIER_TARGET_CPM[level.tier] ?? DEFAULT_QUOTE_TARGET_CPM) : DEFAULT_QUOTE_TARGET_CPM
+      }
+      return DEFAULT_QUOTE_TARGET_CPM
+    },
+    [adaptiveState],
+  )
+
   const startPractice = useCallback(
     async (cfg: PracticeModeConfig, aState?: AdaptiveState | null) => {
       if (cfg.mode !== "quote") setQuoteAuthor(null)
@@ -215,8 +237,10 @@ export default function PracticePage() {
       loadText(text, cfg.mode === "time" ? cfg.timeLimit : undefined)
       setRoundCount(0)
       adaptiveContinuingRef.current = false
+      stopMelody()
+      void startMelody(getTargetCPM(cfg, aState))
     },
-    [generateText, loadText],
+    [generateText, loadText, startMelody, stopMelody, getTargetCPM],
   )
 
   const handleConfigChange = useCallback(
@@ -227,6 +251,7 @@ export default function PracticePage() {
 
       if (newConfig.mode === "time") {
         reset()
+        stopMelody()
         return
       }
 
@@ -261,9 +286,10 @@ export default function PracticePage() {
 
   const handleBackToLevels = useCallback(() => {
     reset()
+    stopMelody()
     setActiveLevel(null)
     setTimeLevelKey((k) => k + 1)
-  }, [reset])
+  }, [reset, stopMelody])
 
   const handleNextLevel = useCallback(() => {
     if (!activeLevel) return
@@ -278,6 +304,7 @@ export default function PracticePage() {
 
   const handleRestart = useCallback(() => {
     reset()
+    stopMelody()
     setNewlyUnlocked(null)
     adaptiveContinuingRef.current = false
     if (config.mode === "adaptive") {
@@ -288,20 +315,21 @@ export default function PracticePage() {
     } else {
       startPractice(config)
     }
-  }, [reset, startPractice, config])
+  }, [reset, stopMelody, startPractice, config])
 
   const discardAdaptiveSession = useCallback(() => {
     if (config.mode !== "adaptive") return
     if (state.isFinished) return
 
     reset()
+    stopMelody()
     setNewlyUnlocked(null)
     adaptiveContinuingRef.current = false
     loadAdaptiveState().then((s) => {
       setAdaptiveState(s)
       startPractice(config, s)
     })
-  }, [config, reset, startPractice, state.isFinished])
+  }, [config, reset, stopMelody, startPractice, state.isFinished])
 
   const updateAdaptiveSettings = useCallback(
     async (updates: Partial<AdaptiveSettings>) => {
@@ -315,10 +343,14 @@ export default function PracticePage() {
         setSetting("adaptive_recoverKeys", String(nextRecover)),
       ])
 
+      if (updates.targetCpm != null) {
+        updateTargetCPM(updates.targetCpm)
+      }
+
       const nextState = await loadAdaptiveState()
       setAdaptiveState(nextState)
     },
-    [adaptiveState],
+    [adaptiveState, updateTargetCPM],
   )
 
   const handleManualUnlock = useCallback(
@@ -440,6 +472,7 @@ export default function PracticePage() {
     if (!state.isFinished || !state.isStarted) return
     if (adaptiveContinuingRef.current) return
     adaptiveContinuingRef.current = true
+    stopMelody()
 
     const roundLog = state.keystrokeLog
     const roundMetrics =
@@ -556,6 +589,7 @@ export default function PracticePage() {
     state.isFinished,
     state.isStarted,
     state.keystrokeLog,
+    stopMelody,
   ])
 
   useEffect(() => {
@@ -679,6 +713,11 @@ export default function PracticePage() {
                 metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
                 isStarted={isAdaptive ? state.isStarted && !state.isFinished : state.isStarted}
                 timeLimit={config.mode === "time" ? config.timeLimit : undefined}
+              />
+
+              <FlowMeter
+                melodyState={melodyState}
+                isStarted={state.isStarted}
               />
 
               <div className="relative">

@@ -33,3 +33,13 @@ export const defaultMidiConfig: MidiConfig = {
   loopMode: "loop",
   isEnabled: true,
 }
+
+export type FlowState = "idle" | "flowing" | "fading" | "stalled"
+
+export interface MelodyState {
+  fuel: number
+  maxFuel: number
+  flowState: FlowState
+  frameIndex: number
+  totalFrames: number
+}

@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type * as Tone from "tone"
-import type { MidiFrame, SynthType, MidiConfig } from "./types"
+import type { MidiFrame, SynthType, MidiConfig, MelodyState } from "./types"
 import { defaultMidiConfig } from "./types"
 import { createSynth, ensureAudioStarted } from "./synthManager"
+import { MelodyScheduler } from "./melodyScheduler"
 import { getSetting, setSetting } from "@/lib/db"
+
+const defaultMelodyState: MelodyState = {
+  fuel: 0,
+  maxFuel: 0,
+  flowState: "idle",
+  frameIndex: 0,
+  totalFrames: 0,
+}
 
 export function useMidiTrigger() {
   const [config, setConfig] = useState<MidiConfig>(defaultMidiConfig)
-  const [frameInfo, setFrameInfo] = useState({ current: 0, total: 0 })
+  const [melodyState, setMelodyState] = useState<MelodyState>(defaultMelodyState)
 
   const framesRef = useRef<MidiFrame[]>([])
-  const indexRef = useRef(0)
   const synthRef = useRef<Tone.PolySynth | null>(null)
   const configRef = useRef<MidiConfig>(defaultMidiConfig)
-  const initingRef = useRef(false)
+  const schedulerRef = useRef<MelodyScheduler>(new MelodyScheduler())
 
   useEffect(() => {
     configRef.current = config
@@ -50,22 +58,18 @@ export function useMidiTrigger() {
         type ?? configRef.current.synthType,
         volume ?? configRef.current.volume,
       )
+      schedulerRef.current.updateSynth(synthRef.current)
     },
     [],
   )
 
   const loadFramesOnly = useCallback((frames: MidiFrame[]) => {
     framesRef.current = frames
-    indexRef.current = 0
-    setFrameInfo({ current: 0, total: frames.length })
   }, [])
 
   const loadFrames = useCallback(
     async (frames: MidiFrame[]) => {
       framesRef.current = frames
-      indexRef.current = 0
-      setFrameInfo({ current: 0, total: frames.length })
-
       if (frames.length > 0 && !synthRef.current) {
         await initSynth()
       }
@@ -73,13 +77,15 @@ export function useMidiTrigger() {
     [initSynth],
   )
 
+  // ── Legacy test-play (used by MidiPage) ────────────────
+
+  const testIndexRef = useRef(0)
+
   const triggerNextFrame = useCallback(() => {
     if (!configRef.current.isEnabled) return
     if (framesRef.current.length === 0) return
 
     if (!synthRef.current) {
-      if (initingRef.current) return
-      initingRef.current = true
       ensureAudioStarted()
         .then(() => {
           if (!synthRef.current) {
@@ -88,42 +94,68 @@ export function useMidiTrigger() {
               configRef.current.volume,
             )
           }
-          initingRef.current = false
         })
-        .catch(() => {
-          initingRef.current = false
-        })
+        .catch(() => {})
       return
     }
 
-    const frame = framesRef.current[indexRef.current]
+    const frame = framesRef.current[testIndexRef.current]
     if (frame && frame.notes.length > 0) {
       const noteNames = frame.notes.map((n) => n.name)
       try {
         synthRef.current.triggerAttackRelease(noteNames, "8n")
-      } catch {
-        /* audio context may not be ready yet */
-      }
+      } catch { /* audio context may not be ready yet */ }
     }
 
-    const loopMode = configRef.current.loopMode
-    if (loopMode === "random") {
-      indexRef.current = Math.floor(
-        Math.random() * framesRef.current.length,
-      )
-    } else if (loopMode === "loop") {
-      indexRef.current =
-        (indexRef.current + 1) % framesRef.current.length
-    } else {
-      if (indexRef.current < framesRef.current.length - 1) {
-        indexRef.current++
-      }
-    }
+    testIndexRef.current =
+      (testIndexRef.current + 1) % framesRef.current.length
   }, [])
 
   const getFrameInfo = useCallback(() => {
-    return { current: indexRef.current, total: framesRef.current.length }
+    return { current: testIndexRef.current, total: framesRef.current.length }
   }, [])
+
+  // ── Melody Scheduler API ──────────────────────────────
+
+  const startMelody = useCallback(
+    async (targetCPM: number) => {
+      if (!configRef.current.isEnabled) return
+      if (framesRef.current.length === 0) return
+
+      await ensureAudioStarted()
+      if (!synthRef.current) {
+        synthRef.current = createSynth(
+          configRef.current.synthType,
+          configRef.current.volume,
+        )
+      }
+
+      schedulerRef.current.start({
+        frames: framesRef.current,
+        targetCPM,
+        synth: synthRef.current,
+        loopMode: configRef.current.loopMode,
+        onStateChange: setMelodyState,
+      })
+    },
+    [],
+  )
+
+  const feedKeystroke = useCallback((correct: boolean) => {
+    if (!configRef.current.isEnabled) return
+    schedulerRef.current.feed(correct)
+  }, [])
+
+  const stopMelody = useCallback(() => {
+    schedulerRef.current.stop()
+    setMelodyState(defaultMelodyState)
+  }, [])
+
+  const updateTargetCPM = useCallback((targetCPM: number) => {
+    schedulerRef.current.updateTargetCPM(targetCPM)
+  }, [])
+
+  // ── Synth switching ───────────────────────────────────
 
   const changeSynth = useCallback(
     async (type: SynthType) => {
@@ -143,6 +175,7 @@ export function useMidiTrigger() {
 
   useEffect(() => {
     return () => {
+      schedulerRef.current.stop()
       if (synthRef.current) {
         synthRef.current.dispose()
         synthRef.current = null
@@ -155,12 +188,19 @@ export function useMidiTrigger() {
     updateConfig,
     loadFrames,
     loadFramesOnly,
-    triggerNextFrame,
     changeSynth,
     changeVolume,
-    currentIndex: frameInfo.current,
-    totalFrames: frameInfo.total,
-    getFrameInfo,
     initSynth,
+    // Legacy test-play (MidiPage)
+    triggerNextFrame,
+    getFrameInfo,
+    currentIndex: melodyState.frameIndex,
+    totalFrames: melodyState.totalFrames,
+    // Melody scheduler
+    melodyState,
+    startMelody,
+    feedKeystroke,
+    stopMelody,
+    updateTargetCPM,
   }
 }
