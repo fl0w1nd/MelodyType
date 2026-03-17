@@ -1,11 +1,11 @@
 import { useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { motion } from "framer-motion"
+import { Flame } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Flame } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 
@@ -32,12 +32,9 @@ export function KeyboardHeatmap({
       for (const stroke of session.keystrokes) {
         const key = stroke.key.toLowerCase()
         if (key.length !== 1 || key < "a" || key > "z") continue
-
         const current = map.get(key) ?? { totalHits: 0, errors: 0 }
         current.totalHits += 1
-        if (!stroke.correct) {
-          current.errors += 1
-        }
+        if (!stroke.correct) current.errors += 1
         map.set(key, current)
       }
     }
@@ -58,22 +55,23 @@ export function KeyboardHeatmap({
 
   const getColor = (key: string) => {
     const stat = statsMap.get(key)
-    if (!stat || stat.totalHits === 0) return "bg-secondary/50 text-muted-foreground"
+    if (!stat || stat.totalHits === 0)
+      return "bg-secondary/40 text-muted-foreground border-transparent"
 
-    const errorRate = stat.errors / stat.totalHits
     if (mode === "errors") {
+      const errorRate = stat.errors / stat.totalHits
       const intensity = errorRate / maxVal
-      if (intensity > 0.6) return "bg-red-500/70 text-white"
-      if (intensity > 0.3) return "bg-orange-400/60 text-white"
-      if (intensity > 0.1) return "bg-yellow-400/40 text-foreground"
-      return "bg-emerald-400/40 text-foreground"
+      if (intensity > 0.6) return "bg-red-500/60 text-white border-red-500/30"
+      if (intensity > 0.3) return "bg-orange-400/50 text-foreground border-orange-400/30"
+      if (intensity > 0.1) return "bg-yellow-400/30 text-foreground border-yellow-400/20"
+      return "bg-emerald-400/30 text-foreground border-emerald-400/20"
     }
 
     const intensity = stat.totalHits / maxVal
-    if (intensity > 0.7) return "bg-primary/60 text-primary-foreground"
-    if (intensity > 0.4) return "bg-primary/35 text-foreground"
-    if (intensity > 0.1) return "bg-primary/15 text-foreground"
-    return "bg-secondary/50 text-muted-foreground"
+    if (intensity > 0.7) return "bg-primary/50 text-primary-foreground border-primary/30"
+    if (intensity > 0.4) return "bg-primary/30 text-foreground border-primary/20"
+    if (intensity > 0.1) return "bg-primary/15 text-foreground border-primary/10"
+    return "bg-secondary/40 text-muted-foreground border-transparent"
   }
 
   const getTooltipText = (key: string) => {
@@ -84,37 +82,48 @@ export function KeyboardHeatmap({
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Flame className="h-4 w-4 text-primary" />
-          {title}
-          <span className="text-xs font-normal text-muted-foreground ml-auto">
-            {mode === "errors" ? "Error Rate" : "Usage Frequency"}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
+      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm overflow-hidden"
+    >
+      <div className="flex items-center justify-between px-5 pt-4 pb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10">
+            <Flame className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          {mode === "errors" ? "Error Rate" : "Usage Frequency"}
+        </span>
+      </div>
+
+      <div className="px-5 pb-5 pt-2">
         <div className="flex flex-col gap-1.5 items-center">
           {keyboardLayout.map((row, ri) => (
-            <div
-              key={ri}
-              className="flex gap-1.5"
-              style={{ paddingLeft: `${ri * 12}px` }}
-            >
-              {row.map((key) => (
+            <div key={ri} className="flex gap-1.5" style={{ paddingLeft: `${ri * 14}px` }}>
+              {row.map((key, ki) => (
                 <Tooltip key={key}>
                   <TooltipTrigger>
-                    <div
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{
+                        delay: 0.2 + ri * 0.06 + ki * 0.02,
+                        duration: 0.3,
+                        ease: [0.25, 1, 0.5, 1],
+                      }}
                       className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-md text-xs font-mono font-medium transition-all cursor-default",
+                        "flex h-10 w-10 items-center justify-center rounded-lg text-xs font-mono font-semibold border transition-all duration-200 cursor-default hover:scale-105",
                         getColor(key),
                       )}
                     >
                       {key.toUpperCase()}
-                    </div>
+                    </motion.div>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
+                  <TooltipContent side="top" className="text-xs font-mono">
                     {getTooltipText(key)}
                   </TooltipContent>
                 </Tooltip>
@@ -126,41 +135,29 @@ export function KeyboardHeatmap({
         <div className="flex items-center justify-center gap-4 mt-4">
           {mode === "errors" ? (
             <>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-emerald-400/40" />
-                <span className="text-[10px] text-muted-foreground">Low errors</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-yellow-400/40" />
-                <span className="text-[10px] text-muted-foreground">Some errors</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-orange-400/60" />
-                <span className="text-[10px] text-muted-foreground">Many errors</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-red-500/70" />
-                <span className="text-[10px] text-muted-foreground">High errors</span>
-              </div>
+              <LegendItem color="bg-emerald-400/30" label="Low" />
+              <LegendItem color="bg-yellow-400/30" label="Some" />
+              <LegendItem color="bg-orange-400/50" label="Many" />
+              <LegendItem color="bg-red-500/60" label="High" />
             </>
           ) : (
             <>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-secondary/50" />
-                <span className="text-[10px] text-muted-foreground">Rarely used</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-primary/35" />
-                <span className="text-[10px] text-muted-foreground">Often used</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-primary/60" />
-                <span className="text-[10px] text-muted-foreground">Most used</span>
-              </div>
+              <LegendItem color="bg-secondary/40" label="Rare" />
+              <LegendItem color="bg-primary/30" label="Often" />
+              <LegendItem color="bg-primary/50" label="Most" />
             </>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </motion.div>
+  )
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className={cn("h-2.5 w-2.5 rounded-sm", color)} />
+      <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</span>
+    </div>
   )
 }

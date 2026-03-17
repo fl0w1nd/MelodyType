@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   ScatterChart,
   Scatter,
@@ -9,7 +10,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { KeyboardIcon, TrendingUp, TrendingDown, Minus } from "lucide-react"
@@ -88,12 +88,10 @@ export function KeyDetailPanel({ sessions, title = "Per-Key Analysis" }: KeyDeta
         const latencies: number[] = []
         for (let i = 1; i < timestamps.length; i++) {
           const latency = timestamps[i] - timestamps[i - 1]
-          if (latency > 0) {
-            latencies.push(latency)
-          }
+          if (latency > 0) latencies.push(latency)
         }
         if (latencies.length === 0) continue
-        const avgLatency = latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
+        const avgLatency = latencies.reduce((sum, l) => sum + l, 0) / latencies.length
         const data = map.get(key)
         if (data) {
           data.avgLatency = data.avgLatency > 0 ? (data.avgLatency + avgLatency) / 2 : avgLatency
@@ -106,10 +104,8 @@ export function KeyDetailPanel({ sessions, title = "Per-Key Analysis" }: KeyDeta
       if (samples.length >= 3) {
         const firstHalf = samples.slice(0, Math.floor(samples.length / 2))
         const secondHalf = samples.slice(Math.floor(samples.length / 2))
-        const avgFirst =
-          firstHalf.reduce((a, b) => a + b.speed, 0) / firstHalf.length
-        const avgSecond =
-          secondHalf.reduce((a, b) => a + b.speed, 0) / secondHalf.length
+        const avgFirst = firstHalf.reduce((a, b) => a + b.speed, 0) / firstHalf.length
+        const avgSecond = secondHalf.reduce((a, b) => a + b.speed, 0) / secondHalf.length
         data.learningRate = avgSecond - avgFirst
       }
     }
@@ -117,214 +113,213 @@ export function KeyDetailPanel({ sessions, title = "Per-Key Analysis" }: KeyDeta
     return [...map.values()].sort((a, b) => b.totalHits - a.totalHits)
   }, [sessions])
 
-  const selected = selectedKey
-    ? perKeyData.find((d) => d.key === selectedKey)
-    : perKeyData[0]
+  const selected = selectedKey ? perKeyData.find((d) => d.key === selectedKey) : perKeyData[0]
 
   if (perKeyData.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <KeyboardIcon className="h-4 w-4 text-primary" />
-            {title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-          Complete some practice sessions to see per-key statistics
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+        className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm overflow-hidden"
+      >
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
+              <KeyboardIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-10 px-5 text-muted-foreground">
+          <KeyboardIcon className="h-8 w-8 mb-2 opacity-20" />
+          <span className="text-sm">Complete some sessions to see per-key statistics</span>
+        </div>
+      </motion.div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <KeyboardIcon className="h-4 w-4 text-primary" />
-            {title}
-          </CardTitle>
-        </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
-          {/* Key selector */}
-          <div className="flex flex-wrap lg:flex-col gap-1.5 lg:max-h-80 lg:overflow-y-auto lg:pr-2">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm overflow-hidden"
+    >
+      <div className="px-5 pt-4 pb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
+            <KeyboardIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
+        </div>
+      </div>
+
+      <div className="px-5 pb-5 pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-5">
+          <div className="flex flex-wrap lg:flex-col gap-1 lg:max-h-80 lg:overflow-y-auto lg:pr-2 scrollbar-thin">
             {perKeyData.map((data) => (
               <button
                 key={data.key}
                 onClick={() => setSelectedKey(data.key)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors min-w-[60px]",
-                  (selected?.key === data.key)
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary/50 hover:bg-secondary text-foreground",
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-200 min-w-[60px]",
+                  selected?.key === data.key
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary/30 hover:bg-secondary/60 text-foreground",
                 )}
               >
-                <span className="font-mono font-bold text-base w-5 text-center">
+                <span className="font-mono font-bold text-sm w-5 text-center">
                   {data.key.toUpperCase()}
                 </span>
-                <span className="text-[10px] opacity-70">
-                  {data.totalHits}
-                </span>
+                <span className="text-[10px] opacity-60 tabular-nums">{data.totalHits}</span>
               </button>
             ))}
           </div>
 
-          {/* Detail view */}
-          {selected && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 font-mono text-2xl font-bold text-primary">
-                  {selected.key.toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">
-                      {selected.totalHits} keystrokes
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "text-[10px]",
-                        selected.errorRate > 0.1
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-emerald-500/10 text-emerald-700",
+          <AnimatePresence mode="wait">
+            {selected && (
+              <motion.div
+                key={selected.key}
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 font-mono text-2xl font-bold text-primary">
+                    {selected.key.toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{selected.totalHits} keystrokes</span>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[9px] px-2 py-0.5 rounded-md font-medium",
+                          selected.errorRate > 0.1
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                        )}
+                      >
+                        {(selected.errorRate * 100).toFixed(1)}% errors
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                      <span>Trend:</span>
+                      {selected.learningRate > 1 ? (
+                        <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                          <TrendingUp className="h-3 w-3" />+{selected.learningRate.toFixed(1)}%
+                        </span>
+                      ) : selected.learningRate < -1 ? (
+                        <span className="flex items-center gap-0.5 text-destructive">
+                          <TrendingDown className="h-3 w-3" />
+                          {selected.learningRate.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-0.5 text-muted-foreground">
+                          <Minus className="h-3 w-3" />
+                          Stable
+                        </span>
                       )}
-                    >
-                      {(selected.errorRate * 100).toFixed(1)}% error rate
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                    <span>Learning rate:</span>
-                    {selected.learningRate > 1 ? (
-                      <span className="flex items-center gap-0.5 text-emerald-600">
-                        <TrendingUp className="h-3 w-3" />+
-                        {selected.learningRate.toFixed(1)}%
-                      </span>
-                    ) : selected.learningRate < -1 ? (
-                      <span className="flex items-center gap-0.5 text-destructive">
-                        <TrendingDown className="h-3 w-3" />
-                        {selected.learningRate.toFixed(1)}%
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-0.5 text-muted-foreground">
-                        <Minus className="h-3 w-3" />
-                        Stable
-                      </span>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-secondary/40 p-3 text-center">
-                  <div className="text-lg font-mono font-bold">
-                    {selected.totalHits - selected.errors}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-secondary/30 p-3 text-center">
+                    <div className="text-base font-mono font-bold tabular-nums">
+                      {selected.totalHits - selected.errors}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                      Correct
+                    </div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Correct
+                  <div className="rounded-xl bg-secondary/30 p-3 text-center">
+                    <div className="text-base font-mono font-bold tabular-nums text-destructive">
+                      {selected.errors}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                      Errors
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-secondary/30 p-3 text-center">
+                    <div className="text-base font-mono font-bold tabular-nums">
+                      {((1 - selected.errorRate) * 100).toFixed(0)}%
+                    </div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                      Accuracy
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-lg bg-secondary/40 p-3 text-center">
-                  <div className="text-lg font-mono font-bold text-destructive">
-                    {selected.errors}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Errors
-                  </div>
-                </div>
-                <div className="rounded-lg bg-secondary/40 p-3 text-center">
-                  <div className="text-lg font-mono font-bold">
-                    {((1 - selected.errorRate) * 100).toFixed(0)}%
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Accuracy
-                  </div>
-                </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Accuracy</span>
-                  <span className="font-mono">
-                    {((1 - selected.errorRate) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <Progress
-                  value={(1 - selected.errorRate) * 100}
-                  className="h-2"
-                />
-              </div>
-
-              {selected.recentSamples.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">
-                    Accuracy per session (recent {selected.recentSamples.length}{" "}
-                    sessions)
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Accuracy</span>
+                    <span className="font-mono tabular-nums">
+                      {((1 - selected.errorRate) * 100).toFixed(1)}%
+                    </span>
                   </div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis
-                        dataKey="session"
-                        tick={{ fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={false}
-                        label={{
-                          value: "Session",
-                          position: "insideBottom",
-                          offset: -2,
-                          fontSize: 10,
-                        }}
-                      />
-                      <YAxis
-                        dataKey="speed"
-                        domain={[0, 100]}
-                        tick={{ fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={false}
-                        width={30}
-                        label={{
-                          value: "%",
-                          position: "insideLeft",
-                          offset: 5,
-                          fontSize: 10,
-                        }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "8px",
-                          border: "1px solid oklch(0.9 0.01 75)",
-                          backgroundColor: "oklch(0.995 0.003 80)",
-                          fontSize: "11px",
-                        }}
-                        formatter={(value) => [
-                          `${value}%`,
-                          "Accuracy",
-                        ]}
-                      />
-                      <Scatter data={selected.recentSamples}>
-                        {selected.recentSamples.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={
-                              entry.speed >= 90
-                                ? "oklch(0.6 0.17 145)"
-                                : entry.speed >= 70
-                                  ? "oklch(0.55 0.15 55)"
-                                  : "oklch(0.577 0.245 27.325)"
-                            }
-                          />
-                        ))}
-                      </Scatter>
-                    </ScatterChart>
-                  </ResponsiveContainer>
+                  <Progress value={(1 - selected.errorRate) * 100} className="h-1.5" />
                 </div>
-              )}
-            </div>
-          )}
+
+                {selected.recentSamples.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Accuracy per session (recent {selected.recentSamples.length})
+                    </div>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <ScatterChart margin={{ top: 4, right: 4, bottom: 16, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
+                        <XAxis
+                          dataKey="session"
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          tickLine={false}
+                          axisLine={false}
+                          label={{ value: "Session", position: "insideBottom", offset: -2, fontSize: 10 }}
+                        />
+                        <YAxis
+                          dataKey="speed"
+                          domain={[0, 100]}
+                          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={30}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "1px solid var(--border)",
+                            backgroundColor: "var(--card)",
+                            fontSize: "11px",
+                            padding: "6px 10px",
+                          }}
+                          formatter={(value) => [`${value}%`, "Accuracy"]}
+                        />
+                        <Scatter data={selected.recentSamples}>
+                          {selected.recentSamples.map((entry, index) => (
+                            <Cell
+                              key={index}
+                              fill={
+                                entry.speed >= 90
+                                  ? "var(--chart-2)"
+                                  : entry.speed >= 70
+                                    ? "var(--chart-1)"
+                                    : "var(--destructive)"
+                              }
+                            />
+                          ))}
+                        </Scatter>
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </motion.div>
   )
 }
