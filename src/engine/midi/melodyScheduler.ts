@@ -14,6 +14,7 @@ export interface SchedulerOptions {
   carryoverState?: MelodyCarryoverState | null
   onStateChange?: (state: MelodyState) => void
   onTrackComplete?: (carryoverState: MelodyCarryoverState | null) => void
+  onPlaybackComplete?: () => void
 }
 
 export interface MelodyCarryoverState {
@@ -44,6 +45,7 @@ export class MelodyScheduler {
   private hasReceivedInput = false
   private onStateChange?: (state: MelodyState) => void
   private onTrackComplete?: (carryoverState: MelodyCarryoverState | null) => void
+  private onPlaybackComplete?: () => void
   private lastNotifyTime = 0
   private isRunning = false
 
@@ -89,6 +91,7 @@ export class MelodyScheduler {
     this.loopMode = options.loopMode
     this.onStateChange = options.onStateChange
     this.onTrackComplete = options.onTrackComplete
+    this.onPlaybackComplete = options.onPlaybackComplete
     this.configureFrames(options.frames)
     this.applyPlaybackState(options.targetCPM, options.carryoverState)
 
@@ -107,6 +110,7 @@ export class MelodyScheduler {
     this.loopMode = options.loopMode
     this.onStateChange = options.onStateChange
     this.onTrackComplete = options.onTrackComplete
+    this.onPlaybackComplete = options.onPlaybackComplete
     this.configureFrames(options.frames)
     this.applyPlaybackState(
       options.targetCPM,
@@ -309,6 +313,7 @@ export class MelodyScheduler {
         const onTrackComplete = this.onTrackComplete
         onTrackComplete?.(this.captureCarryoverState())
       } else {
+        this.onPlaybackComplete?.()
         this.stop()
       }
     }

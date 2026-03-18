@@ -31,6 +31,7 @@ export interface AdaptiveSettings {
 }
 
 export interface AdaptiveMetricSummary {
+  count: number
   last: number
   delta: number
   avg: number
@@ -40,6 +41,7 @@ export interface AdaptiveGlobalSummary {
   count: number
   speed: AdaptiveMetricSummary
   accuracy: AdaptiveMetricSummary
+  integrity: AdaptiveMetricSummary
   score: AdaptiveMetricSummary
   clicks: AdaptiveMetricSummary & { total: number }
   cps: AdaptiveMetricSummary
@@ -100,12 +102,12 @@ function computeAccuracyPercent(correctHits: number, errorHits: number): number 
 
 function makeMetricSummary(values: number[]): AdaptiveMetricSummary {
   if (values.length === 0) {
-    return { last: 0, delta: 0, avg: 0 }
+    return { count: 0, last: 0, delta: 0, avg: 0 }
   }
 
   const last = values[values.length - 1]
   if (values.length === 1) {
-    return { last, delta: last, avg: last }
+    return { count: 1, last, delta: last, avg: last }
   }
 
   const previousValues = values.slice(0, -1)
@@ -114,6 +116,7 @@ function makeMetricSummary(values: number[]): AdaptiveMetricSummary {
   const average = values.reduce((sum, value) => sum + value, 0) / values.length
 
   return {
+    count: values.length,
     last,
     delta: last - previousAverage,
     avg: average,
@@ -172,6 +175,9 @@ function computeAdaptiveGlobalSummary(
 ): AdaptiveGlobalSummary {
   const speeds = sessions.map((session) => session.wpm)
   const accuracies = sessions.map((session) => session.accuracy)
+  const integrities = sessions
+    .map((session) => session.melodyIntegrity)
+    .filter((value): value is number => typeof value === "number")
   const scores = sessions.map(computeAdaptiveScore)
   const clicks = sessions.map((session) => session.keystrokes.length)
   const cpsValues = sessions.map((session) =>
@@ -186,6 +192,7 @@ function computeAdaptiveGlobalSummary(
     count: sessions.length,
     speed: makeMetricSummary(speeds),
     accuracy: makeMetricSummary(accuracies),
+    integrity: makeMetricSummary(integrities),
     score: makeMetricSummary(scores),
     clicks: {
       ...clicksSummary,

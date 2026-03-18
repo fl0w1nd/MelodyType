@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react"
-import { Gauge, Target, Clock, Zap } from "lucide-react"
+import { Gauge, Target, Clock, Zap, Music } from "lucide-react"
 import { motion } from "framer-motion"
 import type { TypingMetrics } from "@/engine/typing/types"
 
@@ -56,6 +56,12 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           icon={<Zap className="h-4 w-4" />}
           label="Raw"
           value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
+        />
+        <div className="w-px h-8 bg-border/60" />
+        <MetricItem
+          icon={<Music className="h-4 w-4" />}
+          label="Integrity"
+          value={isStarted ? `${metrics.melodyIntegrity.toFixed(0)}%` : "—"}
         />
       </div>
 

@@ -7,6 +7,7 @@ import {
   Trophy,
   Clock,
   Hash,
+  Music,
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
@@ -25,6 +26,8 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
         avgWpm: 0,
         bestWpm: 0,
         avgAccuracy: 0,
+        avgMelodyIntegrity: 0,
+        melodyIntegritySamples: 0,
         totalSessions: 0,
         totalTime: 0,
         streak: 0,
@@ -35,6 +38,16 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
     const avgWpm = sessions.reduce((a, s) => a + s.wpm, 0) / sessions.length
     const bestWpm = Math.max(...sessions.map((s) => s.wpm))
     const avgAccuracy = sessions.reduce((a, s) => a + s.accuracy, 0) / sessions.length
+    const sessionsWithMelodyIntegrity = sessions.filter(
+      (session) => typeof session.melodyIntegrity === "number",
+    )
+    const avgMelodyIntegrity =
+      sessionsWithMelodyIntegrity.length > 0
+        ? sessionsWithMelodyIntegrity.reduce(
+            (sum, session) => sum + (session.melodyIntegrity ?? 0),
+            0,
+          ) / sessionsWithMelodyIntegrity.length
+        : 0
     const totalTime = sessions.reduce((a, s) => a + s.duration, 0)
 
     let streak = 0
@@ -71,6 +84,8 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       avgWpm: Math.round(avgWpm * 10) / 10,
       bestWpm: Math.round(bestWpm * 10) / 10,
       avgAccuracy: Math.round(avgAccuracy * 10) / 10,
+      avgMelodyIntegrity: Math.round(avgMelodyIntegrity),
+      melodyIntegritySamples: sessionsWithMelodyIntegrity.length,
       totalSessions: sessions.length,
       totalTime: Math.round(totalTime / 60),
       streak,
@@ -102,6 +117,14 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       accent: "from-emerald-500/20 to-teal-500/5",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       borderAccent: "border-emerald-500/20",
+    },
+    {
+      icon: Music,
+      label: "Melody Integrity",
+      value: stats.melodyIntegritySamples > 0 ? `${stats.avgMelodyIntegrity}%` : "—",
+      accent: "from-sky-500/20 to-cyan-500/5",
+      iconColor: "text-sky-600 dark:text-sky-400",
+      borderAccent: "border-sky-500/20",
     },
     {
       icon: Hash,
@@ -171,7 +194,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
         )}
       </motion.div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {heroMetrics.map((card, i) => (
           <motion.div
             key={card.label}

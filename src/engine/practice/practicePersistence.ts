@@ -128,6 +128,7 @@ export async function persistCompletedRound({
     modeConfig: sessionModeConfig,
     wpm: metrics.wpm,
     rawWpm: metrics.rawWpm,
+    melodyIntegrity: metrics.melodyIntegrity,
     accuracy: metrics.accuracy,
     duration: metrics.elapsedTime,
     totalChars: metrics.totalChars,

@@ -12,6 +12,7 @@ import {
   Target,
   Keyboard,
   Zap,
+  Music,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
@@ -52,6 +53,8 @@ export function AdaptiveProgressCard() {
       avgConfidence,
       averageSpeed: adaptiveState.globalSummary.speed.avg,
       averageAccuracy: adaptiveState.globalSummary.accuracy.avg,
+      averageIntegrity: adaptiveState.globalSummary.integrity.avg,
+      integritySamples: adaptiveState.globalSummary.integrity.count,
       averageScore: adaptiveState.globalSummary.score.avg,
       totalClicks: adaptiveState.globalSummary.clicks.total,
       averageCps: adaptiveState.globalSummary.cps.avg,
@@ -136,7 +139,7 @@ export function AdaptiveProgressCard() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           <MetricPill
             label="Speed"
             value={`${stats.totalSessions > 0 ? stats.averageSpeed.toFixed(1) : "—"} wpm`}
@@ -151,6 +154,11 @@ export function AdaptiveProgressCard() {
             label="Score"
             value={stats.totalSessions > 0 ? stats.averageScore.toFixed(0) : "—"}
             icon={<TrendingUp className="h-3.5 w-3.5 text-blue-500" />}
+          />
+          <MetricPill
+            label="Integrity"
+            value={stats.integritySamples > 0 ? `${stats.averageIntegrity.toFixed(0)}%` : "—"}
+            icon={<Music className="h-3.5 w-3.5 text-sky-500" />}
           />
           <MetricPill
             label="Clicks"

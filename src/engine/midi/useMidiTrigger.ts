@@ -28,6 +28,10 @@ const defaultTestPlaybackPosition: TestPlaybackPosition = {
   total: 0,
 }
 
+const DEFAULT_MELODY_INTEGRITY = 100
+const MELODY_INTEGRITY_BREAK_PENALTY = 20
+const FLOW_EMPTY_EPSILON = 0.01
+
 function getDefaultSelectedMidi(): SelectedMidiSource | null {
   return presetList[0] ? { type: "preset", id: presetList[0].id } : null
 }
@@ -42,6 +46,7 @@ function isSameSource(
 export function useMidiTrigger() {
   const [config, setConfig] = useState<MidiConfig>(defaultMidiConfig)
   const [melodyState, setMelodyState] = useState<MelodyState>(defaultMelodyState)
+  const [melodyIntegrity, setMelodyIntegrity] = useState(DEFAULT_MELODY_INTEGRITY)
   const [selectedSource, setSelectedSource] = useState<SelectedMidiSource | null>(
     getDefaultSelectedMidi(),
   )
@@ -51,6 +56,8 @@ export function useMidiTrigger() {
   const synthRef = useRef<Tone.PolySynth | null>(null)
   const configRef = useRef<MidiConfig>(defaultMidiConfig)
   const schedulerRef = useRef<MelodyScheduler>(new MelodyScheduler())
+  const melodyStateRef = useRef<MelodyState>(defaultMelodyState)
+  const melodyIntegrityRef = useRef(DEFAULT_MELODY_INTEGRITY)
   const testIndexRef = useRef(0)
   const selectedSourceRef = useRef<SelectedMidiSource | null>(getDefaultSelectedMidi())
   const currentTargetCPMRef = useRef<number | null>(null)
@@ -58,9 +65,47 @@ export function useMidiTrigger() {
   const synthInitPromiseRef = useRef<Promise<boolean> | null>(null)
   const pendingCarryoverStateRef = useRef<MelodyCarryoverState | null>(null)
   const trackTransitionInFlightRef = useRef(false)
+  const expectedFlowResetDepthRef = useRef(0)
   const onTrackCompleteRef = useRef<
     ((carryoverState: MelodyCarryoverState | null) => void) | null
   >(null)
+  const onPlaybackCompleteRef = useRef<(() => void) | null>(null)
+
+  const beginExpectedFlowReset = useCallback(() => {
+    expectedFlowResetDepthRef.current += 1
+  }, [])
+
+  const endExpectedFlowReset = useCallback(() => {
+    expectedFlowResetDepthRef.current = Math.max(0, expectedFlowResetDepthRef.current - 1)
+  }, [])
+
+  const resetMelodyIntegrity = useCallback(() => {
+    melodyIntegrityRef.current = DEFAULT_MELODY_INTEGRITY
+    setMelodyIntegrity(DEFAULT_MELODY_INTEGRITY)
+  }, [])
+
+  const commitMelodyState = useCallback((nextState: MelodyState) => {
+    const previousState = melodyStateRef.current
+    const shouldPenalizeIntegrity =
+      expectedFlowResetDepthRef.current === 0 &&
+      previousState.maxFuel > 0 &&
+      previousState.fuel > FLOW_EMPTY_EPSILON &&
+      nextState.fuel <= FLOW_EMPTY_EPSILON
+
+    melodyStateRef.current = nextState
+    setMelodyState(nextState)
+
+    if (!shouldPenalizeIntegrity) {
+      return
+    }
+
+    const nextIntegrity = Math.max(
+      0,
+      melodyIntegrityRef.current - MELODY_INTEGRITY_BREAK_PENALTY,
+    )
+    melodyIntegrityRef.current = nextIntegrity
+    setMelodyIntegrity(nextIntegrity)
+  }, [])
 
   const resetTestPlayback = useCallback((totalFrames: number) => {
     testIndexRef.current = 0
@@ -72,9 +117,14 @@ export function useMidiTrigger() {
 
   const stopMelody = useCallback(() => {
     pendingCarryoverStateRef.current = null
-    schedulerRef.current.stop()
-    setMelodyState(defaultMelodyState)
-  }, [])
+    beginExpectedFlowReset()
+    try {
+      schedulerRef.current.stop()
+      commitMelodyState(defaultMelodyState)
+    } finally {
+      endExpectedFlowReset()
+    }
+  }, [beginExpectedFlowReset, commitMelodyState, endExpectedFlowReset])
 
   const startScheduler = useCallback((targetCPM: number) => {
     if (!configRef.current.isEnabled || !synthRef.current) return false
@@ -88,14 +138,17 @@ export function useMidiTrigger() {
       targetCPM,
       synth: synthRef.current,
       loopMode: configRef.current.loopMode,
-      onStateChange: setMelodyState,
+      onStateChange: commitMelodyState,
       onTrackComplete: (carryoverState) => {
         onTrackCompleteRef.current?.(carryoverState)
+      },
+      onPlaybackComplete: () => {
+        onPlaybackCompleteRef.current?.()
       },
     })
 
     return true
-  }, [])
+  }, [commitMelodyState])
 
   const resumePendingMelodyStart = useCallback(() => {
     const pendingTargetCPM = pendingStartCPMRef.current
@@ -146,14 +199,20 @@ export function useMidiTrigger() {
   )
 
   const resetMelodySession = useCallback((targetCPM?: number, bridge = false) => {
+    beginExpectedFlowReset()
+    resetMelodyIntegrity()
     if (targetCPM != null) {
       currentTargetCPMRef.current = targetCPM
       if (pendingStartCPMRef.current != null) {
         pendingStartCPMRef.current = targetCPM
       }
     }
-    schedulerRef.current.resetSession(targetCPM, bridge)
-  }, [])
+    try {
+      schedulerRef.current.resetSession(targetCPM, bridge)
+    } finally {
+      endExpectedFlowReset()
+    }
+  }, [beginExpectedFlowReset, endExpectedFlowReset, resetMelodyIntegrity])
 
   const applyFrames = useCallback(
     (
@@ -179,9 +238,12 @@ export function useMidiTrigger() {
           synth: synthRef.current,
           loopMode: configRef.current.loopMode,
           carryoverState: pendingCarryoverStateRef.current,
-          onStateChange: setMelodyState,
+          onStateChange: commitMelodyState,
           onTrackComplete: (carryoverState) => {
             onTrackCompleteRef.current?.(carryoverState)
+          },
+          onPlaybackComplete: () => {
+            onPlaybackCompleteRef.current?.()
           },
         })
         pendingCarryoverStateRef.current = null
@@ -194,7 +256,7 @@ export function useMidiTrigger() {
         void startMelody(pendingStartCPMRef.current)
       }
     },
-    [resetTestPlayback, startMelody, stopMelody],
+    [commitMelodyState, resetTestPlayback, startMelody, stopMelody],
   )
 
   useEffect(() => {
@@ -212,10 +274,9 @@ export function useMidiTrigger() {
       schedulerRef.current.updateLoopMode(updates.loopMode)
     }
     if (updates.isEnabled === false) {
-      schedulerRef.current.stop()
-      setMelodyState(defaultMelodyState)
+      stopMelody()
     }
-  }, [])
+  }, [stopMelody])
 
   const initSynth = useCallback(
     async (type?: SynthType, volume?: number) => {
@@ -348,6 +409,15 @@ export function useMidiTrigger() {
       void playRandomNextTrack(carryoverState)
     }
   }, [playRandomNextTrack])
+
+  useEffect(() => {
+    onPlaybackCompleteRef.current = () => {
+      beginExpectedFlowReset()
+      queueMicrotask(() => {
+        endExpectedFlowReset()
+      })
+    }
+  }, [beginExpectedFlowReset, endExpectedFlowReset])
 
   const restoreSelectedMidi = useCallback(async () => {
     const savedConfig = await getAppSetting("midiConfig")
@@ -549,6 +619,7 @@ export function useMidiTrigger() {
     currentIndex: testFrameInfo.current,
     totalFrames: testFrameInfo.total,
     melodyState,
+    melodyIntegrity,
     startMelody,
     resetMelodySession,
     feedKeystroke,

@@ -7,6 +7,7 @@ export interface TypingSession {
   modeConfig: string
   wpm: number
   rawWpm: number
+  melodyIntegrity?: number
   accuracy: number
   duration: number
   totalChars: number

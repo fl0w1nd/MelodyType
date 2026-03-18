@@ -6,6 +6,7 @@ import {
   Target,
   Clock,
   Zap,
+  Music,
   RotateCcw,
   TrendingUp,
   Crown,
@@ -176,18 +177,19 @@ export function ResultsPanel({
             </div>
 
             {/* Main stats */}
-            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"} gap-4 mb-8`}>
+            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-5"} gap-4 mb-8`}>
               <StatCard icon={<Gauge className="h-4 w-4" />} label="WPM" value={metrics.wpm.toFixed(0)} delay={0.1} />
               <StatCard icon={<Target className="h-4 w-4" />} label="Accuracy" value={`${metrics.accuracy.toFixed(1)}%`} delay={0.15} />
               <StatCard icon={<Clock className="h-4 w-4" />} label="Time" value={`${metrics.elapsedTime}s`} delay={0.2} />
               <StatCard icon={<Zap className="h-4 w-4" />} label="Consistency" value={`${metrics.consistency}%`} delay={0.25} />
+              <StatCard icon={<Music className="h-4 w-4" />} label="Melody Integrity" value={`${metrics.melodyIntegrity.toFixed(0)}%`} delay={0.3} />
               {isTimeMode && (
-                <StatCard icon={<Keyboard className="h-4 w-4" />} label="CPM" value={String(cpm)} delay={0.3} />
+                <StatCard icon={<Keyboard className="h-4 w-4" />} label="CPM" value={String(cpm)} delay={0.35} />
               )}
             </div>
 
             {/* Detail stats */}
-            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"} gap-3 mb-8 text-center`}>
+            <div className={`grid ${isTimeMode ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"} gap-3 mb-8 text-center`}>
               <div className="rounded-lg bg-secondary/50 p-3">
                 <div className="text-lg font-mono font-semibold text-foreground">{metrics.correctChars}</div>
                 <div className="text-xs text-muted-foreground">Correct</div>
@@ -199,6 +201,10 @@ export function ResultsPanel({
               <div className="rounded-lg bg-secondary/50 p-3">
                 <div className="text-lg font-mono font-semibold text-foreground">{metrics.rawWpm.toFixed(0)}</div>
                 <div className="text-xs text-muted-foreground">Raw WPM</div>
+              </div>
+              <div className="rounded-lg bg-secondary/50 p-3">
+                <div className="text-lg font-mono font-semibold text-foreground">{metrics.melodyIntegrity.toFixed(0)}%</div>
+                <div className="text-xs text-muted-foreground">Melody Integrity</div>
               </div>
               {isTimeMode && wordsCompleted != null && (
                 <div className="rounded-lg bg-secondary/50 p-3">

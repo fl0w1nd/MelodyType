@@ -16,6 +16,7 @@ import {
   Activity,
   Keyboard,
   Zap,
+  Music,
   AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react"
@@ -100,7 +101,9 @@ function KeyProgressPanelInner({
       ? unlockedKeys.reduce((sum, k) => sum + k.confidence, 0) / unlockedKeys.length
       : 0
   const hasSummaryData = globalSummary.count > 0
+  const hasIntegrityData = globalSummary.integrity.count > 0
   const showDelta = globalSummary.count > 1
+  const showIntegrityDelta = globalSummary.integrity.count > 1
 
   const handleConfirmUnlock = async () => {
     if (!unlockPromptKey || !onUnlockKey) return
@@ -338,6 +341,13 @@ function KeyProgressPanelInner({
             deltaValue={globalSummary.score.delta}
           />
           <InlineMetric
+            label="Integrity"
+            value={formatSummaryValue(hasIntegrityData, globalSummary.integrity.last, "%", 0)}
+            icon={<Music className="h-3 w-3" />}
+            delta={showIntegrityDelta ? formatDelta(globalSummary.integrity.delta, "%", 0) : undefined}
+            deltaValue={globalSummary.integrity.delta}
+          />
+          <InlineMetric
             label="Target"
             value={`${targetCpm} cpm`}
             icon={<Activity className="h-3 w-3" />}
@@ -422,6 +432,11 @@ function KeyProgressPanelInner({
                   label="Average Score"
                   value={formatSummaryValue(hasSummaryData, globalSummary.score.avg, "", 0)}
                   icon={<TrendingUp className="h-3.5 w-3.5" />}
+                />
+                <SummaryMetricCard
+                  label="Average Melody Integrity"
+                  value={formatSummaryValue(hasIntegrityData, globalSummary.integrity.avg, "%", 0)}
+                  icon={<Music className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
                   label="Adaptive Sessions"

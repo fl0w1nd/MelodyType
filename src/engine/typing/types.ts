@@ -50,6 +50,7 @@ export interface KeystrokeEntry {
 export interface TypingMetrics {
   wpm: number
   rawWpm: number
+  melodyIntegrity: number
   accuracy: number
   correctChars: number
   incorrectChars: number

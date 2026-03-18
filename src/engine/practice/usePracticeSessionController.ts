@@ -42,6 +42,7 @@ function computeMetricsForWords(
   words: WordState[],
   keystrokeLog: KeystrokeEntry[],
   elapsedTime: number,
+  melodyIntegrity: number,
 ): TypingMetrics {
   const timeInMinutes = elapsedTime > 0 ? elapsedTime / 60 : 0
 
@@ -92,6 +93,7 @@ function computeMetricsForWords(
   return {
     wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
     rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
+    melodyIntegrity,
     accuracy: Number.isFinite(accuracy) ? Math.round(accuracy * 100) / 100 : 100,
     correctChars,
     incorrectChars: charsWithError,
@@ -122,6 +124,7 @@ export function usePracticeSessionController({
   const [quoteAuthor, setQuoteAuthor] = useState<string | null>(null)
   const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
   const [timeLevelKey, setTimeLevelKey] = useState(0)
+  const [completedMetrics, setCompletedMetrics] = useState<TypingMetrics | null>(null)
   const [timeResultSummary, setTimeResultSummary] =
     useState<TimeResultSummary | null>(null)
 
@@ -134,6 +137,7 @@ export function usePracticeSessionController({
     startMelody,
     resetMelodySession,
     melodyState,
+    melodyIntegrity,
     updateTargetCPM,
   } = useMidi()
 
@@ -145,10 +149,16 @@ export function usePracticeSessionController({
   const { state, elapsed, loadText, handleKeyDown, getMetrics, reset } =
     useTypingEngine(onSuccessfulKeystroke)
 
-  const metrics = useMemo(() => getMetrics(), [getMetrics])
+  const metrics = useMemo(
+    () => ({
+      ...getMetrics(),
+      melodyIntegrity,
+    }),
+    [getMetrics, melodyIntegrity],
+  )
   const adaptivePersistMetrics = useMemo(
-    () => computeMetricsForWords(state.words, state.keystrokeLog, elapsed),
-    [elapsed, state.keystrokeLog, state.words],
+    () => computeMetricsForWords(state.words, state.keystrokeLog, elapsed, melodyIntegrity),
+    [elapsed, melodyIntegrity, state.keystrokeLog, state.words],
   )
   const adaptiveDisplayMetrics = useMemo(
     () =>
@@ -156,8 +166,9 @@ export function usePracticeSessionController({
         state.words,
         state.keystrokeLog,
         state.isFinished ? 0 : elapsed,
+        melodyIntegrity,
       ),
-    [elapsed, state.isFinished, state.keystrokeLog, state.words],
+    [elapsed, melodyIntegrity, state.isFinished, state.keystrokeLog, state.words],
   )
 
   const getTargetCPM = useCallback(
@@ -239,6 +250,7 @@ export function usePracticeSessionController({
   const startPractice = useCallback(
     async (nextConfig: PracticeModeConfig, nextAdaptiveState?: AdaptiveState | null) => {
       if (nextConfig.mode !== "quote") setQuoteAuthor(null)
+      setCompletedMetrics(null)
       setTimeResultSummary(null)
       const text = await generateText(nextConfig, nextAdaptiveState)
       loadText(text, nextConfig.mode === "time" ? nextConfig.timeLimit : undefined)
@@ -253,6 +265,7 @@ export function usePracticeSessionController({
     reset()
     resetMelodySession()
     setActiveLevel(null)
+    setCompletedMetrics(null)
     setTimeResultSummary(null)
     setTimeLevelKey((value) => value + 1)
   }, [reset, resetMelodySession])
@@ -279,6 +292,7 @@ export function usePracticeSessionController({
       setConfig(nextConfig)
       setNewlyUnlocked(null)
       setActiveLevel(null)
+      setCompletedMetrics(null)
       setTimeResultSummary(null)
 
       if (nextConfig.mode === "time") {
@@ -303,6 +317,7 @@ export function usePracticeSessionController({
   const handleRestart = useCallback(() => {
     reset()
     setNewlyUnlocked(null)
+    setCompletedMetrics(null)
     adaptiveContinuingRef.current = false
 
     if (config.mode === "adaptive") {
@@ -321,6 +336,7 @@ export function usePracticeSessionController({
 
     reset()
     setNewlyUnlocked(null)
+    setCompletedMetrics(null)
     adaptiveContinuingRef.current = false
 
     void loadAdaptiveState().then((nextState) => {
@@ -474,6 +490,9 @@ export function usePracticeSessionController({
 
     const roundMetrics =
       config.mode === "adaptive" ? adaptivePersistMetrics : metrics
+    queueMicrotask(() => {
+      setCompletedMetrics((previous) => previous ?? roundMetrics)
+    })
 
     void (async () => {
       try {
@@ -569,6 +588,7 @@ export function usePracticeSessionController({
     config,
     state,
     metrics,
+    completedMetrics,
     adaptiveState,
     adaptiveDisplayMetrics,
     melodyState,

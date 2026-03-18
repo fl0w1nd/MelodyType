@@ -23,6 +23,7 @@ export default function PracticePage() {
     config,
     state,
     metrics,
+    completedMetrics,
     adaptiveState,
     adaptiveDisplayMetrics,
     melodyState,
@@ -96,7 +97,7 @@ export default function PracticePage() {
           {showResults ? (
             <ResultsPanel
               key="results"
-              metrics={metrics}
+              metrics={completedMetrics ?? metrics}
               onRestart={actions.handleRestart}
               onBackToLevels={activeLevel ? actions.handleBackToLevels : undefined}
               onNextLevel={activeLevel ? actions.handleNextLevel : undefined}

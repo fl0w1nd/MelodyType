@@ -266,6 +266,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
     return {
       wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
       rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
+      melodyIntegrity: 100,
       accuracy: Number.isFinite(accuracy)
         ? Math.round(accuracy * 100) / 100
         : 100,
