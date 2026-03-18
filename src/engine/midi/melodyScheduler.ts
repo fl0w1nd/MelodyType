@@ -25,7 +25,8 @@ export interface MelodyCarryoverState {
 
 const BUFFER_SECONDS = 3
 const INITIAL_FUEL_RATIO = 0
-const SESSION_BRIDGE_SECONDS = 1
+const INITIAL_INPUT_FUEL_RATIO = 0.5
+const SESSION_BRIDGE_MIN_RATIO = 0.5
 const FADE_DRAIN_FACTOR = 0.95
 const MAX_DT = 0.1
 
@@ -132,10 +133,16 @@ export class MelodyScheduler {
   }
 
   feed(correct: boolean) {
+    const amount = correct ? 1.0 : 0.3
     if (!this.hasReceivedInput) {
       this.hasReceivedInput = true
+      this.fuel = Math.max(
+        this.fuel + amount,
+        this.maxFuel * INITIAL_INPUT_FUEL_RATIO,
+      )
+      return
     }
-    const amount = correct ? 1.0 : 0.3
+
     this.fuel = Math.min(this.maxFuel, this.fuel + amount)
   }
 
@@ -174,7 +181,8 @@ export class MelodyScheduler {
     }
 
     if (bridge && this.hasReceivedInput) {
-      this.fuel = this.targetCPS * SESSION_BRIDGE_SECONDS
+      const minimumBridgeFuel = this.maxFuel * SESSION_BRIDGE_MIN_RATIO
+      this.fuel = Math.min(this.maxFuel, Math.max(this.fuel, minimumBridgeFuel))
       this.flowState = "flowing"
     } else {
       this.fuel = this.maxFuel * INITIAL_FUEL_RATIO

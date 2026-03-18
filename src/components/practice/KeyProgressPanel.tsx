@@ -11,7 +11,6 @@ import {
   Gauge,
   Target,
   Clock,
-  RotateCcw,
   TrendingUp,
   Activity,
   Keyboard,
