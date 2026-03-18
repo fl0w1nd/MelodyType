@@ -45,6 +45,13 @@ export function parseMidiToFrames(
     frames.push({ time: currentTime, notes: currentNotes })
   }
 
+  if (frames.length > 0 && frames[0].time > 0) {
+    const offset = frames[0].time
+    for (const frame of frames) {
+      frame.time -= offset
+    }
+  }
+
   return frames
 }
 

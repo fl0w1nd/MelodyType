@@ -166,7 +166,7 @@ export class MelodyScheduler {
   }
 
   get isActive(): boolean {
-    return this.rafId !== null
+    return this.isRunning && this.rafId !== null
   }
 
   /**
@@ -200,6 +200,7 @@ export class MelodyScheduler {
     this.notifyState()
 
     if (this.rafId === null && this.frames.length > 0) {
+      this.isRunning = true
       this.scheduleTick()
     }
   }

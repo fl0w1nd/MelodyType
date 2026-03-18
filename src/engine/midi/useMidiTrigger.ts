@@ -341,6 +341,8 @@ export function useMidiTrigger() {
       if (!file) return false
 
       const frames = parseMidiToFrames(file.data)
+      if (frames.length === 0) return false
+
       const nextSource: SelectedMidiSource = { type: "file", id: fileId }
       selectedSourceRef.current = nextSource
       setSelectedSource(nextSource)
@@ -564,6 +566,8 @@ export function useMidiTrigger() {
           resumePendingMelodyStart()
         })
         .catch(() => {})
+    } else {
+      void ensureAudioStarted().catch(() => {})
     }
   }, [ensureSynthReady, resumePendingMelodyStart, startScheduler])
 
