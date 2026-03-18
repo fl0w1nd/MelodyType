@@ -13,6 +13,7 @@ import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
 import { AdaptiveProgressCard } from "@/components/dashboard/AdaptiveProgressCard"
 import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap"
+import { formatLocalDateKey } from "@/lib/date"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 
 type DashboardMode = "adaptive" | "time" | "quote"
@@ -34,7 +35,7 @@ export default function DashboardPage() {
     useLiveQuery(() => db.sessions.orderBy("timestamp").toArray()) ?? EMPTY_SESSIONS
   const dailyGoals = useLiveQuery(() => db.dailyGoals.toArray()) ?? EMPTY_DAILY_GOALS
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = formatLocalDateKey()
   const todayGoal = dailyGoals.find((goal) => goal.date === today)
 
   const [heatmapMode, setHeatmapMode] = useState<"errors" | "speed">("errors")

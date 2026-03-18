@@ -11,7 +11,15 @@ export interface SchedulerOptions {
   targetCPM: number
   synth: Tone.PolySynth | null
   loopMode: LoopMode
+  carryoverState?: MelodyCarryoverState | null
   onStateChange?: (state: MelodyState) => void
+  onTrackComplete?: (carryoverState: MelodyCarryoverState | null) => void
+}
+
+export interface MelodyCarryoverState {
+  fuel: number
+  flowState: FlowState
+  hasReceivedInput: boolean
 }
 
 const BUFFER_SECONDS = 3
@@ -35,33 +43,88 @@ export class MelodyScheduler {
   private loopDuration = 0
   private hasReceivedInput = false
   private onStateChange?: (state: MelodyState) => void
+  private onTrackComplete?: (carryoverState: MelodyCarryoverState | null) => void
   private lastNotifyTime = 0
+  private isRunning = false
 
-  start(options: SchedulerOptions) {
-    this.stop()
-
-    this.frames = options.frames
-    this.synth = options.synth
-    this.loopMode = options.loopMode
-    this.onStateChange = options.onStateChange
+  private configureFrames(frames: MidiFrame[]) {
+    this.frames = frames
     this.frameIndex = 0
     this.virtualTime = 0
-    this.hasReceivedInput = false
-    this.flowState = "idle"
     this.lastTickTime = null
-
-    this.targetCPS = options.targetCPM / 60
-    this.maxFuel = this.targetCPS * BUFFER_SECONDS
-    this.fuel = this.maxFuel * INITIAL_FUEL_RATIO
 
     if (this.frames.length > 0) {
       const lastFrame = this.frames[this.frames.length - 1]
       const maxNoteDur = Math.max(...lastFrame.notes.map((n) => n.duration), 0.5)
       this.loopDuration = lastFrame.time + maxNoteDur
+      return
     }
 
+    this.loopDuration = 0
+  }
+
+  private applyPlaybackState(
+    targetCPM: number,
+    carryoverState?: MelodyCarryoverState | null,
+  ) {
+    this.targetCPS = targetCPM / 60
+    this.maxFuel = this.targetCPS * BUFFER_SECONDS
+
+    if (carryoverState) {
+      this.fuel = Math.min(Math.max(carryoverState.fuel, 0), this.maxFuel)
+      this.flowState = carryoverState.flowState
+      this.hasReceivedInput = carryoverState.hasReceivedInput
+      return
+    }
+
+    this.fuel = this.maxFuel * INITIAL_FUEL_RATIO
+    this.flowState = "idle"
+    this.hasReceivedInput = false
+  }
+
+  start(options: SchedulerOptions) {
+    this.stop()
+
+    this.synth = options.synth
+    this.loopMode = options.loopMode
+    this.onStateChange = options.onStateChange
+    this.onTrackComplete = options.onTrackComplete
+    this.configureFrames(options.frames)
+    this.applyPlaybackState(options.targetCPM, options.carryoverState)
+
     this.notifyState()
+    this.isRunning = true
     this.scheduleTick()
+  }
+
+  switchTrack(options: SchedulerOptions) {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
+    }
+
+    this.synth = options.synth
+    this.loopMode = options.loopMode
+    this.onStateChange = options.onStateChange
+    this.onTrackComplete = options.onTrackComplete
+    this.configureFrames(options.frames)
+    this.applyPlaybackState(
+      options.targetCPM,
+      options.carryoverState ?? this.captureCarryoverState(),
+    )
+
+    this.notifyState()
+    this.isRunning = true
+    this.scheduleTick()
+  }
+
+  captureCarryoverState(): MelodyCarryoverState | null {
+    if (this.maxFuel <= 0) return null
+    return {
+      fuel: this.fuel,
+      flowState: this.flowState,
+      hasReceivedInput: this.hasReceivedInput,
+    }
   }
 
   feed(correct: boolean) {
@@ -130,6 +193,7 @@ export class MelodyScheduler {
   }
 
   stop() {
+    this.isRunning = false
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
@@ -161,6 +225,7 @@ export class MelodyScheduler {
   }
 
   private scheduleTick() {
+    if (!this.isRunning) return
     this.rafId = requestAnimationFrame(this.tick)
   }
 
@@ -232,9 +297,17 @@ export class MelodyScheduler {
     }
 
     if (this.frameIndex >= this.frames.length) {
-      if (this.loopMode === "loop" || this.loopMode === "random") {
+      if (this.loopMode === "loop") {
         this.frameIndex = 0
         this.virtualTime -= this.loopDuration
+      } else if (this.loopMode === "random") {
+        this.isRunning = false
+        this.rafId = null
+        this.frameIndex = 0
+        this.virtualTime = 0
+        this.lastTickTime = null
+        const onTrackComplete = this.onTrackComplete
+        onTrackComplete?.(this.captureCarryoverState())
       } else {
         this.stop()
       }

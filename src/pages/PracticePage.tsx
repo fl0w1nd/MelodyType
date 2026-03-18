@@ -30,6 +30,7 @@ export default function PracticePage() {
     quoteAuthor,
     newlyUnlocked,
     roundCount,
+    timeResultSummary,
     timeLevelKey,
     nextKey,
     isAdaptive,
@@ -101,6 +102,8 @@ export default function PracticePage() {
               onNextLevel={activeLevel ? actions.handleNextLevel : undefined}
               modeConfig={config}
               keystrokeLog={state.keystrokeLog}
+              previousPersonalBest={timeResultSummary?.previousPersonalBest ?? null}
+              isNewPersonalBest={timeResultSummary?.isNewPersonalBest ?? false}
               wordsCompleted={state.words.filter((word) => word.completed).length}
             />
           ) : (

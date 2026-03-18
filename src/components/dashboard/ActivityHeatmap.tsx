@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 
@@ -18,7 +19,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
   const { grid, maxCount, totalDays } = useMemo(() => {
     const dayMap = new Map<string, { count: number; wpm: number }>()
     for (const s of sessions) {
-      const d = new Date(s.timestamp).toISOString().split("T")[0]
+      const d = formatLocalDateKey(new Date(s.timestamp))
       const existing = dayMap.get(d)
       if (existing) {
         existing.count++
@@ -36,7 +37,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
     for (let i = totalDays - 1; i >= 0; i--) {
       const d = new Date(today)
       d.setDate(d.getDate() - i)
-      const key = d.toISOString().split("T")[0]
+      const key = formatLocalDateKey(d)
       const data = dayMap.get(key)
       const entry = {
         date: key,
@@ -66,7 +67,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
     return new Set(
       sessions
         .filter((s) => s.timestamp >= cutoff)
-        .map((s) => new Date(s.timestamp).toISOString().split("T")[0]),
+        .map((s) => formatLocalDateKey(new Date(s.timestamp))),
     ).size
   }, [sessions, totalDays])
 
@@ -128,7 +129,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
                     <div className="font-medium">
-                      {new Date(day.date + "T12:00:00").toLocaleDateString(undefined, {
+                      {parseDateKey(day.date).toLocaleDateString(undefined, {
                         weekday: "short",
                         month: "short",
                         day: "numeric",

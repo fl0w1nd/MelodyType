@@ -105,6 +105,11 @@ interface UsePracticeSessionControllerOptions {
   onCorrectInput?: () => void
 }
 
+interface TimeResultSummary {
+  previousPersonalBest: number | null
+  isNewPersonalBest: boolean
+}
+
 export function usePracticeSessionController({
   onCorrectInput,
 }: UsePracticeSessionControllerOptions = {}) {
@@ -117,6 +122,8 @@ export function usePracticeSessionController({
   const [quoteAuthor, setQuoteAuthor] = useState<string | null>(null)
   const [activeLevel, setActiveLevel] = useState<TimeLevel | null>(null)
   const [timeLevelKey, setTimeLevelKey] = useState(0)
+  const [timeResultSummary, setTimeResultSummary] =
+    useState<TimeResultSummary | null>(null)
 
   const adaptiveLoaded = useRef(false)
   const adaptiveContinuingRef = useRef(false)
@@ -232,6 +239,7 @@ export function usePracticeSessionController({
   const startPractice = useCallback(
     async (nextConfig: PracticeModeConfig, nextAdaptiveState?: AdaptiveState | null) => {
       if (nextConfig.mode !== "quote") setQuoteAuthor(null)
+      setTimeResultSummary(null)
       const text = await generateText(nextConfig, nextAdaptiveState)
       loadText(text, nextConfig.mode === "time" ? nextConfig.timeLimit : undefined)
       setRoundCount(0)
@@ -245,6 +253,7 @@ export function usePracticeSessionController({
     reset()
     resetMelodySession()
     setActiveLevel(null)
+    setTimeResultSummary(null)
     setTimeLevelKey((value) => value + 1)
   }, [reset, resetMelodySession])
 
@@ -270,6 +279,7 @@ export function usePracticeSessionController({
       setConfig(nextConfig)
       setNewlyUnlocked(null)
       setActiveLevel(null)
+      setTimeResultSummary(null)
 
       if (nextConfig.mode === "time") {
         reset()
@@ -474,6 +484,13 @@ export function usePracticeSessionController({
           keystrokeLog: state.keystrokeLog,
         })
 
+        if (config.mode === "time") {
+          setTimeResultSummary({
+            previousPersonalBest: result.previousPersonalBest,
+            isNewPersonalBest: result.isNewPersonalBest,
+          })
+        }
+
         if (config.mode === "adaptive" && result.nextAdaptiveState) {
           if (result.newlyUnlocked) {
             setNewlyUnlocked(result.newlyUnlocked)
@@ -559,6 +576,7 @@ export function usePracticeSessionController({
     quoteAuthor,
     newlyUnlocked,
     roundCount,
+    timeResultSummary,
     timeLevelKey,
     nextKey,
     isAdaptive,

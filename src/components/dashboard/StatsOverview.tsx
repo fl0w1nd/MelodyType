@@ -10,6 +10,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
+import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import type { TypingSession, DailyGoal } from "@/lib/db"
 
 interface StatsOverviewProps {
@@ -38,12 +39,13 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
 
     let streak = 0
     const sortedGoals = [...dailyGoals].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      (a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime(),
     )
-    const today = new Date().toISOString().split("T")[0]
+    const today = formatLocalDateKey()
     for (const goal of sortedGoals) {
       const dayDiff = Math.floor(
-        (new Date(today).getTime() - new Date(goal.date).getTime()) / (1000 * 60 * 60 * 24),
+        (parseDateKey(today).getTime() - parseDateKey(goal.date).getTime()) /
+          (1000 * 60 * 60 * 24),
       )
       if (dayDiff === streak && goal.sessionsCount > 0) {
         streak++

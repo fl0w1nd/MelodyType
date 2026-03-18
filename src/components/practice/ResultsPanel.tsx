@@ -1,5 +1,4 @@
 import { useMemo } from "react"
-import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import {
   Trophy,
@@ -30,7 +29,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { TypingMetrics, PracticeModeConfig, KeystrokeEntry } from "@/engine/typing/types"
 import { getLevelById, getStars, TIER_META, type LevelRecord } from "@/engine/typing/timeLevels"
-import { getLevelPersonalBest } from "@/engine/practice/sessionQueries"
 
 interface ResultsPanelProps {
   metrics: TypingMetrics
@@ -40,6 +38,8 @@ interface ResultsPanelProps {
   onNextLevel?: () => void
   modeConfig?: PracticeModeConfig
   keystrokeLog?: KeystrokeEntry[]
+  previousPersonalBest?: number | null
+  isNewPersonalBest?: boolean
   wordsCompleted?: number
 }
 
@@ -51,18 +51,17 @@ export function ResultsPanel({
   onNextLevel,
   modeConfig,
   keystrokeLog,
+  previousPersonalBest = null,
+  isNewPersonalBest = false,
   wordsCompleted,
 }: ResultsPanelProps) {
   const grade = getGrade(metrics.wpm, metrics.accuracy)
   const isTimeMode = modeConfig?.mode === "time"
   const level = modeConfig?.levelId ? getLevelById(modeConfig.levelId) : null
   const cpm = metrics.elapsedTime > 0 ? Math.round((metrics.correctChars / metrics.elapsedTime) * 60) : 0
-  const personalBest = useLiveQuery(
-    () => (isTimeMode && modeConfig?.levelId ? getLevelPersonalBest(modeConfig.levelId) : Promise.resolve(null)),
-    [isTimeMode, modeConfig?.levelId],
-    null,
-  )
-  const isNewPB = personalBest != null && metrics.wpm > personalBest
+  const personalBest = isTimeMode
+    ? (isNewPersonalBest ? metrics.wpm : previousPersonalBest)
+    : null
 
   const currentRecord: LevelRecord = {
     bestWpm: metrics.wpm,
@@ -126,7 +125,7 @@ export function ResultsPanel({
                   </p>
                 )}
               </div>
-              {isNewPB && (
+              {isNewPersonalBest && (
                 <motion.div
                   initial={{ scale: 0, rotate: -20 }}
                   animate={{ scale: 1, rotate: 0 }}
@@ -226,9 +225,9 @@ export function ResultsPanel({
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-mono font-semibold text-foreground">
-                    {isNewPB ? metrics.wpm.toFixed(0) : personalBest.toFixed(0)} WPM
+                    {personalBest.toFixed(0)} WPM
                   </span>
-                  {!isNewPB && (
+                  {!isNewPersonalBest && (
                     <span className={`text-xs font-mono ${metrics.wpm >= personalBest ? "text-emerald-500" : "text-muted-foreground"}`}>
                       {metrics.wpm >= personalBest ? "=" : `${(metrics.wpm - personalBest).toFixed(0)}`}
                     </span>

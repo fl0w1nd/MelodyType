@@ -6,7 +6,9 @@ import {
   recomputeAndUnlock,
   updateKeyStatsFromSession,
 } from "@/engine/typing/adaptiveEngine"
+import { formatLocalDateKey } from "@/lib/date"
 import { getAppSetting } from "@/lib/settings"
+import { getLevelPersonalBest } from "./sessionQueries"
 
 interface PersistCompletedRoundInput {
   config: PracticeModeConfig
@@ -18,6 +20,8 @@ interface PersistCompletedRoundInput {
 export interface PersistCompletedRoundResult {
   nextAdaptiveState: AdaptiveState | null
   newlyUnlocked: string | null
+  previousPersonalBest: number | null
+  isNewPersonalBest: boolean
 }
 
 function toStoredKeystrokes(keystrokeLog: KeystrokeEntry[]): KeystrokeRecord[] {
@@ -66,7 +70,7 @@ async function updateClassicKeyStats(roundLog: KeystrokeEntry[]) {
 }
 
 async function updateDailyGoal(metrics: TypingMetrics) {
-  const today = new Date().toISOString().split("T")[0]
+  const today = formatLocalDateKey()
   const targetMinutes = await getAppSetting("dailyGoalMinutes")
 
   await db.transaction("rw", db.dailyGoals, async () => {
@@ -103,6 +107,10 @@ export async function persistCompletedRound({
   metrics,
   keystrokeLog,
 }: PersistCompletedRoundInput): Promise<PersistCompletedRoundResult> {
+  const previousPersonalBest =
+    config.mode === "time" && config.levelId
+      ? await getLevelPersonalBest(config.levelId)
+      : null
   const sessionModeConfig =
     config.mode === "adaptive"
       ? JSON.stringify({
@@ -130,6 +138,10 @@ export async function persistCompletedRound({
 
   let nextAdaptiveState: AdaptiveState | null = null
   let newlyUnlocked: string | null = null
+  const isNewPersonalBest =
+    config.mode === "time" &&
+    config.levelId != null &&
+    (previousPersonalBest == null || metrics.wpm > previousPersonalBest)
 
   if (config.mode === "adaptive") {
     const prevUnlocked = adaptiveState?.unlockedKeys ?? []
@@ -148,5 +160,7 @@ export async function persistCompletedRound({
   return {
     nextAdaptiveState,
     newlyUnlocked,
+    previousPersonalBest,
+    isNewPersonalBest,
   }
 }
