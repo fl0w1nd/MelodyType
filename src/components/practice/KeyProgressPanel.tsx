@@ -174,7 +174,7 @@ function KeyProgressPanelInner({
   }
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto">
+    <div className="relative w-full">
       <div className="rounded-xl bg-secondary/40 border border-border/50 px-4 py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4 min-w-0">
@@ -317,7 +317,7 @@ function KeyProgressPanelInner({
       </AnimatePresence>
 
       <div className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4 xl:grid-cols-7">
           <InlineMetric
             label="Speed"
             value={formatSummaryValue(hasSummaryData, globalSummary.speed.last, "wpm", 1)}
@@ -351,11 +351,6 @@ function KeyProgressPanelInner({
             label="Target"
             value={`${targetCpm} cpm`}
             icon={<Activity className="h-3 w-3" />}
-          />
-          <InlineMetric
-            label="Recover"
-            value={recoverKeys ? "On" : "Off"}
-            icon={<RotateCcw className="h-3 w-3" />}
           />
           <InlineMetric
             label="Clicks"
@@ -727,7 +722,7 @@ function InlineMetric({
   accent?: boolean
 }) {
   return (
-    <div className="flex items-center gap-2 min-w-[7.5rem]">
+    <div className="flex min-w-0 items-center gap-1.5">
       <span className="text-muted-foreground/70">{icon}</span>
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
@@ -736,7 +731,7 @@ function InlineMetric({
         <div className="flex items-center gap-1.5">
           <div
             className={cn(
-              "truncate font-mono font-medium text-foreground",
+              "truncate font-mono text-[0.95rem] font-medium text-foreground",
               accent && "text-primary",
             )}
           >
