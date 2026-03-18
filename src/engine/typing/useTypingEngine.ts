@@ -206,9 +206,7 @@ export function useTypingEngine(onKeystroke?: () => void) {
       })
 
       if (didType) {
-        queueMicrotask(() => {
-          onKeystrokeRef.current?.()
-        })
+        onKeystrokeRef.current?.()
       }
     },
     [],
