@@ -57,6 +57,7 @@ export function useMidiTrigger() {
   const pendingStartCPMRef = useRef<number | null>(null)
   const synthInitPromiseRef = useRef<Promise<boolean> | null>(null)
   const pendingCarryoverStateRef = useRef<MelodyCarryoverState | null>(null)
+  const trackTransitionInFlightRef = useRef(false)
   const onTrackCompleteRef = useRef<
     ((carryoverState: MelodyCarryoverState | null) => void) | null
   >(null)
@@ -299,41 +300,47 @@ export function useMidiTrigger() {
       return
     }
 
-    const userMidiFiles = await db.midiFiles.toArray()
-    const availableSources: SelectedMidiSource[] = [
-      ...presetList.map((preset) => ({ type: "preset" as const, id: preset.id })),
-      ...userMidiFiles
-        .filter((file) => file.id != null)
-        .map((file) => ({ type: "file" as const, id: file.id! })),
-    ]
+    trackTransitionInFlightRef.current = true
 
-    if (availableSources.length === 0) {
-      stopMelody()
-      return
+    try {
+      const userMidiFiles = await db.midiFiles.toArray()
+      const availableSources: SelectedMidiSource[] = [
+        ...presetList.map((preset) => ({ type: "preset" as const, id: preset.id })),
+        ...userMidiFiles
+          .filter((file) => file.id != null)
+          .map((file) => ({ type: "file" as const, id: file.id! })),
+      ]
+
+      if (availableSources.length === 0) {
+        stopMelody()
+        return
+      }
+
+      const currentSource = selectedSourceRef.current
+      const candidateSources =
+        currentSource && availableSources.length > 1
+          ? availableSources.filter((source) => !isSameSource(source, currentSource))
+          : availableSources
+      const nextSource =
+        candidateSources[Math.floor(Math.random() * candidateSources.length)] ??
+        availableSources[0]
+      const targetCPM = currentTargetCPMRef.current ?? pendingStartCPMRef.current
+
+      if (targetCPM != null) {
+        pendingStartCPMRef.current = targetCPM
+      }
+
+      pendingCarryoverStateRef.current = carryoverState
+
+      if (nextSource.type === "preset") {
+        await selectPreset(nextSource.id, { persist: false })
+        return
+      }
+
+      await selectMidiFile(nextSource.id, { persist: false })
+    } finally {
+      trackTransitionInFlightRef.current = false
     }
-
-    const currentSource = selectedSourceRef.current
-    const candidateSources =
-      currentSource && availableSources.length > 1
-        ? availableSources.filter((source) => !isSameSource(source, currentSource))
-        : availableSources
-    const nextSource =
-      candidateSources[Math.floor(Math.random() * candidateSources.length)] ??
-      availableSources[0]
-    const targetCPM = currentTargetCPMRef.current ?? pendingStartCPMRef.current
-
-    if (targetCPM != null) {
-      pendingStartCPMRef.current = targetCPM
-    }
-
-    pendingCarryoverStateRef.current = carryoverState
-
-    if (nextSource.type === "preset") {
-      await selectPreset(nextSource.id, { persist: false })
-      return
-    }
-
-    await selectMidiFile(nextSource.id, { persist: false })
   }, [selectMidiFile, selectPreset, stopMelody])
 
   useEffect(() => {
@@ -453,6 +460,32 @@ export function useMidiTrigger() {
 
   const feedKeystroke = useCallback((correct: boolean) => {
     if (!configRef.current.isEnabled) return
+
+    const resumeTargetCPM = currentTargetCPMRef.current
+    const shouldAutoResume =
+      resumeTargetCPM != null &&
+      framesRef.current.length > 0 &&
+      !schedulerRef.current.isActive &&
+      (
+        configRef.current.loopMode === "loop" ||
+        (configRef.current.loopMode === "random" && !trackTransitionInFlightRef.current)
+      )
+
+    if (shouldAutoResume && !synthRef.current) {
+      void ensureSynthReady()
+        .then((isReady) => {
+          if (!isReady || resumeTargetCPM == null) return
+          startScheduler(resumeTargetCPM)
+          schedulerRef.current.feed(correct)
+        })
+        .catch(() => {})
+      return
+    }
+
+    if (shouldAutoResume && resumeTargetCPM != null) {
+      startScheduler(resumeTargetCPM)
+    }
+
     schedulerRef.current.feed(correct)
 
     if (!synthRef.current) {
@@ -462,7 +495,7 @@ export function useMidiTrigger() {
         })
         .catch(() => {})
     }
-  }, [ensureSynthReady, resumePendingMelodyStart])
+  }, [ensureSynthReady, resumePendingMelodyStart, startScheduler])
 
   const updateTargetCPM = useCallback((targetCPM: number) => {
     currentTargetCPMRef.current = targetCPM
