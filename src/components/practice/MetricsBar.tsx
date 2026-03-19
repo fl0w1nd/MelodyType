@@ -145,7 +145,7 @@ function MetricItem({
         {icon}
       </span>
       <div className="flex flex-col">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">
           {label}
         </span>
         <span

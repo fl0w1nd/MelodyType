@@ -152,7 +152,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-1.5 mt-auto pt-3">
+      <div className="flex items-center justify-end gap-2 mt-auto pt-3">
         <span className="text-[10px] text-muted-foreground mr-0.5">Less</span>
         <div className="h-3.5 w-3.5 rounded bg-secondary/40 dark:bg-secondary/30" />
         <div className="h-3.5 w-3.5 rounded bg-emerald-300/50 dark:bg-emerald-400/25" />

@@ -38,7 +38,7 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
             <TabsTrigger
               key={practiceMode}
               value={practiceMode}
-              className="gap-1.5 text-xs sm:text-sm capitalize"
+              className="gap-1.5 text-xs sm:text-sm capitalize transition-all duration-200"
             >
               {modeIcons[practiceMode]}
               {practiceMode === "adaptive" ? "Adaptive" : practiceMode}

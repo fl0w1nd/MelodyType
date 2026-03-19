@@ -53,7 +53,7 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
                     duration: 0.3,
                     ease: [0.25, 1, 0.5, 1],
                   }}
-                  className="flex items-center gap-3 rounded-xl border border-border/30 bg-background/40 p-3 transition-all duration-200 hover:bg-secondary/30 hover:border-border/50"
+                  className="flex items-center gap-3 rounded-xl border border-border/30 bg-background/40 p-3 transition-all duration-250 ease-out hover:bg-secondary/40 hover:border-border/50 hover:shadow-sm hover:shadow-black/[0.02]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

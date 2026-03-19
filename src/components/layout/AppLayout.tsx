@@ -27,7 +27,7 @@ export function AppLayout() {
               <img
                 src="/favicon.png"
                 alt="MelodyType"
-                className="h-9 w-9 object-contain drop-shadow-[0_6px_14px_rgba(15,23,42,0.18)] transition-transform duration-200 group-hover:scale-105"
+                className="h-9 w-9 object-contain drop-shadow-[0_4px_12px_rgba(15,23,42,0.12)] transition-all duration-300 ease-out group-hover:scale-105 group-hover:drop-shadow-[0_6px_16px_rgba(15,23,42,0.2)]"
               />
               <span className="font-serif text-xl tracking-tight text-foreground">
                 MelodyType
@@ -55,7 +55,7 @@ export function AppLayout() {
                       {isActive && (
                         <motion.div
                           layoutId="nav-indicator"
-                          className="absolute inset-0 rounded-lg bg-primary/8 border border-primary/15"
+                          className="absolute inset-0 rounded-lg bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5"
                           transition={{
                             type: "spring",
                             stiffness: 380,
@@ -91,7 +91,7 @@ export function AppLayout() {
         <footer role="contentinfo" className="border-t border-border/40 py-4">
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">
             <div className="h-px flex-1 max-w-16 bg-gradient-to-r from-transparent to-border/40" />
-            <p className="text-xs text-muted-foreground/60 font-medium tracking-wide">
+            <p className="text-xs text-muted-foreground/50 font-medium tracking-wider">
               MelodyType &middot; Where typing meets music
             </p>
             <div className="h-px flex-1 max-w-16 bg-gradient-to-l from-transparent to-border/40" />
