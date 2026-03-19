@@ -11,20 +11,12 @@ import {
   Info,
   Check,
   AlertTriangle,
-  Music,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -37,7 +29,6 @@ import { Badge } from "@/components/ui/badge"
 import { db, exportAllData, importAllData } from "@/lib/db"
 import { resetAppSettings, setAppSetting, useAppSetting } from "@/lib/settings"
 import { useMidi } from "@/engine/midi/MidiContext"
-import type { SynthType } from "@/engine/midi/types"
 import {
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
@@ -165,67 +156,6 @@ export default function SettingsPage() {
               min={5}
               max={120}
               step={5}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* MIDI Settings */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Music className="h-4 w-4 text-primary" />
-            MIDI Sound
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Enable MIDI</div>
-              <div className="text-xs text-muted-foreground">
-                Play notes as you type
-              </div>
-            </div>
-            <Switch
-              checked={midi.config.isEnabled}
-              onCheckedChange={(v) => midi.updateConfig({ isEnabled: v })}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Instrument</label>
-            <Select
-              value={midi.config.synthType}
-              onValueChange={(v) => midi.changeSynth(v as SynthType)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="piano">🎹 Piano</SelectItem>
-                <SelectItem value="strings">🎻 Strings</SelectItem>
-                <SelectItem value="synth">🎛️ Synth</SelectItem>
-                <SelectItem value="musicBox">🎵 Music Box</SelectItem>
-                <SelectItem value="bell">🔔 Bell</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Volume</label>
-              <span className="text-xs text-muted-foreground font-mono">
-                {midi.config.volume}dB
-              </span>
-            </div>
-            <Slider
-              value={[midi.config.volume]}
-              onValueChange={(v) => midi.changeVolume(Array.isArray(v) ? v[0] : v)}
-              min={-30}
-              max={0}
-              step={1}
             />
           </div>
         </CardContent>
