@@ -34,9 +34,12 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
 
       <div className="px-4 pb-4">
         {recent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <History className="h-8 w-8 mb-2 opacity-20" />
-            <span className="text-sm">No sessions yet. Start practicing!</span>
+          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 mb-4">
+              <History className="h-6 w-6 text-violet-500/60" />
+            </div>
+            <p className="text-sm font-medium text-foreground/80">No sessions yet</p>
+            <p className="text-xs text-muted-foreground mt-1.5 max-w-[200px]">Complete a typing session on the Practice page to see your history here</p>
           </div>
         ) : (
           <ScrollArea className="h-80">

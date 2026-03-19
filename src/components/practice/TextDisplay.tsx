@@ -42,8 +42,14 @@ function TextDisplayInner({
 
   if (words.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground" aria-live="polite">
-        Select a mode to start practicing...
+      <div className="flex flex-col items-center justify-center h-40 gap-3 text-center px-6" aria-live="polite">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+          <span className="text-xl">⌨️</span>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground/80">Ready to practice</p>
+          <p className="text-xs text-muted-foreground mt-1">Choose a mode above and start typing to begin your session</p>
+        </div>
       </div>
     )
   }

@@ -88,9 +88,12 @@ export function AdaptiveProgressCard() {
             </h3>
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center py-10 px-5 text-muted-foreground">
-          <Brain className="h-8 w-8 mb-2 opacity-20" />
-          <span className="text-sm">Start practicing in adaptive mode to track progress</span>
+        <div className="flex flex-col items-center justify-center py-12 px-5 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10 mb-4">
+            <Brain className="h-6 w-6 text-purple-500/60" />
+          </div>
+          <p className="text-sm font-medium text-foreground/80">Adaptive mode tracks your progress</p>
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-[240px]">Switch to Adaptive mode on the Practice page — the system will learn your strengths and focus on keys you need to improve</p>
         </div>
       </motion.div>
     )

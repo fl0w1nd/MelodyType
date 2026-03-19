@@ -280,6 +280,19 @@ export default function SettingsPage() {
               </Badge>
             ))}
           </div>
+          <div className="mt-4 rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <p className="text-xs font-medium text-foreground mb-2">Keyboard Shortcuts</p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span>Restart session</span>
+                <kbd className="rounded border border-border/60 bg-secondary/60 px-1.5 py-0.5 text-[10px] font-mono">Tab</kbd>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>Back to levels</span>
+                <kbd className="rounded border border-border/60 bg-secondary/60 px-1.5 py-0.5 text-[10px] font-mono">Esc</kbd>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
