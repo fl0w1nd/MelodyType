@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type * as Tone from "tone"
 import type { MidiFrame, SynthType, MidiConfig, MelodyState } from "./types"
 import { defaultMidiConfig } from "./types"
-import { createSynth, ensureAudioStarted } from "./synthManager"
+import { createSynth, disposeSynth, ensureAudioStarted } from "./synthManager"
 import { MelodyScheduler, type MelodyCarryoverState } from "./melodyScheduler"
 import { parseMidiToFrames } from "./midiParser"
 import { presetMelodies, presetList } from "./presets"
@@ -282,7 +282,7 @@ export function useMidiTrigger() {
     async (type?: SynthType, volume?: number) => {
       await ensureAudioStarted()
       if (synthRef.current) {
-        synthRef.current.dispose()
+        disposeSynth(synthRef.current)
       }
       synthRef.current = createSynth(
         type ?? configRef.current.synthType,
@@ -597,7 +597,7 @@ export function useMidiTrigger() {
     return () => {
       scheduler.stop()
       if (synthRef.current) {
-        synthRef.current.dispose()
+        disposeSynth(synthRef.current)
         synthRef.current = null
       }
     }

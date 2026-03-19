@@ -1,6 +1,8 @@
 import * as Tone from "tone"
 import type { SynthType } from "./types"
 
+const synthGainMap = new WeakMap<Tone.PolySynth, Tone.Volume>()
+
 export async function ensureAudioStarted(): Promise<void> {
   if (Tone.getContext().state === "running") return
   await Tone.start()
@@ -40,7 +42,18 @@ export function createSynth(
   const synth = new Tone.PolySynth(Tone.Synth)
   synth.set(configs[type] as Partial<Tone.SynthOptions>)
   synth.connect(gain)
+  synthGainMap.set(synth, gain)
   return synth
+}
+
+export function disposeSynth(synth: Tone.PolySynth | null): void {
+  if (!synth) return
+
+  const gain = synthGainMap.get(synth)
+  synthGainMap.delete(synth)
+
+  synth.dispose()
+  gain?.dispose()
 }
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]

@@ -8,6 +8,12 @@ interface QuoteData {
   quotes: Quote[]
 }
 
+const fallbackQuote: Quote = {
+  text: "Practice steadily and the rhythm will follow.",
+  author: "MelodyType",
+  length: "short",
+}
+
 let cachedQuotes: Quote[] | null = null
 let loadingPromise: Promise<Quote[]> | null = null
 
@@ -39,6 +45,7 @@ export async function getRandomQuoteAsync(
   const quotes = await loadQuotes()
   const pool = length ? quotes.filter((q) => q.length === length) : quotes
   const list = pool.length > 0 ? pool : quotes
+  if (list.length === 0) return fallbackQuote
   return list[Math.floor(Math.random() * list.length)]
 }
 
