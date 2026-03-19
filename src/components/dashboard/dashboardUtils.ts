@@ -102,3 +102,179 @@ export function aggregateSessionsByRange(
     }
   })
 }
+
+function normalizeStoredKey(key: string): string | null {
+  if (key === " ") return " "
+  if (key.length !== 1) return null
+  return key.toLowerCase()
+}
+
+function isLetterKey(key: string | null): key is string {
+  return key != null && key.length === 1 && key >= "a" && key <= "z"
+}
+
+interface SessionKeyActualStats {
+  totalPresses: number
+  misPresses: number
+}
+
+interface SessionKeyTargetStats {
+  successPresses: number
+  falsePresses: number
+}
+
+interface SessionKeyAnalysis {
+  actual: Map<string, SessionKeyActualStats>
+  target: Map<string, SessionKeyTargetStats>
+}
+
+export interface DashboardKeyStats {
+  key: string
+  totalPresses: number
+  misPresses: number
+  successPresses: number
+  falsePresses: number
+  occurrences: number
+  falseRate: number | null
+  keyAccuracy: number | null
+  recentSamples: { session: number; accuracy: number }[]
+  learningRate: number
+}
+
+function analyzeSessionKeys(session: TypingSession): SessionKeyAnalysis {
+  const actual = new Map<string, SessionKeyActualStats>()
+  const target = new Map<string, SessionKeyTargetStats>()
+  const correctSequence = session.keystrokes
+    .filter((stroke) => stroke.correct)
+    .map((stroke) => normalizeStoredKey(stroke.key))
+    .filter((key): key is string => key != null)
+
+  let expectedIndex = 0
+  let positionAlreadyFailed = false
+
+  const ensureActual = (key: string) => {
+    const existing = actual.get(key)
+    if (existing) return existing
+    const created = { totalPresses: 0, misPresses: 0 }
+    actual.set(key, created)
+    return created
+  }
+
+  const ensureTarget = (key: string) => {
+    const existing = target.get(key)
+    if (existing) return existing
+    const created = { successPresses: 0, falsePresses: 0 }
+    target.set(key, created)
+    return created
+  }
+
+  for (const stroke of session.keystrokes) {
+    const actualKey = normalizeStoredKey(stroke.key)
+    const expectedKey = correctSequence[expectedIndex] ?? null
+
+    if (stroke.correct) {
+      if (isLetterKey(actualKey)) {
+        ensureActual(actualKey).totalPresses++
+      }
+
+      if (!positionAlreadyFailed && isLetterKey(expectedKey)) {
+        ensureTarget(expectedKey).successPresses++
+      }
+
+      if (expectedKey != null) {
+        expectedIndex++
+        positionAlreadyFailed = false
+      }
+      continue
+    }
+
+    if (isLetterKey(actualKey)) {
+      const stats = ensureActual(actualKey)
+      stats.totalPresses++
+      stats.misPresses++
+    }
+
+    if (!positionAlreadyFailed) {
+      if (isLetterKey(expectedKey)) {
+        ensureTarget(expectedKey).falsePresses++
+      }
+      positionAlreadyFailed = true
+    }
+  }
+
+  return { actual, target }
+}
+
+export function buildDashboardKeyStats(sessions: TypingSession[]): Map<string, DashboardKeyStats> {
+  const map = new Map<string, DashboardKeyStats>()
+
+  const ensure = (key: string) => {
+    const existing = map.get(key)
+    if (existing) return existing
+    const created: DashboardKeyStats = {
+      key,
+      totalPresses: 0,
+      misPresses: 0,
+      successPresses: 0,
+      falsePresses: 0,
+      occurrences: 0,
+      falseRate: null,
+      keyAccuracy: null,
+      recentSamples: [],
+      learningRate: 0,
+    }
+    map.set(key, created)
+    return created
+  }
+
+  for (const session of sessions) {
+    const analysis = analyzeSessionKeys(session)
+
+    for (const [key, stats] of analysis.actual) {
+      const entry = ensure(key)
+      entry.totalPresses += stats.totalPresses
+      entry.misPresses += stats.misPresses
+    }
+
+    for (const [key, stats] of analysis.target) {
+      const entry = ensure(key)
+      entry.successPresses += stats.successPresses
+      entry.falsePresses += stats.falsePresses
+    }
+  }
+
+  const recentSessions = sessions.slice(-20)
+  for (let sessionIndex = 0; sessionIndex < recentSessions.length; sessionIndex++) {
+    const analysis = analyzeSessionKeys(recentSessions[sessionIndex])
+    for (const [key, stats] of analysis.target) {
+      const entry = ensure(key)
+      const occurrences = stats.successPresses + stats.falsePresses
+      if (occurrences === 0) continue
+      entry.recentSamples.push({
+        session: sessionIndex + 1,
+        accuracy: Math.round((stats.successPresses / occurrences) * 100),
+      })
+    }
+  }
+
+  for (const entry of map.values()) {
+    entry.occurrences = entry.successPresses + entry.falsePresses
+    entry.falseRate = entry.occurrences > 0
+      ? entry.falsePresses / entry.occurrences
+      : null
+    entry.keyAccuracy = entry.occurrences > 0
+      ? entry.successPresses / entry.occurrences
+      : null
+
+    const samples = entry.recentSamples
+    if (samples.length >= 3) {
+      const firstHalf = samples.slice(0, Math.floor(samples.length / 2))
+      const secondHalf = samples.slice(Math.floor(samples.length / 2))
+      const avgFirst = firstHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / firstHalf.length
+      const avgSecond = secondHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / secondHalf.length
+      entry.learningRate = avgSecond - avgFirst
+    }
+  }
+
+  return map
+}

@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 import type { BigramScore } from "@/engine/typing/adaptiveEngine"
+import { buildDashboardKeyStats } from "./dashboardUtils"
 
 const fullKeyboardLayout = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -24,19 +25,19 @@ const lettersOnlyLayout = [
 
 const ROW_OFFSET_PX = 18
 
-type HeatmapTab = "errors" | "frequency" | "transitions"
+type HeatmapTab = "false" | "frequency" | "transitions"
 
-function transitionScoreToArcColor(score: number): string {
-  if (score >= 0.85) return "rgba(34, 197, 94, 0.7)"
-  if (score >= 0.65) return "rgba(234, 179, 8, 0.6)"
-  if (score >= 0.4) return "rgba(249, 115, 22, 0.6)"
+function transitionAccuracyToArcColor(accuracy: number): string {
+  if (accuracy >= 0.99) return "rgba(34, 197, 94, 0.7)"
+  if (accuracy >= 0.9) return "rgba(234, 179, 8, 0.6)"
+  if (accuracy >= 0.75) return "rgba(249, 115, 22, 0.6)"
   return "rgba(239, 68, 68, 0.7)"
 }
 
-function transitionScoreToKeyBg(score: number): string {
-  if (score >= 0.85) return "bg-emerald-400/25 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
-  if (score >= 0.65) return "bg-yellow-400/25 border-yellow-500/40 text-yellow-700 dark:text-yellow-400"
-  if (score >= 0.4) return "bg-orange-400/25 border-orange-500/40 text-orange-700 dark:text-orange-400"
+function transitionAccuracyToKeyBg(accuracy: number): string {
+  if (accuracy >= 0.99) return "bg-emerald-400/25 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+  if (accuracy >= 0.9) return "bg-yellow-400/25 border-yellow-500/40 text-yellow-700 dark:text-yellow-400"
+  if (accuracy >= 0.75) return "bg-orange-400/25 border-orange-500/40 text-orange-700 dark:text-orange-400"
   return "bg-red-400/25 border-red-500/40 text-red-700 dark:text-red-400"
 }
 
@@ -59,9 +60,9 @@ export function KeyboardHeatmap({
   bigramScores,
   children,
 }: KeyboardHeatmapProps) {
-  const [activeTab, setActiveTab] = useState<HeatmapTab>("errors")
+  const [activeTab, setActiveTab] = useState<HeatmapTab>("false")
   const hasTransitions = bigramScores != null && bigramScores.length > 0
-  const effectiveTab = activeTab === "transitions" && !hasTransitions ? "errors" : activeTab
+  const effectiveTab = activeTab === "transitions" && !hasTransitions ? "false" : activeTab
   const layout = effectiveTab === "transitions" ? lettersOnlyLayout : fullKeyboardLayout
 
   const keyboardAreaRef = useRef<HTMLDivElement>(null)
@@ -102,50 +103,44 @@ export function KeyboardHeatmap({
     [],
   )
 
-  // ── Error / Frequency stats ──────────────────────────────────────────
+  // ── False / Frequency stats ─────────────────────────────────────────
 
-  const statsMap = useMemo(() => {
-    const map = new Map<string, { totalHits: number; errors: number }>()
-    for (const session of sessions) {
-      for (const stroke of session.keystrokes) {
-        const key = stroke.key.toLowerCase()
-        if (!isLetterKey(key)) continue
-        const current = map.get(key) ?? { totalHits: 0, errors: 0 }
-        current.totalHits += 1
-        if (!stroke.correct) current.errors += 1
-        map.set(key, current)
-      }
-    }
-    return map
-  }, [sessions])
+  const keyStatsMap = useMemo(() => buildDashboardKeyStats(sessions), [sessions])
 
-  const maxErrorRate = useMemo(() => {
-    const values = [...statsMap.values()]
+  const maxFalseRate = useMemo(() => {
+    const values = [...keyStatsMap.values()]
+      .map((entry) => entry.falseRate ?? 0)
     if (values.length === 0) return 0.01
-    return Math.max(...values.map((e) => (e.totalHits > 0 ? e.errors / e.totalHits : 0)), 0.01)
-  }, [statsMap])
+    return Math.max(...values, 0.01)
+  }, [keyStatsMap])
 
-  const maxHits = useMemo(() => {
-    const values = [...statsMap.values()]
+  const maxPresses = useMemo(() => {
+    const values = [...keyStatsMap.values()]
     if (values.length === 0) return 1
-    return Math.max(...values.map((e) => e.totalHits), 1)
-  }, [statsMap])
+    return Math.max(...values.map((entry) => entry.totalPresses), 1)
+  }, [keyStatsMap])
 
   // ── Transition scores ────────────────────────────────────────────────
 
-  const keyAvgScores = useMemo(() => {
-    if (!bigramScores) return new Map<string, number>()
-    const map = new Map<string, { total: number; count: number }>()
+  const keyTransitionMetrics = useMemo(() => {
+    if (!bigramScores) return new Map<string, { successRate: number; score: number; correct: number; attempts: number }>()
+    const map = new Map<string, { correct: number; attempts: number; weightedScoreTotal: number }>()
     for (const bg of bigramScores) {
-      if (bg.samples < 3) continue
-      const entry = map.get(bg.fromKey) ?? { total: 0, count: 0 }
-      entry.total += bg.score
-      entry.count++
+      if (bg.samples < 1) continue
+      const entry = map.get(bg.fromKey) ?? { correct: 0, attempts: 0, weightedScoreTotal: 0 }
+      entry.correct += bg.correctAttempts
+      entry.attempts += bg.samples
+      entry.weightedScoreTotal += bg.score * bg.samples
       map.set(bg.fromKey, entry)
     }
-    const result = new Map<string, number>()
-    for (const [key, { total, count }] of map) {
-      result.set(key, total / count)
+    const result = new Map<string, { successRate: number; score: number; correct: number; attempts: number }>()
+    for (const [key, { correct, attempts, weightedScoreTotal }] of map) {
+      result.set(key, {
+        successRate: attempts > 0 ? correct / attempts : 0,
+        score: attempts > 0 ? weightedScoreTotal / attempts : 0,
+        correct,
+        attempts,
+      })
     }
     return result
   }, [bigramScores])
@@ -161,7 +156,7 @@ export function KeyboardHeatmap({
     if (effectiveTab !== "transitions" || !selectedKey || Object.keys(keyPositions).length === 0)
       return []
     return selectedTransitions
-      .filter((bg) => bg.samples >= 3)
+      .filter((bg) => bg.samples >= 1)
       .map((bg) => {
         const isOutgoing = bg.fromKey === selectedKey
         const otherKey = isOutgoing ? bg.toKey : bg.fromKey
@@ -186,9 +181,12 @@ export function KeyboardHeatmap({
           key: bg.bigram,
           otherKey,
           d: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}`,
-          color: transitionScoreToArcColor(bg.score),
+          color: transitionAccuracyToArcColor(bg.successRate),
           width: Math.max(1.5, Math.min(3.5, bg.samples / 10)),
           opacity: isOutgoing ? 0.85 : 0.3,
+          successRate: bg.successRate,
+          correctAttempts: bg.correctAttempts,
+          attempts: bg.samples,
           score: bg.score,
           isOutgoing,
         }
@@ -200,6 +198,9 @@ export function KeyboardHeatmap({
       color: string
       width: number
       opacity: number
+      successRate: number
+      correctAttempts: number
+      attempts: number
       score: number
       isOutgoing: boolean
     }>
@@ -214,16 +215,16 @@ export function KeyboardHeatmap({
 
       if (effectiveTab === "transitions") {
         if (isSelected) return "bg-primary/40 border-primary/60 text-primary-foreground ring-2 ring-primary/30"
-        const avg = keyAvgScores.get(key)
-        if (avg === undefined) return "bg-secondary/40 text-muted-foreground border-transparent"
-        return transitionScoreToKeyBg(avg)
+        const metrics = keyTransitionMetrics.get(key)
+        if (!metrics) return "bg-secondary/40 text-muted-foreground border-transparent"
+        return transitionAccuracyToKeyBg(metrics.successRate)
       }
 
-      if (effectiveTab === "errors") {
-        const stat = statsMap.get(key)
-        if (!stat || stat.totalHits === 0)
+      if (effectiveTab === "false") {
+        const stat = keyStatsMap.get(key)
+        if (!stat || stat.falseRate == null)
           return cn("bg-secondary/40 text-muted-foreground border-transparent", isSelected && ringClass)
-        const intensity = stat.errors / stat.totalHits / maxErrorRate
+        const intensity = stat.falseRate / maxFalseRate
         const bg =
           intensity > 0.6
             ? "bg-red-500/60 text-white border-red-500/30"
@@ -236,10 +237,10 @@ export function KeyboardHeatmap({
       }
 
       // frequency
-      const stat = statsMap.get(key)
-      if (!stat || stat.totalHits === 0)
+      const stat = keyStatsMap.get(key)
+      if (!stat || stat.totalPresses === 0)
         return cn("bg-secondary/40 text-muted-foreground border-transparent", isSelected && ringClass)
-      const intensity = stat.totalHits / maxHits
+      const intensity = stat.totalPresses / maxPresses
       const bg =
         intensity > 0.7
           ? "bg-primary/50 text-primary-foreground border-primary/30"
@@ -250,7 +251,7 @@ export function KeyboardHeatmap({
               : "bg-secondary/40 text-muted-foreground border-transparent"
       return cn(bg, isSelected && ringClass)
     },
-    [effectiveTab, selectedKey, statsMap, maxErrorRate, maxHits, keyAvgScores],
+    [effectiveTab, selectedKey, keyStatsMap, maxFalseRate, maxPresses, keyTransitionMetrics],
   )
 
   // ── Tooltip ──────────────────────────────────────────────────────────
@@ -258,23 +259,29 @@ export function KeyboardHeatmap({
   const getTooltipText = useCallback(
     (key: string) => {
       if (effectiveTab === "transitions") {
-        const avg = keyAvgScores.get(key)
-        if (avg === undefined) return `${key.toUpperCase()}: No transition data`
-        const outgoing = (bigramScores ?? []).filter((bg) => bg.fromKey === key && bg.samples >= 3)
-        const weakest = [...outgoing].sort((a, b) => a.score - b.score)[0]
-        const avgPct = (avg * 100).toFixed(0)
+        const metrics = keyTransitionMetrics.get(key)
+        if (!metrics) return `${key.toUpperCase()}: No transition data`
+        const outgoing = (bigramScores ?? []).filter((bg) => bg.fromKey === key && bg.samples >= 1)
+        const weakest = [...outgoing].sort((a, b) => a.successRate - b.successRate)[0]
+        const avgAccuracyPct = (metrics.successRate * 100).toFixed(0)
+        const avgScorePct = (metrics.score * 100).toFixed(0)
         if (weakest) {
-          return `${key.toUpperCase()}: avg ${avgPct}%, weakest → ${weakest.toKey.toUpperCase()} (${(weakest.score * 100).toFixed(0)}%)`
+          return `${key.toUpperCase()}: success ${avgAccuracyPct}% (${metrics.correct}/${metrics.attempts}), score ${avgScorePct}%, weakest → ${weakest.toKey.toUpperCase()} (success ${(weakest.successRate * 100).toFixed(0)}%, ${weakest.correctAttempts}/${weakest.samples}, score ${(weakest.score * 100).toFixed(0)}%)`
         }
-        return `${key.toUpperCase()}: avg score ${avgPct}%`
+        return `${key.toUpperCase()}: success ${avgAccuracyPct}% (${metrics.correct}/${metrics.attempts}), score ${avgScorePct}%`
       }
 
-      const stat = statsMap.get(key)
-      if (!stat || stat.totalHits === 0) return `${key.toUpperCase()}: No data`
-      const errorRate = ((stat.errors / stat.totalHits) * 100).toFixed(1)
-      return `${key.toUpperCase()}: ${stat.totalHits} hits, ${stat.errors} errors (${errorRate}%)`
+      if (effectiveTab === "false") {
+        const stat = keyStatsMap.get(key)
+        if (!stat || stat.falseRate == null) return `${key.toUpperCase()}: No false data`
+        return `${key.toUpperCase()}: ${stat.occurrences} occurrences, ${stat.falsePresses} false (${(stat.falseRate * 100).toFixed(1)}%)`
+      }
+
+      const stat = keyStatsMap.get(key)
+      if (!stat || stat.totalPresses === 0) return `${key.toUpperCase()}: No data`
+      return `${key.toUpperCase()}: ${stat.totalPresses} total presses, ${stat.misPresses} mis-presses`
     },
-    [effectiveTab, statsMap, keyAvgScores, bigramScores],
+    [effectiveTab, keyStatsMap, keyTransitionMetrics, bigramScores],
   )
 
   const handleKeyClick = useCallback(
@@ -289,7 +296,7 @@ export function KeyboardHeatmap({
 
   const tabs: { id: HeatmapTab; label: string }[] = useMemo(
     () => [
-      { id: "errors", label: "Error Rate" },
+      { id: "false", label: "False Rate" },
       { id: "frequency", label: "Frequency" },
       ...(hasTransitions ? [{ id: "transitions" as const, label: "Transitions" }] : []),
     ],
@@ -331,12 +338,16 @@ export function KeyboardHeatmap({
       </div>
 
       <div className="px-5 pb-5 pt-2">
-        <div className="relative" ref={keyboardAreaRef}>
+        <div
+          className={cn("relative", effectiveTab === "transitions" && "pt-12 pb-2")}
+          ref={keyboardAreaRef}
+        >
           {effectiveTab === "transitions" && svgSize.width > 0 && (
             <svg
               width={svgSize.width}
               height={svgSize.height}
-              className="absolute inset-0 pointer-events-none z-0"
+              overflow="visible"
+              className="absolute inset-0 pointer-events-none z-0 overflow-visible"
             >
               <AnimatePresence>
                 {arcs.map((arc) => (
@@ -407,21 +418,48 @@ export function KeyboardHeatmap({
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
                 Transitions from {selectedKey.toUpperCase()}
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="mb-2 text-[10px] text-muted-foreground/70">
+                Arc color reflects hit rate. Score stays secondary so the transition read stays unambiguous.
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {arcs
                   .filter((a) => a.isOutgoing)
-                  .sort((a, b) => a.score - b.score)
+                  .sort((a, b) => a.successRate - b.successRate)
                   .map((arc) => (
                     <div
                       key={arc.key}
-                      className="flex items-center gap-1 rounded-md border border-border/30 bg-secondary/20 px-2 py-1"
+                      className="min-w-[172px] rounded-xl border border-border/40 bg-background/80 px-3 py-2 shadow-sm shadow-black/5 backdrop-blur-sm"
                     >
-                      <span className="text-[10px] font-mono font-medium text-foreground">
-                        → {arc.otherKey.toUpperCase()}
-                      </span>
-                      <span className="text-[10px] font-mono font-bold" style={{ color: arc.color }}>
-                        {(arc.score * 100).toFixed(0)}%
-                      </span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-1.5 text-[11px] font-mono font-semibold text-foreground">
+                          <span className="text-muted-foreground">→</span>
+                          <span>{arc.otherKey.toUpperCase()}</span>
+                        </div>
+                        <div className="text-right">
+                          <div
+                            className="text-base leading-none font-mono font-bold tabular-nums"
+                            style={{ color: arc.color }}
+                          >
+                            {(arc.successRate * 100).toFixed(0)}%
+                          </div>
+                          <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+                            Hit Rate
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="rounded-full border border-border/40 bg-secondary/40 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                          {arc.correctAttempts}/{arc.attempts}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Score
+                          </div>
+                          <div className="text-[11px] font-mono font-semibold text-foreground/80">
+                            {(arc.score * 100).toFixed(0)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
               </div>
@@ -430,7 +468,7 @@ export function KeyboardHeatmap({
         </AnimatePresence>
 
         <div className="flex items-center justify-center gap-4 mt-4">
-          {effectiveTab === "errors" && (
+          {effectiveTab === "false" && (
             <>
               <LegendItem color="bg-emerald-400/30" label="Low" />
               <LegendItem color="bg-yellow-400/30" label="Some" />
@@ -447,10 +485,10 @@ export function KeyboardHeatmap({
           )}
           {effectiveTab === "transitions" && (
             <>
-              <LegendItem color="bg-emerald-400/40" label="Strong" />
-              <LegendItem color="bg-yellow-400/40" label="Good" />
-              <LegendItem color="bg-orange-400/40" label="Weak" />
-              <LegendItem color="bg-red-400/40" label="Poor" />
+              <LegendItem color="bg-emerald-400/40" label="Clean" />
+              <LegendItem color="bg-yellow-400/40" label="Minor" />
+              <LegendItem color="bg-orange-400/40" label="Risky" />
+              <LegendItem color="bg-red-400/40" label="Error-prone" />
             </>
           )}
         </div>

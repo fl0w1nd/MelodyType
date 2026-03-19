@@ -15,105 +15,28 @@ import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
+import { buildDashboardKeyStats } from "./dashboardUtils"
 
 interface KeyDetailPanelProps {
   sessions: TypingSession[]
   selectedKey: string | null
 }
 
-interface PerKeyData {
-  key: string
-  totalHits: number
-  errors: number
-  errorRate: number
-  avgLatency: number
-  recentSamples: { session: number; speed: number }[]
-  learningRate: number
-}
-
 export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
-  const perKeyData = useMemo(() => {
-    const map = new Map<string, PerKeyData>()
-
-    const recentSessions = sessions.slice(-20)
-    for (let si = 0; si < recentSessions.length; si++) {
-      const session = recentSessions[si]
-      const keyHits: Record<string, { correct: number; total: number }> = {}
-      for (const k of session.keystrokes) {
-        if (k.key.length !== 1 || k.key === " ") continue
-        const lower = k.key.toLowerCase()
-        if (!keyHits[lower]) keyHits[lower] = { correct: 0, total: 0 }
-        keyHits[lower].total++
-        if (k.correct) keyHits[lower].correct++
-      }
-
-      for (const [key, counts] of Object.entries(keyHits)) {
-        const data = map.get(key) ?? {
-          key,
-          totalHits: 0,
-          errors: 0,
-          errorRate: 0,
-          avgLatency: 0,
-          recentSamples: [],
-          learningRate: 0,
-        }
-        data.totalHits += counts.total
-        data.errors += counts.total - counts.correct
-        if (counts.total > 0) {
-          const speed = Math.round((counts.correct / counts.total) * 100)
-          data.recentSamples.push({ session: si + 1, speed })
-        }
-        map.set(key, data)
-      }
-    }
-
-    for (const data of map.values()) {
-      data.errorRate = data.totalHits > 0 ? data.errors / data.totalHits : 0
-    }
-
-    for (const session of sessions) {
-      const perKeyTimestamps = new Map<string, number[]>()
-      for (const stroke of session.keystrokes) {
-        const key = stroke.key.toLowerCase()
-        if (!stroke.correct || key.length !== 1 || key < "a" || key > "z") continue
-        const existing = perKeyTimestamps.get(key) ?? []
-        existing.push(stroke.timestamp)
-        perKeyTimestamps.set(key, existing)
-      }
-
-      for (const [key, timestamps] of perKeyTimestamps) {
-        if (timestamps.length < 2) continue
-        const latencies: number[] = []
-        for (let i = 1; i < timestamps.length; i++) {
-          const latency = timestamps[i] - timestamps[i - 1]
-          if (latency > 0) latencies.push(latency)
-        }
-        if (latencies.length === 0) continue
-        const avgLatency = latencies.reduce((sum, l) => sum + l, 0) / latencies.length
-        const data = map.get(key)
-        if (data) {
-          data.avgLatency = data.avgLatency > 0 ? (data.avgLatency + avgLatency) / 2 : avgLatency
-        }
-      }
-    }
-
-    for (const data of map.values()) {
-      const samples = data.recentSamples
-      if (samples.length >= 3) {
-        const firstHalf = samples.slice(0, Math.floor(samples.length / 2))
-        const secondHalf = samples.slice(Math.floor(samples.length / 2))
-        const avgFirst = firstHalf.reduce((a, b) => a + b.speed, 0) / firstHalf.length
-        const avgSecond = secondHalf.reduce((a, b) => a + b.speed, 0) / secondHalf.length
-        data.learningRate = avgSecond - avgFirst
-      }
-    }
-
-    return map
-  }, [sessions])
-
+  const perKeyData = useMemo(() => buildDashboardKeyStats(sessions), [sessions])
   const selected = selectedKey ? perKeyData.get(selectedKey) : undefined
 
   if (!selectedKey || !selected) return null
+
+  const falseRatePct = selected.falseRate == null
+    ? "—"
+    : `${(selected.falseRate * 100).toFixed(1)}%`
+  const keyAccuracyPct = selected.keyAccuracy == null
+    ? "—"
+    : `${(selected.keyAccuracy * 100).toFixed(1)}%`
+  const keyAccuracyValue = selected.keyAccuracy == null
+    ? undefined
+    : selected.keyAccuracy * 100
 
   return (
     <AnimatePresence mode="wait">
@@ -131,18 +54,21 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm">{selected.totalHits} keystrokes</span>
+              <span className="font-medium text-sm">{selected.totalPresses} Total Presses</span>
               <Badge
                 variant="secondary"
                 className={cn(
                   "text-[9px] px-2 py-0.5 rounded-md font-medium",
-                  selected.errorRate > 0.1
+                  selected.falseRate != null && selected.falseRate > 0.1
                     ? "bg-destructive/10 text-destructive"
                     : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
                 )}
               >
-                {(selected.errorRate * 100).toFixed(1)}% errors
+                {falseRatePct} false
               </Badge>
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              Success/False are target-key stats. Mis-presses are actual wrong presses of this key.
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
               <span>Trend:</span>
@@ -165,50 +91,56 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <div className="rounded-xl bg-secondary/30 p-3 text-center">
             <div className="text-base font-mono font-bold tabular-nums">
-              {selected.totalHits - selected.errors}
+              {selected.successPresses}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Correct
+              Success Presses
             </div>
           </div>
           <div className="rounded-xl bg-secondary/30 p-3 text-center">
             <div className="text-base font-mono font-bold tabular-nums text-destructive">
-              {selected.errors}
+              {selected.misPresses}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Errors
+              Mis-presses
+            </div>
+          </div>
+          <div className="rounded-xl bg-secondary/30 p-3 text-center">
+            <div className="text-base font-mono font-bold tabular-nums text-amber-600 dark:text-amber-400">
+              {selected.falsePresses}
+            </div>
+            <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+              False-presses
             </div>
           </div>
           <div className="rounded-xl bg-secondary/30 p-3 text-center">
             <div className="text-base font-mono font-bold tabular-nums">
-              {((1 - selected.errorRate) * 100).toFixed(0)}%
+              {selected.keyAccuracy == null ? "—" : `${Math.round(selected.keyAccuracy * 100)}%`}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Accuracy
+              Key Accuracy
             </div>
           </div>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Accuracy</span>
-            <span className="font-mono tabular-nums">
-              {((1 - selected.errorRate) * 100).toFixed(1)}%
-            </span>
+            <span className="text-muted-foreground">Key Accuracy</span>
+            <span className="font-mono tabular-nums">{keyAccuracyPct}</span>
           </div>
-          <Progress value={(1 - selected.errorRate) * 100} className="h-1.5" />
+          <Progress value={keyAccuracyValue ?? 0} className="h-1.5" />
         </div>
 
         {selected.recentSamples.length > 0 && (
           <div>
             <div className="text-xs text-muted-foreground mb-2">
-              Accuracy per session (recent {selected.recentSamples.length})
+              Key accuracy per session (recent {selected.recentSamples.length})
             </div>
             <ResponsiveContainer width="100%" height={160}>
-              <ScatterChart margin={{ top: 4, right: 4, bottom: 16, left: -10 }}>
+              <ScatterChart margin={{ top: 4, right: 6, bottom: 16, left: 2 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                 <XAxis
                   dataKey="session"
@@ -218,12 +150,12 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                   label={{ value: "Session", position: "insideBottom", offset: -2, fontSize: 10 }}
                 />
                 <YAxis
-                  dataKey="speed"
+                  dataKey="accuracy"
                   domain={[0, 100]}
-                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                   axisLine={false}
-                  width={30}
+                  width={24}
                 />
                 <Tooltip
                   contentStyle={{
@@ -233,16 +165,16 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                     fontSize: "11px",
                     padding: "6px 10px",
                   }}
-                  formatter={(value) => [`${value}%`, "Accuracy"]}
+                  formatter={(value) => [`${value}%`, "Key Accuracy"]}
                 />
                 <Scatter data={selected.recentSamples}>
                   {selected.recentSamples.map((entry, index) => (
                     <Cell
                       key={index}
                       fill={
-                        entry.speed >= 90
+                        entry.accuracy >= 90
                           ? "var(--chart-2)"
-                          : entry.speed >= 70
+                          : entry.accuracy >= 70
                             ? "var(--chart-1)"
                             : "var(--destructive)"
                       }

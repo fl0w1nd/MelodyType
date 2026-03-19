@@ -43,6 +43,7 @@ export default function SettingsPage() {
 
   const sessionCount = useLiveQuery(() => db.sessions.count()) ?? 0
   const keyStatCount = useLiveQuery(() => db.keyStats.count()) ?? 0
+  const bigramStatCount = useLiveQuery(() => db.bigramStats.count()) ?? 0
   const midiFileCount = useLiveQuery(() => db.midiFiles.count()) ?? 0
 
   const showKeyboard = useAppSetting("showKeyboard")
@@ -93,6 +94,7 @@ export default function SettingsPage() {
     await Promise.all([
       db.sessions.clear(),
       db.keyStats.clear(),
+      db.bigramStats.clear(),
       db.dailyGoals.clear(),
       setAppSetting("adaptiveForcedKeys", []),
       setAppSetting(
@@ -175,6 +177,8 @@ export default function SettingsPage() {
             <span>&middot;</span>
             <span>{keyStatCount} key records</span>
             <span>&middot;</span>
+            <span>{bigramStatCount} transition records</span>
+            <span>&middot;</span>
             <span>{midiFileCount} MIDI files</span>
           </div>
 
@@ -232,8 +236,9 @@ export default function SettingsPage() {
                   <DialogTitle>Clear All Statistics?</DialogTitle>
                   <DialogDescription>
                     This will permanently delete all your typing sessions, key
-                    statistics, and daily goals. MIDI files and settings will be
-                    preserved. This action cannot be undone.
+                    statistics, transition statistics, and daily goals. MIDI
+                    files and settings will be preserved. This action cannot be
+                    undone.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>

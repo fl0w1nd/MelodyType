@@ -90,6 +90,8 @@ export interface BigramScore {
   score: number
   speedScore: number
   accuracyScore: number
+  successRate: number
+  correctAttempts: number
   samples: number
 }
 
@@ -690,7 +692,8 @@ interface BigramMetricEntry {
  * - On correct input: record a successful transition from anchor -> current,
  *   then move anchor to current.
  * - On first incorrect input after anchor: record a single failure for
- *   anchor -> expected. Subsequent errors for the same position are ignored.
+ *   anchor -> expected. Subsequent errors for the same pending position are
+ *   ignored until that position is typed correctly.
  * - Spaces break the transition chain (anchor resets to null).
  */
 export function extractBigramMetrics(
@@ -698,9 +701,9 @@ export function extractBigramMetrics(
   expectedText: string,
 ): Record<string, BigramMetricEntry> {
   const metrics: Record<string, BigramMetricEntry> = {}
+  const expectedWords = expectedText.split(" ")
   let anchor: { key: string; timestamp: number } | null = null
-  let currentExpectedIndex = 0
-  let transitionAlreadyFailed = false
+  let failedPositionKey: string | null = null
 
   const ensure = (bigram: string) => {
     if (!metrics[bigram]) {
@@ -709,28 +712,23 @@ export function extractBigramMetrics(
   }
 
   for (const entry of keystrokeLog) {
-    if (currentExpectedIndex >= expectedText.length) break
-    const expectedChar = expectedText[currentExpectedIndex]
-
-    if (expectedChar === " ") {
-      if (entry.correct && entry.key === " ") {
+    if (entry.key === " ") {
+      if (entry.correct) {
         anchor = null
-        currentExpectedIndex++
-        transitionAlreadyFailed = false
+        failedPositionKey = null
       }
       continue
     }
 
-    if (entry.key === " ") {
-      continue
-    }
-
     const entryLower = entry.key.length === 1 ? entry.key.toLowerCase() : null
-    const expectedLower = expectedChar.toLowerCase()
     if (!entryLower) continue
+    const expectedChar = expectedWords[entry.wordIndex]?.[entry.charIndex]
+    if (!expectedChar) continue
+    const expectedLower = expectedChar.toLowerCase()
+    const positionKey = `${entry.wordIndex}:${entry.charIndex}`
 
     if (entry.correct) {
-      if (anchor && anchor.key !== " ") {
+      if (anchor) {
         const bigram = `${anchor.key}:${entryLower}`
         ensure(bigram)
         metrics[bigram].successes++
@@ -740,14 +738,13 @@ export function extractBigramMetrics(
         }
       }
       anchor = { key: entryLower, timestamp: entry.timestamp }
-      currentExpectedIndex++
-      transitionAlreadyFailed = false
+      failedPositionKey = null
     } else {
-      if (anchor && !transitionAlreadyFailed && anchor.key !== " ") {
+      if (anchor && failedPositionKey !== positionKey) {
         const bigram = `${anchor.key}:${expectedLower}`
         ensure(bigram)
         metrics[bigram].failures++
-        transitionAlreadyFailed = true
+        failedPositionKey = positionKey
       }
     }
   }
@@ -824,6 +821,9 @@ export function computeTransitionScore(
   const total = stat.decayedCorrect + stat.decayedErrors
   const accuracyScore = total > 0 ? stat.decayedCorrect / total : 0
   const score = speedScore * Math.pow(accuracyScore, BIGRAM_ACCURACY_EXPONENT)
+  const successRate = stat.totalAttempts > 0
+    ? stat.correctAttempts / stat.totalAttempts
+    : 0
 
   return {
     bigram: stat.bigram,
@@ -832,6 +832,8 @@ export function computeTransitionScore(
     score,
     speedScore,
     accuracyScore,
+    successRate,
+    correctAttempts: stat.correctAttempts,
     samples: stat.totalAttempts,
   }
 }

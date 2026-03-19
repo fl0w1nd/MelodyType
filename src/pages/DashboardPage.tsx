@@ -15,7 +15,6 @@ import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap"
 import { formatLocalDateKey } from "@/lib/date"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 import { loadAllBigramScores, backfillBigramStatsFromHistory } from "@/engine/typing/adaptiveEngine"
-import type { BigramScore } from "@/engine/typing/adaptiveEngine"
 
 type DashboardMode = "adaptive" | "time" | "quote"
 
@@ -41,21 +40,11 @@ export default function DashboardPage() {
 
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [bigramScores, setBigramScores] = useState<BigramScore[]>([])
-
-  const bigramStatsVersion = useLiveQuery(
-    () => db.bigramStats.count(),
-    [],
-    0,
-  )
+  const bigramScores = useLiveQuery(() => loadAllBigramScores(), [], [])
 
   useEffect(() => {
-    void (async () => {
-      await backfillBigramStatsFromHistory()
-      const scores = await loadAllBigramScores()
-      setBigramScores(scores)
-    })()
-  }, [bigramStatsVersion])
+    void backfillBigramStatsFromHistory()
+  }, [])
 
   const getDefaultKey = useCallback(
     (mode: DashboardMode) => {

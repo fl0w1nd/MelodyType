@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   computeMastery,
+  computeTransitionScore,
   getKeyUnlockChecks,
   isKeyReadyToUnlock,
   isKeyStrictlyMastered,
@@ -9,6 +10,7 @@ import {
   getNextKeyToUnlock,
   getFocusKey,
   computeKeyWeights,
+  extractBigramMetrics,
   MIN_HITS_FOR_MASTERY,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
@@ -16,6 +18,7 @@ import {
   LETTER_FREQUENCY_ORDER,
   type KeyConfidence,
 } from "../src/engine/typing/adaptiveEngine"
+import type { BigramStat } from "../src/lib/db"
 
 function makeKC(overrides: Partial<KeyConfidence> & { key: string }): KeyConfidence {
   return {
@@ -30,6 +33,22 @@ function makeKC(overrides: Partial<KeyConfidence> & { key: string }): KeyConfide
     forced: false,
     learningRate: null,
     ...overrides,
+  }
+}
+
+function makeStroke(
+  key: string,
+  correct: boolean,
+  timestamp: number,
+  wordIndex: number,
+  charIndex: number,
+) {
+  return {
+    key,
+    correct,
+    timestamp,
+    wordIndex,
+    charIndex,
   }
 }
 
@@ -630,5 +649,93 @@ describe("computeKeyWeights", () => {
     const confs = [makeKC({ key: "e", confidence: 1.0, samples: MIN_HITS_FOR_MASTERY - 1 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(3.0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// extractBigramMetrics
+// ---------------------------------------------------------------------------
+describe("extractBigramMetrics", () => {
+  it("records one failure for a pending transition, then a delayed success when the target is finally typed", () => {
+    const metrics = extractBigramMetrics(
+      [
+        makeStroke("a", true, 100, 0, 0),
+        makeStroke("v", false, 180, 0, 1),
+        makeStroke("x", false, 240, 0, 1),
+        makeStroke("b", true, 320, 0, 1),
+        makeStroke("c", true, 420, 0, 2),
+        makeStroke("d", true, 520, 0, 3),
+      ],
+      "abcd",
+    )
+
+    expect(metrics).toEqual({
+      "a:b": { successes: 1, failures: 1, latencies: [220] },
+      "b:c": { successes: 1, failures: 0, latencies: [100] },
+      "c:d": { successes: 1, failures: 0, latencies: [100] },
+    })
+  })
+
+  it("resets the anchor on spaces so transitions do not cross word boundaries", () => {
+    const metrics = extractBigramMetrics(
+      [
+        makeStroke("a", true, 100, 0, 0),
+        makeStroke("b", true, 200, 0, 1),
+        makeStroke("x", false, 260, 0, 2),
+        makeStroke(" ", true, 320, 0, 2),
+        makeStroke("c", true, 420, 1, 0),
+        makeStroke("d", true, 520, 1, 1),
+      ],
+      "ab cd",
+    )
+
+    expect(metrics).toEqual({
+      "a:b": { successes: 1, failures: 0, latencies: [100] },
+      "c:d": { successes: 1, failures: 0, latencies: [100] },
+    })
+  })
+
+  it("re-arms failure attribution after a correct input advances to the next occurrence", () => {
+    const metrics = extractBigramMetrics(
+      [
+        makeStroke("a", true, 100, 0, 0),
+        makeStroke("v", false, 180, 0, 1),
+        makeStroke("b", true, 240, 0, 1),
+        makeStroke("a", true, 340, 0, 2),
+        makeStroke("z", false, 420, 0, 3),
+        makeStroke("b", true, 500, 0, 3),
+      ],
+      "abab",
+    )
+
+    expect(metrics).toEqual({
+      "a:b": { successes: 2, failures: 2, latencies: [140, 160] },
+      "b:a": { successes: 1, failures: 0, latencies: [100] },
+    })
+  })
+})
+
+describe("computeTransitionScore", () => {
+  it("reports true success rate from cumulative attempts while keeping decayed accuracy for scoring", () => {
+    const stat: BigramStat = {
+      id: 1,
+      fromKey: "l",
+      toKey: "e",
+      bigram: "l:e",
+      totalAttempts: 4,
+      correctAttempts: 4,
+      ewmaLatency: 200,
+      bestLatency: 180,
+      decayedCorrect: 3.8,
+      decayedErrors: 0.05,
+      lastUpdated: 1,
+    }
+
+    const result = computeTransitionScore(stat)
+
+    expect(result.successRate).toBe(1)
+    expect(result.correctAttempts).toBe(4)
+    expect(result.samples).toBe(4)
+    expect(result.accuracyScore).toBeCloseTo(3.8 / 3.85)
   })
 })
