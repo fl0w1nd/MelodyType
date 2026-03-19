@@ -155,7 +155,7 @@ export default function SettingsPage() {
                 const val = Array.isArray(v) ? v[0] : v
                 void setAppSetting("dailyGoalMinutes", val)
               }}
-              min={5}
+              min={0}
               max={120}
               step={5}
             />
