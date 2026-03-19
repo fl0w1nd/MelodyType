@@ -170,7 +170,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
             Dashboard
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Track your typing journey
+            {sessions.length > 0 ? "Track your typing journey" : "Start practicing to see your progress"}
           </p>
         </div>
         {stats.recentTrend && (

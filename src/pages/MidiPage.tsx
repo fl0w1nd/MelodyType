@@ -476,10 +476,10 @@ export default function MidiPage() {
                   <Upload className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium text-foreground/80">
-                  Drop or click to upload
+                  Upload your MIDI files
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  .mid / .midi
+                <p className="text-xs text-muted-foreground mt-1 max-w-[180px] text-center">
+                  Drop .mid files here or click to browse. Your files play alongside presets.
                 </p>
               </button>
             ) : (
