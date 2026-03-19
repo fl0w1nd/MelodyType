@@ -1,14 +1,12 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import { Brain, Clock, Quote } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
 import { StatsOverview } from "@/components/dashboard/StatsOverview"
 import { WpmChart, AccuracyChart } from "@/components/dashboard/WpmChart"
 import { KeyboardHeatmap } from "@/components/dashboard/KeyboardHeatmap"
-import { TransitionHeatmap } from "@/components/dashboard/TransitionHeatmap"
 import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
@@ -41,8 +39,8 @@ export default function DashboardPage() {
   const today = formatLocalDateKey()
   const todayGoal = dailyGoals.find((goal) => goal.date === today)
 
-  const [heatmapMode, setHeatmapMode] = useState<"errors" | "speed">("errors")
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [bigramScores, setBigramScores] = useState<BigramScore[]>([])
 
   const bigramStatsVersion = useLiveQuery(
@@ -59,6 +57,53 @@ export default function DashboardPage() {
     })()
   }, [bigramStatsVersion])
 
+  const getDefaultKey = useCallback(
+    (mode: DashboardMode) => {
+      const modeSessions = sessions.filter((s) => s.mode === mode)
+      if (modeSessions.length === 0) return null
+      const keyHits = new Map<string, number>()
+      for (const session of modeSessions) {
+        for (const stroke of session.keystrokes) {
+          const k = stroke.key.toLowerCase()
+          if (k.length === 1 && k >= "a" && k <= "z") {
+            keyHits.set(k, (keyHits.get(k) ?? 0) + 1)
+          }
+        }
+      }
+      if (keyHits.size === 0) return null
+      let maxKey = ""
+      let maxHits = 0
+      for (const [key, hits] of keyHits) {
+        if (hits > maxHits) {
+          maxHits = hits
+          maxKey = key
+        }
+      }
+      return maxKey || null
+    },
+    [sessions],
+  )
+
+  useEffect(() => {
+    if (selectedKey === null) {
+      const def = getDefaultKey(selectedMode)
+      if (def) setSelectedKey(def)
+    }
+  }, [selectedKey, selectedMode, getDefaultKey])
+
+  const handleModeChange = useCallback(
+    (value: string) => {
+      const mode = value as DashboardMode
+      setSelectedMode(mode)
+      setSelectedKey(getDefaultKey(mode))
+    },
+    [getDefaultKey],
+  )
+
+  const handleKeySelect = useCallback((key: string) => {
+    setSelectedKey(key)
+  }, [])
+
   return (
     <div className="flex flex-col gap-6">
       <StatsOverview sessions={sessions} dailyGoals={dailyGoals} />
@@ -68,10 +113,7 @@ export default function DashboardPage() {
         <DailyGoalRing todayGoal={todayGoal} />
       </div>
 
-      <Tabs
-        value={selectedMode}
-        onValueChange={(value) => setSelectedMode(value as DashboardMode)}
-      >
+      <Tabs value={selectedMode} onValueChange={handleModeChange}>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -104,36 +146,17 @@ export default function DashboardPage() {
               <AccuracyChart sessions={sessions.filter((s) => s.mode === mode)} />
             </div>
 
-            <div>
-              <div className="flex gap-1 mb-3">
-                <Button
-                  variant={heatmapMode === "errors" ? "default" : "ghost"}
-                  size="sm"
-                  className="text-xs h-7 rounded-lg"
-                  onClick={() => setHeatmapMode("errors")}
-                >
-                  Error Rate
-                </Button>
-                <Button
-                  variant={heatmapMode === "speed" ? "default" : "ghost"}
-                  size="sm"
-                  className="text-xs h-7 rounded-lg"
-                  onClick={() => setHeatmapMode("speed")}
-                >
-                  Frequency
-                </Button>
-              </div>
-              <KeyboardHeatmap
+            <KeyboardHeatmap
+              sessions={sessions.filter((s) => s.mode === mode)}
+              selectedKey={selectedKey}
+              onKeySelect={handleKeySelect}
+              bigramScores={mode === "adaptive" ? bigramScores : undefined}
+            >
+              <KeyDetailPanel
                 sessions={sessions.filter((s) => s.mode === mode)}
-                mode={heatmapMode}
+                selectedKey={selectedKey}
               />
-            </div>
-
-            {mode === "adaptive" && bigramScores.length > 0 && (
-              <TransitionHeatmap bigramScores={bigramScores} />
-            )}
-
-            <KeyDetailPanel sessions={sessions.filter((s) => s.mode === mode)} />
+            </KeyboardHeatmap>
 
             <SessionHistory sessions={sessions.filter((s) => s.mode === mode)} />
           </TabsContent>
