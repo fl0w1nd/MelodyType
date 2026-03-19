@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom"
-import { Keyboard, BarChart3, Music, Settings } from "lucide-react"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { Keyboard, BarChart3, Music, Settings, BookOpen, Github } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
 import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/", icon: Keyboard, label: "Practice" },
   { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
   { to: "/midi", icon: Music, label: "MIDI" },
+  { to: "/docs", icon: BookOpen, label: "Docs" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ]
 
@@ -67,6 +68,24 @@ export function AppLayout() {
                   )}
                 </NavLink>
               ))}
+
+              <div className="w-px h-6 bg-border/40 mx-1" />
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <a
+                      href="https://github.com/fl0w1nd/MelodyType"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/60"
+                    />
+                  }
+                >
+                  <Github className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">GitHub Repository</TooltipContent>
+              </Tooltip>
             </nav>
           </div>
         </header>

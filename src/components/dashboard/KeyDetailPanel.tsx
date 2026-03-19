@@ -102,7 +102,7 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                 {selected.successPresses}
               </div>
               <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-                Success Presses
+                Success
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[200px] text-center">
@@ -128,11 +128,11 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                 {selected.falsePresses}
               </div>
               <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-                False-presses
+                False
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-center">
-              Times a different key was pressed when this key was the expected target — indicates others struggle with this key position
+              Times you failed to press this key correctly on the first attempt when it was expected
             </TooltipContent>
           </Tooltip>
           <Tooltip>
