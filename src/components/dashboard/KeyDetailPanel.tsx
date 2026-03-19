@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -95,38 +96,58 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <div className="rounded-xl bg-secondary/30 p-3 text-center">
-            <div className="text-base font-mono font-bold tabular-nums">
-              {selected.successPresses}
-            </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Success Presses
-            </div>
-          </div>
-          <div className="rounded-xl bg-secondary/30 p-3 text-center">
-            <div className="text-base font-mono font-bold tabular-nums text-destructive">
-              {selected.misPresses}
-            </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Mis-presses
-            </div>
-          </div>
-          <div className="rounded-xl bg-secondary/30 p-3 text-center">
-            <div className="text-base font-mono font-bold tabular-nums text-amber-600 dark:text-amber-400">
-              {selected.falsePresses}
-            </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              False-presses
-            </div>
-          </div>
-          <div className="rounded-xl bg-secondary/30 p-3 text-center">
-            <div className="text-base font-mono font-bold tabular-nums">
-              {selected.keyAccuracy == null ? "—" : `${Math.round(selected.keyAccuracy * 100)}%`}
-            </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
-              Key Accuracy
-            </div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-3 text-center" />}>
+              <div className="text-base font-mono font-bold tabular-nums">
+                {selected.successPresses}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                Success Presses
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[200px] text-center">
+              Times this key was correctly pressed when it was the expected target
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-3 text-center" />}>
+              <div className="text-base font-mono font-bold tabular-nums text-destructive">
+                {selected.misPresses}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                Mis-presses
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[200px] text-center">
+              Times this key was physically pressed when a different key was expected — indicates you hit the wrong key
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-3 text-center" />}>
+              <div className="text-base font-mono font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                {selected.falsePresses}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                False-presses
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-center">
+              Times a different key was pressed when this key was the expected target — indicates others struggle with this key position
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-3 text-center" />}>
+              <div className="text-base font-mono font-bold tabular-nums">
+                {selected.keyAccuracy == null ? "—" : `${Math.round(selected.keyAccuracy * 100)}%`}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                Key Accuracy
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[200px] text-center">
+              Ratio of successful presses to total target occurrences for this key
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="space-y-1.5">
