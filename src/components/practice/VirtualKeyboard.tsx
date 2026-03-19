@@ -68,32 +68,34 @@ function VirtualKeyboardInner({
   }, [keyConfidences])
 
   useEffect(() => {
-    const clearPressedKeys = () => {
-      setPressedKeys(new Set())
-    }
     const onDown = (e: KeyboardEvent) => {
-      setPressedKeys((prev) => new Set(prev).add(e.key.toLowerCase()))
-    }
-    const onUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
       setPressedKeys((prev) => {
+        if (prev.has(key)) return prev
         const next = new Set(prev)
-        next.delete(e.key.toLowerCase())
+        next.add(key)
         return next
       })
     }
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        clearPressedKeys()
-      }
+    const onUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      setPressedKeys((prev) => {
+        if (!prev.has(key)) return prev
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
     }
+    const clearAll = () => setPressedKeys(new Set())
+    const onVisibilityChange = () => { if (document.hidden) clearAll() }
     window.addEventListener("keydown", onDown)
     window.addEventListener("keyup", onUp)
-    window.addEventListener("blur", clearPressedKeys)
+    window.addEventListener("blur", clearAll)
     document.addEventListener("visibilitychange", onVisibilityChange)
     return () => {
       window.removeEventListener("keydown", onDown)
       window.removeEventListener("keyup", onUp)
-      window.removeEventListener("blur", clearPressedKeys)
+      window.removeEventListener("blur", clearAll)
       document.removeEventListener("visibilitychange", onVisibilityChange)
     }
   }, [])
