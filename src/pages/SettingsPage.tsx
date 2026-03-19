@@ -7,16 +7,12 @@ import {
   Trash2,
   RotateCcw,
   Database,
-  Monitor,
   Info,
   Check,
   AlertTriangle,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Slider } from "@/components/ui/slider"
 import {
   Dialog,
   DialogContent,
@@ -27,7 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { db, exportAllData, importAllData } from "@/lib/db"
-import { resetAppSettings, setAppSetting, useAppSetting } from "@/lib/settings"
+import { resetAppSettings, setAppSetting } from "@/lib/settings"
 import { useMidi } from "@/engine/midi/MidiContext"
 import {
   INITIAL_UNLOCK_COUNT,
@@ -45,9 +41,6 @@ export default function SettingsPage() {
   const keyStatCount = useLiveQuery(() => db.keyStats.count()) ?? 0
   const bigramStatCount = useLiveQuery(() => db.bigramStats.count()) ?? 0
   const midiFileCount = useLiveQuery(() => db.midiFiles.count()) ?? 0
-
-  const showKeyboard = useAppSetting("showKeyboard")
-  const dailyGoalMinutes = useAppSetting("dailyGoalMinutes")
 
   const midi = useMidi()
 
@@ -113,56 +106,6 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-      {/* Display Settings */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Monitor className="h-4 w-4 text-primary" />
-            Display
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Virtual Keyboard</div>
-              <div className="text-xs text-muted-foreground">
-                Show keyboard during practice
-              </div>
-            </div>
-            <Switch
-              checked={showKeyboard}
-              onCheckedChange={(value) => void setAppSetting("showKeyboard", value)}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Daily Goal</div>
-                <div className="text-xs text-muted-foreground">
-                  Target practice minutes per day
-                </div>
-              </div>
-              <Badge variant="secondary" className="font-mono text-xs">
-                {dailyGoalMinutes} min
-              </Badge>
-            </div>
-            <Slider
-              value={[dailyGoalMinutes]}
-              onValueChange={(v) => {
-                const val = Array.isArray(v) ? v[0] : v
-                void setAppSetting("dailyGoalMinutes", val)
-              }}
-              min={0}
-              max={120}
-              step={5}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Data Management */}
       <Card>
         <CardHeader className="pb-4">
