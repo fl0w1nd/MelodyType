@@ -21,7 +21,7 @@ export function AppLayout() {
       <div className="min-h-screen flex flex-col bg-background relative">
         <BackgroundDecor />
 
-        <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <header role="banner" className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
             <NavLink to="/" className="flex items-center gap-2.5 group">
               <img
@@ -34,7 +34,7 @@ export function AppLayout() {
               </span>
             </NavLink>
 
-            <nav className="flex items-center gap-1">
+            <nav aria-label="Main navigation" className="flex items-center gap-1">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -88,7 +88,7 @@ export function AppLayout() {
 
         {showFloatingPlayer && <MidiFloatingPlayer />}
 
-        <footer className="border-t border-border/40 py-4">
+        <footer role="contentinfo" className="border-t border-border/40 py-4">
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">
             <div className="h-px flex-1 max-w-16 bg-gradient-to-r from-transparent to-border/40" />
             <p className="text-xs text-muted-foreground/60 font-medium tracking-wide">

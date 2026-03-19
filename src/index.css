@@ -141,6 +141,9 @@
   html {
     @apply font-sans scroll-smooth;
   }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring/70;
+  }
 }
 
 @layer utilities {

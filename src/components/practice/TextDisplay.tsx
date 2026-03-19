@@ -42,14 +42,14 @@ function TextDisplayInner({
 
   if (words.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground">
+      <div className="flex items-center justify-center h-40 text-muted-foreground" aria-live="polite">
         Select a mode to start practicing...
       </div>
     )
   }
 
   return (
-    <div className="relative rounded-xl bg-card/60 border border-border/50 max-h-48 sm:max-h-56 overflow-hidden flex flex-col">
+    <div role="region" aria-label="Typing text area" className="relative rounded-xl bg-card/60 border border-border/50 max-h-48 sm:max-h-56 overflow-hidden flex flex-col">
       <div className="shrink-0 h-5 sm:h-6" />
 
       <div

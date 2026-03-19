@@ -113,6 +113,8 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
         <div
           className="grid flex-1 gap-[5px]"
           style={{ gridTemplateColumns: `repeat(${grid.length}, 1fr)` }}
+          role="img"
+          aria-label="Activity heatmap showing practice sessions over time"
         >
           {grid.map((week, wi) => (
             <div key={wi} className="grid gap-[5px]" style={{ gridTemplateRows: "repeat(7, 1fr)" }}>

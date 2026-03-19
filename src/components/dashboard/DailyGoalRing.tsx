@@ -173,6 +173,11 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
+            role="slider"
+            aria-label="Daily practice goal in minutes"
+            aria-valuemin={0}
+            aria-valuemax={120}
+            aria-valuenow={target}
           >
             {/* Graduation ticks */}
             {ticks.map((t, i) => (

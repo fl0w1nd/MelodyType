@@ -127,6 +127,8 @@ export function ResultsPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
       className="w-full"
+      role="status"
+      aria-live="polite"
     >
       <Card className="overflow-hidden border-primary/20">
         <div className="bg-gradient-to-br from-primary/5 via-transparent to-accent/5 p-1">
@@ -448,6 +450,7 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
       className="flex flex-col items-center gap-1 rounded-lg bg-secondary/50 p-4"
+      aria-label={label}
     >
       <span className="text-muted-foreground/60">{icon}</span>
       <span className="text-2xl font-mono font-bold tabular-nums text-foreground">

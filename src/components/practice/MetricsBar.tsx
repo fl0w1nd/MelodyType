@@ -29,7 +29,7 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
   const isCritical = remaining != null && isStarted && remaining <= 5
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col gap-0" role="status" aria-live="polite">
       <div className="flex items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
         <MetricItem
           icon={<Gauge className="h-4 w-4" />}
@@ -97,7 +97,7 @@ function TimeProgressBar({
       : "bg-primary"
 
   return (
-    <div className="w-full h-1 bg-secondary/60 rounded-b-xl overflow-hidden">
+    <div className="w-full h-1 bg-secondary/60 rounded-b-xl overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(width)} aria-label="Time remaining">
       <motion.div
         className={`h-full rounded-b-xl transition-colors duration-300 ${barColor}`}
         initial={{ width: "100%" }}
