@@ -105,7 +105,8 @@ function WpmChartInner({
           <RechartsTooltip
             contentStyle={tooltipStyle}
             labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-            formatter={(value) => [`${value} wpm`, "Speed"]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipLabel ?? ""}
+            formatter={(value) => [`${Number(value).toFixed(1)} wpm`, "Speed"]}
           />
           <Area
             type="monotone"
@@ -175,7 +176,8 @@ function AccuracyChartInner({ data }: { data: AggregatedDataPoint[] }) {
           <RechartsTooltip
             contentStyle={tooltipStyle}
             labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-            formatter={(value) => [`${value}%`, "Accuracy"]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipLabel ?? ""}
+            formatter={(value) => [`${Number(value).toFixed(2)}%`, "Accuracy"]}
           />
           <Line
             type="monotone"

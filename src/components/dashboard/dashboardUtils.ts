@@ -26,10 +26,27 @@ export function filterSessionsByRange(sessions: TypingSession[], range: TimeRang
 
 export interface AggregatedDataPoint {
   label: string
+  tooltipLabel: string
   wpm: number
   accuracy: number
   sessions: number
   date: Date
+}
+
+function formatRecentAxisLabel(date: Date): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function formatRecentTooltipLabel(date: Date): string {
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 export function aggregateSessionsByRange(
@@ -38,12 +55,10 @@ export function aggregateSessionsByRange(
 ): AggregatedDataPoint[] {
   if (range === "recent") {
     return sessions.slice(-50).map((s) => ({
-      label: new Date(s.timestamp).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      }),
-      wpm: Math.round(s.wpm),
-      accuracy: Math.round(s.accuracy * 10) / 10,
+      label: formatRecentAxisLabel(new Date(s.timestamp)),
+      tooltipLabel: formatRecentTooltipLabel(new Date(s.timestamp)),
+      wpm: Math.round(s.wpm * 10) / 10,
+      accuracy: Math.round(s.accuracy * 100) / 100,
       sessions: 1,
       date: new Date(s.timestamp),
     }))
@@ -79,11 +94,11 @@ export function aggregateSessionsByRange(
     const avgAcc = sessions.reduce((sum, s) => sum + s.accuracy, 0) / sessions.length
     return {
       label,
-      wpm: Math.round(avgWpm),
-      accuracy: Math.round(avgAcc * 10) / 10,
+      tooltipLabel: label,
+      wpm: Math.round(avgWpm * 10) / 10,
+      accuracy: Math.round(avgAcc * 100) / 100,
       sessions: sessions.length,
       date: new Date(Math.min(...sessions.map((s) => s.timestamp))),
     }
   })
 }
-
