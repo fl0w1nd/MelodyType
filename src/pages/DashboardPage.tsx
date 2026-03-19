@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import { Brain, Clock, Quote } from "lucide-react"
@@ -42,7 +42,7 @@ export default function DashboardPage() {
   )
 
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null)
   const bigramScores = useLiveQuery(() => loadAllBigramScores(), [], [])
 
   useEffect(() => {
@@ -76,24 +76,21 @@ export default function DashboardPage() {
     [sessions],
   )
 
-  useEffect(() => {
-    if (selectedKey === null) {
-      const def = getDefaultKey(selectedMode)
-      if (def) setSelectedKey(def)
-    }
-  }, [selectedKey, selectedMode, getDefaultKey])
+  const selectedKey = useMemo(
+    () => selectedKeyOverride ?? getDefaultKey(selectedMode),
+    [selectedKeyOverride, getDefaultKey, selectedMode],
+  )
 
   const handleModeChange = useCallback(
     (value: string) => {
-      const mode = value as DashboardMode
-      setSelectedMode(mode)
-      setSelectedKey(getDefaultKey(mode))
+      setSelectedMode(value as DashboardMode)
+      setSelectedKeyOverride(null)
     },
-    [getDefaultKey],
+    [],
   )
 
   const handleKeySelect = useCallback((key: string) => {
-    setSelectedKey(key)
+    setSelectedKeyOverride(key)
   }, [])
 
   return (

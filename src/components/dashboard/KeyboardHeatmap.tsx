@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Flame } from "lucide-react"
 import {
@@ -87,14 +87,21 @@ export function KeyboardHeatmap({
     setSvgSize({ width: containerRect.width, height: containerRect.height })
   }, [])
 
-  useLayoutEffect(() => {
-    measurePositions()
-  }, [measurePositions, effectiveTab])
-
   useEffect(() => {
+    const container = keyboardAreaRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver(() => {
+      measurePositions()
+    })
+    observer.observe(container)
+
     window.addEventListener("resize", measurePositions)
-    return () => window.removeEventListener("resize", measurePositions)
-  }, [measurePositions])
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", measurePositions)
+    }
+  }, [measurePositions, effectiveTab])
 
   const setKeyRef = useCallback(
     (key: string) => (el: HTMLDivElement | null) => {

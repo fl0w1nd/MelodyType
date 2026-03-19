@@ -28,8 +28,11 @@ import {
 import { useMidi } from "@/engine/midi/MidiContext"
 import { presetList } from "@/engine/midi/presets"
 import { db } from "@/lib/db"
+import type { MidiFile } from "@/lib/db"
 import type { SelectedMidiSource } from "@/lib/settings"
 import { cn } from "@/lib/utils"
+
+const EMPTY_MIDI_FILES: MidiFile[] = []
 
 const loopModeIcons = {
   loop: Repeat,
@@ -65,7 +68,7 @@ export function MidiFloatingPlayer() {
   } = useMidi()
   const [isExpanded, setIsExpanded] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
-  const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
+  const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? EMPTY_MIDI_FILES
 
   const getSourceName = useCallback(
     (source: SelectedMidiSource | null) => {

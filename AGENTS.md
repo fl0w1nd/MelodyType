@@ -10,11 +10,11 @@
 - `pnpm build` — runs `tsc -b && vite build` (production build to `dist/`)
 - `pnpm preview` — serves the production build locally
 
-### Lint / Type-check / Build
+### Lint / Type-check / Test / Build
 
-- `pnpm lint` — ESLint. Note: the codebase has pre-existing lint errors (e.g. `react-refresh/only-export-components`, `react-hooks/set-state-in-effect`). These are not regressions.
+- `pnpm lint` — ESLint. The codebase should be lint-clean; fix any errors you introduce.
 - `tsc -b` — TypeScript type-check (part of `pnpm build`)
-- No automated test suite exists (no `test` script in `package.json`).
+- `npx vitest run` — runs the Vitest test suite (tests live in `tests/`).
 
 ### Key caveats
 

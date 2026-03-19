@@ -53,6 +53,8 @@ import type { SynthType } from "@/engine/midi/types"
 import type { SelectedMidiSource } from "@/lib/settings"
 import { cn } from "@/lib/utils"
 
+const EMPTY_MIDI_FILES: MidiFile[] = []
+
 const synthOptions: { value: SynthType; label: string; icon: string }[] = [
   { value: "piano", label: "Piano", icon: "🎹" },
   { value: "strings", label: "Strings", icon: "🎻" },
@@ -80,7 +82,7 @@ function isActivationKey(key: string) {
 }
 
 export default function MidiPage() {
-  const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
+  const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? EMPTY_MIDI_FILES
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [testNotes, setTestNotes] = useState<string[]>([])
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
