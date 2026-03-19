@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import {
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
   loadAdaptiveState,
+  ensureAdaptiveAccuracyStatsBackfilled,
   LETTER_FREQUENCY_ORDER,
   getAdaptiveKeyToneClass,
   getAdaptiveKeyBarClass,
@@ -25,6 +26,10 @@ import {
 } from "@/engine/typing/adaptiveEngine"
 
 export function AdaptiveProgressCard() {
+  useEffect(() => {
+    void ensureAdaptiveAccuracyStatsBackfilled()
+  }, [])
+
   const adaptiveState = useLiveQuery(() => loadAdaptiveState(), [], null)
 
   const stats = useMemo(() => {

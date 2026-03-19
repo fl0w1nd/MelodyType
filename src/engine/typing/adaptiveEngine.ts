@@ -533,8 +533,9 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
   await adaptiveAccuracyBackfillPromise
 }
 
+export { ensureAdaptiveAccuracyStatsBackfilled }
+
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
-  await ensureAdaptiveAccuracyStatsBackfilled()
 
   const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
     db.keyStats.toArray(),
