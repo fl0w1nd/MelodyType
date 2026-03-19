@@ -69,6 +69,7 @@ export function KeyboardHeatmap({
   const keyElRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [keyPositions, setKeyPositions] = useState<Record<string, { x: number; y: number }>>({})
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 })
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const measurePositions = useCallback(() => {
     const container = keyboardAreaRef.current
@@ -91,15 +92,19 @@ export function KeyboardHeatmap({
     const container = keyboardAreaRef.current
     if (!container) return
 
-    const observer = new ResizeObserver(() => {
-      measurePositions()
-    })
+    const debouncedMeasure = () => {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+      resizeTimerRef.current = setTimeout(measurePositions, 100)
+    }
+
+    const observer = new ResizeObserver(debouncedMeasure)
     observer.observe(container)
 
-    window.addEventListener("resize", measurePositions)
+    window.addEventListener("resize", debouncedMeasure)
     return () => {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
       observer.disconnect()
-      window.removeEventListener("resize", measurePositions)
+      window.removeEventListener("resize", debouncedMeasure)
     }
   }, [measurePositions, effectiveTab])
 
