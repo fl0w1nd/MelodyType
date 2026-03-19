@@ -1,14 +1,13 @@
 import { useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  ScatterChart,
-  Scatter,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -37,6 +36,10 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
   const keyAccuracyValue = selected.keyAccuracy == null
     ? undefined
     : selected.keyAccuracy * 100
+  const chartData = selected.recentSamples.map((sample) => ({
+    ...sample,
+    tooltipLabel: `Session ${sample.session}`,
+  }))
 
   return (
     <AnimatePresence mode="wait">
@@ -140,7 +143,7 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
               Key accuracy per session (recent {selected.recentSamples.length})
             </div>
             <ResponsiveContainer width="100%" height={160}>
-              <ScatterChart margin={{ top: 4, right: 6, bottom: 16, left: 2 }}>
+              <LineChart data={chartData} margin={{ top: 4, right: 6, bottom: 16, left: 2 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                 <XAxis
                   dataKey="session"
@@ -157,7 +160,7 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                   axisLine={false}
                   width={24}
                 />
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{
                     borderRadius: "12px",
                     border: "1px solid var(--border)",
@@ -165,23 +168,29 @@ export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
                     fontSize: "11px",
                     padding: "6px 10px",
                   }}
-                  formatter={(value) => [`${value}%`, "Key Accuracy"]}
+                  labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipLabel ?? ""}
+                  formatter={(value) => [`${Number(value).toFixed(0)}%`, "Key Accuracy"]}
                 />
-                <Scatter data={selected.recentSamples}>
-                  {selected.recentSamples.map((entry, index) => (
-                    <Cell
-                      key={index}
-                      fill={
-                        entry.accuracy >= 90
-                          ? "var(--chart-2)"
-                          : entry.accuracy >= 70
-                            ? "var(--chart-1)"
-                            : "var(--destructive)"
-                      }
-                    />
-                  ))}
-                </Scatter>
-              </ScatterChart>
+                <Line
+                  type="monotone"
+                  dataKey="accuracy"
+                  stroke="var(--chart-2)"
+                  strokeWidth={2.5}
+                  dot={{
+                    r: 4,
+                    fill: "var(--chart-2)",
+                    stroke: "var(--card)",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{
+                    r: 5,
+                    fill: "var(--chart-2)",
+                    stroke: "var(--card)",
+                    strokeWidth: 2,
+                  }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}
