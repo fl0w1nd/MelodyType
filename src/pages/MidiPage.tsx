@@ -75,6 +75,10 @@ interface PendingUpload {
   frameCount: number
 }
 
+function isActivationKey(key: string) {
+  return key === "Enter" || key === " "
+}
+
 export default function MidiPage() {
   const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -361,9 +365,17 @@ export default function MidiPage() {
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:theme(color.border)_transparent] pr-1">
             <div className="flex flex-col gap-2">
               {presetList.map((preset) => (
-                <button
+                <div
                   key={preset.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectPreset(preset.id)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return
+                    if (!isActivationKey(event.key)) return
+                    event.preventDefault()
+                    handleSelectPreset(preset.id)
+                  }}
                   className={cn(
                     "group relative flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-all duration-150",
                     selectedPreset === preset.id
@@ -417,7 +429,7 @@ export default function MidiPage() {
                       <Badge className="text-[10px] px-1.5 py-0">Active</Badge>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
