@@ -6,14 +6,14 @@ import {
   Trash2,
   Play,
   Volume2,
-  Sparkles,
   FileAudio,
   Repeat,
   Shuffle,
   ArrowRight,
+  Pencil,
+  Music2,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
@@ -25,7 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { db } from "@/lib/db"
 import type { MidiFile } from "@/lib/db"
 import { parseMidiToFrames, getMidiInfo } from "@/engine/midi/midiParser"
@@ -48,10 +57,21 @@ const loopOptions = [
   { value: "random" as const, label: "Random", icon: Shuffle },
 ]
 
+interface PendingUpload {
+  name: string
+  description: string
+  buffer: ArrayBuffer
+  frameCount: number
+}
+
 export default function MidiPage() {
   const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? []
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [testNotes, setTestNotes] = useState<string[]>([])
+  const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
+  const [editingFile, setEditingFile] = useState<MidiFile | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editDescription, setEditDescription] = useState("")
   const {
     config,
     updateConfig,
@@ -69,7 +89,7 @@ export default function MidiPage() {
   const selectedPreset = selectedSource?.type === "preset" ? selectedSource.id : null
   const selectedFile = selectedSource?.type === "file" ? selectedSource.id : null
 
-  const handleUpload = useCallback(
+  const handleFileSelected = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
@@ -78,13 +98,13 @@ export default function MidiPage() {
       try {
         const info = getMidiInfo(buffer)
         const frames = parseMidiToFrames(buffer)
+        const name = info.name !== "Untitled" ? info.name : file.name.replace(/\.mid$/i, "")
 
-        await db.midiFiles.add({
-          name: info.name !== "Untitled" ? info.name : file.name.replace(/\.mid$/i, ""),
-          data: buffer,
+        setPendingUpload({
+          name,
+          description: "",
+          buffer,
           frameCount: frames.length,
-          uploadedAt: Date.now(),
-          isPreset: false,
         })
       } catch (err) {
         console.error("Failed to parse MIDI file:", err)
@@ -94,6 +114,21 @@ export default function MidiPage() {
     },
     [],
   )
+
+  const handleConfirmUpload = useCallback(async () => {
+    if (!pendingUpload) return
+
+    await db.midiFiles.add({
+      name: pendingUpload.name,
+      description: pendingUpload.description || undefined,
+      data: pendingUpload.buffer,
+      frameCount: pendingUpload.frameCount,
+      uploadedAt: Date.now(),
+      isPreset: false,
+    })
+
+    setPendingUpload(null)
+  }, [pendingUpload])
 
   const handleDeleteFile = useCallback(async (id: number) => {
     await db.midiFiles.delete(id)
@@ -106,6 +141,21 @@ export default function MidiPage() {
       }
     }
   }, [resetMidiState, selectPreset, selectedSource])
+
+  const handleEditFile = useCallback((file: MidiFile) => {
+    setEditingFile(file)
+    setEditName(file.name)
+    setEditDescription(file.description ?? "")
+  }, [])
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingFile?.id) return
+    await db.midiFiles.update(editingFile.id, {
+      name: editName,
+      description: editDescription || undefined,
+    })
+    setEditingFile(null)
+  }, [editingFile, editName, editDescription])
 
   const handleSelectPreset = useCallback(
     async (presetId: string) => {
@@ -132,56 +182,51 @@ export default function MidiPage() {
   }, [getCurrentTestFrame, triggerNextFrame])
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Synth Settings */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Volume2 className="h-4 w-4 text-primary" />
-              Sound Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">MIDI Enabled</span>
-              <Switch
-                checked={config.isEnabled}
-                onCheckedChange={(v) => updateConfig({ isEnabled: v })}
-              />
-            </div>
+    <div className="flex flex-col gap-5 h-[calc(100vh-10rem)]">
+      {/* ── Top Control Bar ── */}
+      <div className="shrink-0 rounded-xl bg-card ring-1 ring-foreground/10 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          {/* Enable toggle */}
+          <div className="flex items-center gap-2.5">
+            <Music2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">MIDI</span>
+            <Switch
+              checked={config.isEnabled}
+              onCheckedChange={(v) => updateConfig({ isEnabled: v })}
+            />
+          </div>
 
-            <Separator />
+          <div className="h-6 w-px bg-border/60 hidden sm:block" />
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Instrument</label>
-              <Select
-                value={config.synthType}
-                onValueChange={(v) => changeSynth(v as SynthType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {synthOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <span className="flex items-center gap-2">
-                        <span>{opt.icon}</span>
-                        <span>{opt.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Instrument */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Instrument</label>
+            <Select
+              value={config.synthType}
+              onValueChange={(v) => changeSynth(v as SynthType)}
+            >
+              <SelectTrigger className="h-7 w-[130px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {synthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="flex items-center gap-1.5">
+                      <span>{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Volume</label>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {config.volume}dB
-                </span>
-              </div>
+          <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+          {/* Volume */}
+          <div className="flex items-center gap-2.5">
+            <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <div className="w-28 shrink-0">
               <Slider
                 value={[config.volume]}
                 onValueChange={(v) => changeVolume(Array.isArray(v) ? v[0] : v)}
@@ -190,189 +235,364 @@ export default function MidiPage() {
                 step={1}
               />
             </div>
+            <span className="text-[11px] text-muted-foreground font-mono w-9 text-right tabular-nums shrink-0">
+              {config.volume}dB
+            </span>
+          </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Playback Mode</label>
-              <div className="flex gap-2">
-                {loopOptions.map((opt) => (
-                  <Button
-                    key={opt.value}
-                    variant={
-                      config.loopMode === opt.value ? "default" : "outline"
-                    }
-                    size="sm"
-                    className="flex-1 gap-1.5 text-xs"
-                    onClick={() => updateConfig({ loopMode: opt.value })}
-                  >
-                    <opt.icon className="h-3.5 w-3.5" />
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+          <div className="h-6 w-px bg-border/60 hidden sm:block" />
 
-            <Separator />
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Test Play</label>
-                <Badge variant="secondary" className="text-xs font-mono">
-                  {testFrameInfo.total > 0 ? testFrameInfo.current + 1 : 0} / {testFrameInfo.total}
-                </Badge>
-              </div>
+          {/* Loop mode */}
+          <div className="flex items-center gap-1">
+            {loopOptions.map((opt) => (
               <Button
-                onClick={handleTestPlay}
-                variant="outline"
-                className="w-full gap-2"
-                disabled={testFrameInfo.total === 0}
+                key={opt.value}
+                variant={config.loopMode === opt.value ? "default" : "ghost"}
+                size="xs"
+                className="gap-1"
+                onClick={() => updateConfig({ loopMode: opt.value })}
               >
-                <Play className="h-4 w-4" />
-                Play Next Frame
+                <opt.icon className="h-3 w-3" />
+                {opt.label}
               </Button>
+            ))}
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Test play */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative">
               <AnimatePresence>
                 {testNotes.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, y: 5 }}
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="flex gap-1.5 justify-center flex-wrap"
+                    className="absolute bottom-full right-0 mb-2 flex gap-1 whitespace-nowrap"
                   >
                     {testNotes.map((n, i) => (
-                      <Badge key={i} className="font-mono text-xs">
+                      <Badge key={i} className="font-mono text-[10px] px-1.5 py-0">
                         {n}
                       </Badge>
                     ))}
                   </motion.div>
                 )}
               </AnimatePresence>
+              <Badge variant="secondary" className="text-[10px] font-mono tabular-nums">
+                {testFrameInfo.total > 0 ? testFrameInfo.current + 1 : 0}/{testFrameInfo.total}
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
+            <Button
+              onClick={handleTestPlay}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={testFrameInfo.total === 0}
+            >
+              <Play className="h-3 w-3" />
+              Test
+            </Button>
+          </div>
+        </div>
+      </div>
 
-        {/* Preset Melodies */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Melodies
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                Built-in Presets
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {presetList.map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => handleSelectPreset(preset.id)}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 text-left transition-all",
-                      selectedPreset === preset.id
-                        ? "border-primary/40 bg-primary/5 shadow-sm"
-                        : "border-border/60 hover:border-primary/20 hover:bg-secondary/30",
-                    )}
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Music className="h-4 w-4 text-primary" />
+      {/* ── Main Content: Tabbed Melody Browser ── */}
+      <Tabs defaultValue="presets" className="flex-1 min-h-0 flex flex-col">
+        <div className="shrink-0 flex items-center justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="presets">
+              <Music className="h-3.5 w-3.5" />
+              Presets
+            </TabsTrigger>
+            <TabsTrigger value="files">
+              <FileAudio className="h-3.5 w-3.5" />
+              Your Files
+              {userMidiFiles.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 leading-tight">
+                  {userMidiFiles.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload .mid
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".mid,.midi"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
+        </div>
+
+        {/* Presets Tab */}
+        <TabsContent value="presets" className="flex-1 min-h-0 mt-3">
+          <div className="h-full overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:theme(color.border)_transparent] pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {presetList.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleSelectPreset(preset.id)}
+                  className={cn(
+                    "group relative flex flex-col gap-2 rounded-xl border p-4 text-left transition-all duration-150",
+                    selectedPreset === preset.id
+                      ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border/60 hover:border-primary/25 hover:bg-card",
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                        selectedPreset === preset.id
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary",
+                      )}
+                    >
+                      <Music className="h-4 w-4" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate leading-tight">
                         {preset.name}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {preset.description}
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="mt-1 text-[10px]"
-                      >
-                        {preset.frameCount} frames
-                      </Badge>
                     </div>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                    {preset.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
+                      {preset.frameCount} frames
+                    </span>
+                    {selectedPreset === preset.id && (
+                      <Badge className="text-[10px] px-1.5 py-0">Active</Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
+          </div>
+        </TabsContent>
 
-            <Separator />
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Your MIDI Files
-                </h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  Upload .mid
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".mid,.midi"
-                  className="hidden"
-                  onChange={handleUpload}
-                />
+        {/* Your Files Tab */}
+        <TabsContent value="files" className="flex-1 min-h-0 mt-3">
+          {userMidiFiles.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center w-full h-full rounded-xl border-2 border-dashed border-border/50 hover:border-primary/30 hover:bg-card transition-colors cursor-pointer"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-3">
+                <Upload className="h-6 w-6 text-muted-foreground" />
               </div>
-
-              {userMidiFiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center rounded-lg border border-dashed border-border/60">
-                  <FileAudio className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No uploaded MIDI files yet
-                  </p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    Upload a .mid file to use your own melodies
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {userMidiFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg border p-3 transition-all cursor-pointer",
-                        selectedFile === file.id
-                          ? "border-primary/40 bg-primary/5"
-                          : "border-border/60 hover:border-primary/20",
-                      )}
-                      onClick={() => handleSelectFile(file)}
-                    >
-                      <FileAudio className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
+              <p className="text-sm font-medium text-foreground/80">
+                Drop or click to upload
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Supports .mid and .midi files
+              </p>
+            </button>
+          ) : (
+            <div className="h-full overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:theme(color.border)_transparent] pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {userMidiFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className={cn(
+                      "group relative flex flex-col gap-2 rounded-xl border p-4 transition-all duration-150 cursor-pointer",
+                      selectedFile === file.id
+                        ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border/60 hover:border-primary/25 hover:bg-card",
+                    )}
+                    onClick={() => handleSelectFile(file)}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                          selectedFile === file.id
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary",
+                        )}
+                      >
+                        <FileAudio className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate leading-tight">
                           {file.name}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {file.frameCount} frames &middot;{" "}
-                          {new Date(file.uploadedAt).toLocaleDateString()}
-                        </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (file.id) handleDeleteFile(file.id)
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {/* Actions — visible on hover */}
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditFile(file)
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (file.id) handleDeleteFile(file.id)
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {file.description && (
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                        {file.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
+                        {file.frameCount} frames · {new Date(file.uploadedAt).toLocaleDateString()}
+                      </span>
+                      {selectedFile === file.id && (
+                        <Badge className="text-[10px] px-1.5 py-0">Active</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Upload card */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/50 p-4 min-h-[100px] hover:border-primary/30 hover:bg-card transition-colors cursor-pointer"
+                >
+                  <Upload className="h-5 w-5 text-muted-foreground/50" />
+                  <span className="text-xs text-muted-foreground">Add more</span>
+                </button>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Upload Dialog ── */}
+      <Dialog
+        open={pendingUpload !== null}
+        onOpenChange={(open) => { if (!open) setPendingUpload(null) }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload MIDI File</DialogTitle>
+            <DialogDescription>
+              Edit the name and add a description before saving.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingUpload && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={pendingUpload.name}
+                  onChange={(e) =>
+                    setPendingUpload({ ...pendingUpload, name: e.target.value })
+                  }
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Description</label>
+                <textarea
+                  value={pendingUpload.description}
+                  onChange={(e) =>
+                    setPendingUpload({ ...pendingUpload, description: e.target.value })
+                  }
+                  placeholder="Optional description..."
+                  rows={2}
+                  className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <FileAudio className="h-3.5 w-3.5" />
+                <span>{pendingUpload.frameCount} frames detected</span>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={handleConfirmUpload}
+              disabled={!pendingUpload?.name.trim()}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Dialog ── */}
+      <Dialog
+        open={editingFile !== null}
+        onOpenChange={(open) => { if (!open) setEditingFile(null) }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit MIDI File</DialogTitle>
+            <DialogDescription>
+              Update the name and description.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Description</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Optional description..."
+                rows={2}
+                className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={!editName.trim()}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

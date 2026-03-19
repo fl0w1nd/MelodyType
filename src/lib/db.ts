@@ -52,6 +52,7 @@ export interface KeyStat {
 export interface MidiFile {
   id?: number
   name: string
+  description?: string
   data: ArrayBuffer
   frameCount: number
   uploadedAt: number
