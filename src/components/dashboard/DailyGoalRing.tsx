@@ -1,17 +1,29 @@
 import { useMemo } from "react"
 import { motion } from "framer-motion"
 import { CalendarCheck, Zap } from "lucide-react"
-import type { DailyGoal } from "@/lib/db"
+import type { DailyGoal, TypingSession } from "@/lib/db"
+import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 
 interface DailyGoalRingProps {
   todayGoal: DailyGoal | undefined
+  todaySessions: TypingSession[]
 }
 
-export function DailyGoalRing({ todayGoal }: DailyGoalRingProps) {
+export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) {
   const progress = useMemo(() => {
     if (!todayGoal) return 0
     return Math.min((todayGoal.completedMinutes / todayGoal.targetMinutes) * 100, 100)
   }, [todayGoal])
+
+  const averageAccuracy = useMemo(() => {
+    if (todaySessions.length === 0) return null
+    return (
+      todaySessions.reduce(
+        (sum, session) => sum + computeStoredSessionAccuracyMetrics(session).accuracy,
+        0,
+      ) / todaySessions.length
+    )
+  }, [todaySessions])
 
   const circumference = 2 * Math.PI * 42
   const offset = circumference - (progress / 100) * circumference
@@ -95,7 +107,7 @@ export function DailyGoalRing({ todayGoal }: DailyGoalRingProps) {
             },
             {
               label: "Avg Acc",
-              value: todayGoal ? `${todayGoal.avgAccuracy.toFixed(1)}%` : "—",
+              value: averageAccuracy != null ? `${averageAccuracy.toFixed(1)}%` : "—",
             },
           ].map((item) => (
             <div key={item.label} className="rounded-xl bg-secondary/30 p-2.5 text-center">

@@ -4,6 +4,7 @@ import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { generateWordText } from "@/engine/typing/wordLists"
 import { getRandomQuoteAsync, preloadQuotes } from "@/engine/typing/quoteLoader"
 import { generateAdaptiveText, generateReinforcementText } from "@/engine/typing/pseudoWords"
+import { computeWordAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 import type {
   KeystrokeEntry,
   PracticeModeConfig,
@@ -47,22 +48,11 @@ function computeMetricsForWords(
 ): TypingMetrics {
   const timeInMinutes = elapsedTime > 0 ? elapsedTime / 60 : 0
 
-  let typedChars = 0
-  let charsWithError = 0
-
-  for (const word of words) {
-    for (const char of word.chars) {
-      if (char.status !== "pending") {
-        typedChars++
-        if (char.hadError) charsWithError++
-      }
-    }
-  }
-
-  const correctChars = typedChars - charsWithError
+  const accuracyMetrics = computeWordAccuracyMetrics(words)
+  const correctChars = accuracyMetrics.correctChars
+  const typedChars = accuracyMetrics.totalChars
   const wpm = timeInMinutes > 0 ? correctChars / 5 / timeInMinutes : 0
   const rawWpm = timeInMinutes > 0 ? typedChars / 5 / timeInMinutes : 0
-  const accuracy = typedChars > 0 ? (correctChars / typedChars) * 100 : 100
 
   let consistency = 100
   if (keystrokeLog.length > 2) {
@@ -95,9 +85,9 @@ function computeMetricsForWords(
     wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
     rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
     melodyIntegrity,
-    accuracy: Number.isFinite(accuracy) ? Math.round(accuracy * 100) / 100 : 100,
+    accuracy: Math.round(accuracyMetrics.accuracy * 100) / 100,
     correctChars,
-    incorrectChars: charsWithError,
+    incorrectChars: accuracyMetrics.incorrectChars,
     totalChars: typedChars,
     elapsedTime,
     consistency: Number.isFinite(consistency) ? Math.round(consistency) : 100,

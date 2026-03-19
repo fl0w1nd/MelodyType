@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { History, Gauge, Target, Clock } from "lucide-react"
 import type { TypingSession } from "@/lib/db"
+import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 
 interface SessionHistoryProps {
   sessions: TypingSession[]
@@ -40,7 +41,9 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
         ) : (
           <ScrollArea className="h-80">
             <div className="space-y-1.5 pr-2">
-              {recent.map((session, i) => (
+              {recent.map((session, i) => {
+                const accuracy = computeStoredSessionAccuracyMetrics(session).accuracy
+                return (
                 <motion.div
                   key={session.id}
                   initial={{ opacity: 0, x: -8 }}
@@ -75,7 +78,7 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
                     <div className="flex items-center gap-1">
                       <Target className="h-3 w-3 text-emerald-500" />
                       <span className="font-mono font-semibold tabular-nums">
-                        {session.accuracy.toFixed(1)}%
+                        {accuracy.toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
@@ -84,7 +87,8 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                )
+              })}
             </div>
           </ScrollArea>
         )}

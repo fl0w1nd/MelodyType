@@ -6,6 +6,7 @@ import {
   getTimeGrade,
   type LevelRecord,
 } from "@/engine/typing/timeLevels"
+import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 
 export function parsePracticeModeConfig(modeConfig: string): PracticeModeConfig | null {
   try {
@@ -42,16 +43,17 @@ export function buildTimeLevelRecords(
     const level = levelId ? getLevelById(levelId) : null
     if (!levelId || !level) continue
 
-    const sessionGrade = getTimeGrade(level, session.wpm, session.accuracy)
+    const accuracy = computeStoredSessionAccuracyMetrics(session).accuracy
+    const sessionGrade = getTimeGrade(level, session.wpm, accuracy)
 
     if (!map[levelId]) {
       map[levelId] = {
         attempts: 0,
         bestWpm: session.wpm,
-        bestAccuracy: session.accuracy,
+        bestAccuracy: accuracy,
         bestGrade: sessionGrade,
         lastWpm: session.wpm,
-        lastAccuracy: session.accuracy,
+        lastAccuracy: accuracy,
         lastGrade: sessionGrade,
         lastPlayedAt: session.timestamp,
       }
@@ -60,13 +62,13 @@ export function buildTimeLevelRecords(
     const record = map[levelId]
     record.attempts += 1
     record.lastWpm = session.wpm
-    record.lastAccuracy = session.accuracy
+    record.lastAccuracy = accuracy
     record.lastGrade = sessionGrade
     record.lastPlayedAt = session.timestamp
 
-    if (shouldReplaceBest(sessionGrade, session.wpm, session.accuracy, record)) {
+    if (shouldReplaceBest(sessionGrade, session.wpm, accuracy, record)) {
       record.bestWpm = session.wpm
-      record.bestAccuracy = session.accuracy
+      record.bestAccuracy = accuracy
       record.bestGrade = sessionGrade
     }
   }

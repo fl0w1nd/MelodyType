@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import type { TypingSession, DailyGoal } from "@/lib/db"
+import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 
 interface StatsOverviewProps {
   sessions: TypingSession[]
@@ -37,7 +38,11 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
 
     const avgWpm = sessions.reduce((a, s) => a + s.wpm, 0) / sessions.length
     const bestWpm = Math.max(...sessions.map((s) => s.wpm))
-    const avgAccuracy = sessions.reduce((a, s) => a + s.accuracy, 0) / sessions.length
+    const avgAccuracy =
+      sessions.reduce(
+        (sum, session) => sum + computeStoredSessionAccuracyMetrics(session).accuracy,
+        0,
+      ) / sessions.length
     const sessionsWithMelodyIntegrity = sessions.filter(
       (session) => typeof session.melodyIntegrity === "number",
     )

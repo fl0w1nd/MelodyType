@@ -6,6 +6,12 @@ import {
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
 } from "./adaptiveConstants"
+import {
+  analyzeTargetAccuracy,
+  computeAccuracyPercent,
+  computeStoredSessionAccuracyMetrics,
+  isLetterAccuracyKey,
+} from "./accuracyMetrics"
 import { computeLearningRate, type LearningRateResult } from "./learningRate.ts"
 
 export {
@@ -111,11 +117,6 @@ export function computeMastery(ewmaCpm: number | undefined, targetCpm: number = 
   return ewmaCpm / targetCpm
 }
 
-function computeAccuracyPercent(correctHits: number, errorHits: number): number {
-  const totalHits = correctHits + errorHits
-  return totalHits > 0 ? (correctHits / totalHits) * 100 : 0
-}
-
 function makeMetricSummary(values: number[]): AdaptiveMetricSummary {
   if (values.length === 0) {
     return { count: 0, last: 0, delta: 0, avg: 0 }
@@ -190,7 +191,9 @@ function computeAdaptiveGlobalSummary(
   sessions: TypingSession[],
 ): AdaptiveGlobalSummary {
   const speeds = sessions.map((session) => session.wpm)
-  const accuracies = sessions.map((session) => session.accuracy)
+  const accuracies = sessions.map(
+    (session) => computeStoredSessionAccuracyMetrics(session).accuracy,
+  )
   const integrities = sessions
     .map((session) => session.melodyIntegrity)
     .filter((value): value is number => typeof value === "number")
@@ -342,7 +345,197 @@ export async function forceUnlockKey(key: string): Promise<void> {
   await saveForcedKeys([...forcedKeys, normalizedKey])
 }
 
+interface AdaptiveKeySessionMetrics {
+  hits: number
+  actualErrors: number
+  successPresses: number
+  falsePresses: number
+  correctLatencies: number[]
+}
+
+interface AdaptiveKeyBackfillState {
+  adaptiveEwmaCpm?: number
+  adaptiveBestCpm?: number
+  adaptiveCorrectHits: number
+  adaptiveErrorHits: number
+  adaptiveDecayedCorrectHits: number
+  adaptiveDecayedErrorHits: number
+  adaptiveSamples: Array<{
+    index: number
+    timestamp: number
+    cpm: number
+    filteredCpm: number
+  }>
+  adaptiveSampleIndex: number
+  lastUpdated: number
+}
+
+let adaptiveAccuracyBackfillPromise: Promise<void> | null = null
+
+function collectAdaptiveSessionKeyMetrics(
+  keystrokeLog: Array<{ key: string; correct: boolean; timestamp: number }>,
+): Record<string, AdaptiveKeySessionMetrics> {
+  const keyMetrics: Record<string, AdaptiveKeySessionMetrics> = {}
+
+  const ensure = (key: string) => {
+    if (!keyMetrics[key]) {
+      keyMetrics[key] = {
+        hits: 0,
+        actualErrors: 0,
+        successPresses: 0,
+        falsePresses: 0,
+        correctLatencies: [],
+      }
+    }
+    return keyMetrics[key]
+  }
+
+  for (let i = 0; i < keystrokeLog.length; i++) {
+    const entry = keystrokeLog[i]
+    if (entry.key.length !== 1 || entry.key === " ") continue
+    const lower = entry.key.toLowerCase()
+    const metrics = ensure(lower)
+
+    metrics.hits += 1
+    if (!entry.correct) {
+      metrics.actualErrors += 1
+      continue
+    }
+
+    if (i > 0 && keystrokeLog[i - 1].correct) {
+      const latency = entry.timestamp - keystrokeLog[i - 1].timestamp
+      if (latency >= MIN_LATENCY_MS && latency <= MAX_LATENCY_MS) {
+        metrics.correctLatencies.push(latency)
+      }
+    }
+  }
+
+  const targetAnalysis = analyzeTargetAccuracy(keystrokeLog, isLetterAccuracyKey)
+  for (const [key, stats] of targetAnalysis.keyStats) {
+    const metrics = ensure(key)
+    metrics.successPresses = stats.successes
+    metrics.falsePresses = stats.falsePresses
+  }
+
+  return keyMetrics
+}
+
+async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
+  if (adaptiveAccuracyBackfillPromise) {
+    await adaptiveAccuracyBackfillPromise
+    return
+  }
+
+  adaptiveAccuracyBackfillPromise = (async () => {
+    const sessions = await db.sessions.where("mode").equals("adaptive").sortBy("timestamp")
+    if (sessions.length === 0) return
+
+    const aggregates = new Map<string, AdaptiveKeyBackfillState>()
+    const ensureAggregate = (key: string) => {
+      const existing = aggregates.get(key)
+      if (existing) return existing
+      const created: AdaptiveKeyBackfillState = {
+        adaptiveCorrectHits: 0,
+        adaptiveErrorHits: 0,
+        adaptiveDecayedCorrectHits: 0,
+        adaptiveDecayedErrorHits: 0,
+        adaptiveSamples: [],
+        adaptiveSampleIndex: 0,
+        lastUpdated: 0,
+      }
+      aggregates.set(key, created)
+      return created
+    }
+
+    for (const session of sessions) {
+      const keyMetrics = collectAdaptiveSessionKeyMetrics(session.keystrokes)
+
+      for (const [key, metrics] of Object.entries(keyMetrics)) {
+        const aggregate = ensureAggregate(key)
+        const avgLatency =
+          metrics.correctLatencies.length > 0
+            ? metrics.correctLatencies.reduce((sum, latency) => sum + latency, 0) /
+              metrics.correctLatencies.length
+            : 0
+        const sessionCpm = avgLatency > 0 ? 60000 / avgLatency : 0
+        const prevEwma = aggregate.adaptiveEwmaCpm
+        const newEwma = sessionCpm > 0
+          ? (prevEwma ? prevEwma * (1 - EWMA_ALPHA) + sessionCpm * EWMA_ALPHA : sessionCpm)
+          : prevEwma
+
+        aggregate.adaptiveEwmaCpm = newEwma
+        if (newEwma != null && newEwma > 0) {
+          aggregate.adaptiveBestCpm = Math.max(aggregate.adaptiveBestCpm ?? 0, newEwma)
+        }
+        aggregate.adaptiveCorrectHits += metrics.successPresses
+        aggregate.adaptiveErrorHits += metrics.falsePresses
+        aggregate.adaptiveDecayedCorrectHits =
+          aggregate.adaptiveDecayedCorrectHits * ACCURACY_DECAY + metrics.successPresses
+        aggregate.adaptiveDecayedErrorHits =
+          aggregate.adaptiveDecayedErrorHits * ACCURACY_DECAY + metrics.falsePresses
+
+        if (sessionCpm > 0) {
+          aggregate.adaptiveSamples = [
+            ...aggregate.adaptiveSamples,
+            {
+              index: aggregate.adaptiveSampleIndex,
+              timestamp: session.timestamp,
+              cpm: sessionCpm,
+              filteredCpm: newEwma ?? sessionCpm,
+            },
+          ].slice(-30)
+          aggregate.adaptiveSampleIndex += 1
+        }
+
+        aggregate.lastUpdated = Math.max(aggregate.lastUpdated, session.timestamp)
+      }
+    }
+
+    if (aggregates.size === 0) return
+
+    await db.transaction("rw", db.keyStats, async () => {
+      const existingStats = await db.keyStats.toArray()
+      const existingMap = new Map(existingStats.map((stat) => [stat.key, stat]))
+
+      for (const [key, aggregate] of aggregates) {
+        const existing = existingMap.get(key)
+        const adaptiveFields = {
+          adaptiveEwmaCpm: aggregate.adaptiveEwmaCpm,
+          adaptiveBestCpm: aggregate.adaptiveBestCpm,
+          adaptiveCorrectHits: aggregate.adaptiveCorrectHits,
+          adaptiveErrorHits: aggregate.adaptiveErrorHits,
+          adaptiveDecayedCorrectHits: aggregate.adaptiveDecayedCorrectHits,
+          adaptiveDecayedErrorHits: aggregate.adaptiveDecayedErrorHits,
+          adaptiveSamples: aggregate.adaptiveSamples,
+          adaptiveSampleIndex: aggregate.adaptiveSampleIndex,
+        }
+
+        if (existing) {
+          await db.keyStats.update(existing.id!, {
+            ...adaptiveFields,
+            lastUpdated: Math.max(existing.lastUpdated, aggregate.lastUpdated),
+          })
+        } else {
+          await db.keyStats.add({
+            key,
+            totalHits: 0,
+            errors: 0,
+            totalLatency: 0,
+            avgSpeed: 0,
+            lastUpdated: aggregate.lastUpdated || Date.now(),
+            ...adaptiveFields,
+          })
+        }
+      }
+    })
+  })()
+
+  await adaptiveAccuracyBackfillPromise
+}
+
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
+  await ensureAdaptiveAccuracyStatsBackfilled()
+
   const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
@@ -379,8 +572,9 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     const accuracy = computeAccuracyPercent(
       decayedCorrectHits,
       decayedErrorHits,
+      0,
     )
-    const lifetimeAccuracy = computeAccuracyPercent(correctHits, errorHits)
+    const lifetimeAccuracy = computeAccuracyPercent(correctHits, errorHits, 0)
     const speed = ewmaCpm ? (ewmaCpm / 5) : 0
 
     const keySamples = stat?.adaptiveSamples ?? []
@@ -395,7 +589,7 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
       speed,
       accuracy,
       lifetimeAccuracy,
-      samples: correctHits,
+      samples: correctHits + errorHits,
       unlocked: isUnlocked || isForced,
       focused: false,
       forced: isForced,
@@ -475,35 +669,7 @@ export async function saveUnlockedKeys(keys: string[]): Promise<void> {
 export async function updateKeyStatsFromSession(
   keystrokeLog: Array<{ key: string; correct: boolean; timestamp: number }>,
 ): Promise<void> {
-  const keyMetrics: Record<string, {
-    hits: number
-    correctHits: number
-    errors: number
-    correctLatencies: number[]
-  }> = {}
-
-  for (let i = 0; i < keystrokeLog.length; i++) {
-    const entry = keystrokeLog[i]
-    if (entry.key.length !== 1 || entry.key === " ") continue
-    const lower = entry.key.toLowerCase()
-
-    if (!keyMetrics[lower]) {
-      keyMetrics[lower] = { hits: 0, correctHits: 0, errors: 0, correctLatencies: [] }
-    }
-
-    keyMetrics[lower].hits++
-    if (!entry.correct) {
-      keyMetrics[lower].errors++
-    } else {
-      keyMetrics[lower].correctHits++
-      if (i > 0 && keystrokeLog[i - 1].correct) {
-        const latency = entry.timestamp - keystrokeLog[i - 1].timestamp
-        if (latency >= MIN_LATENCY_MS && latency <= MAX_LATENCY_MS) {
-          keyMetrics[lower].correctLatencies.push(latency)
-        }
-      }
-    }
-  }
+  const keyMetrics = collectAdaptiveSessionKeyMetrics(keystrokeLog)
 
   await db.transaction("rw", db.keyStats, async () => {
     for (const [key, metrics] of Object.entries(keyMetrics)) {
@@ -517,7 +683,7 @@ export async function updateKeyStatsFromSession(
       const existing = await db.keyStats.where("key").equals(key).first()
       if (existing) {
         const totalHits = existing.totalHits + metrics.hits
-        const totalErrors = existing.errors + metrics.errors
+        const totalErrors = existing.errors + metrics.actualErrors
 
         const blendFactor = Math.min(metrics.hits / (metrics.hits + existing.totalHits), 0.4)
         const blendedSpeed = existing.avgSpeed * (1 - blendFactor) + sessionWpm * blendFactor
@@ -531,11 +697,11 @@ export async function updateKeyStatsFromSession(
         const newDecayedCorrectHits =
           (existing.adaptiveDecayedCorrectHits ?? existing.adaptiveCorrectHits ?? 0) *
           ACCURACY_DECAY +
-          metrics.correctHits
+          metrics.successPresses
         const newDecayedErrorHits =
           (existing.adaptiveDecayedErrorHits ?? existing.adaptiveErrorHits ?? 0) *
           ACCURACY_DECAY +
-          metrics.errors
+          metrics.falsePresses
 
         const prevSamples = existing.adaptiveSamples ?? []
         const prevIndex = existing.adaptiveSampleIndex ?? prevSamples.length
@@ -557,8 +723,8 @@ export async function updateKeyStatsFromSession(
           lastUpdated: Date.now(),
           adaptiveEwmaCpm: newEwma ?? existing.adaptiveEwmaCpm,
           adaptiveBestCpm: newBest || existing.adaptiveBestCpm,
-          adaptiveCorrectHits: (existing.adaptiveCorrectHits ?? 0) + metrics.correctHits,
-          adaptiveErrorHits: (existing.adaptiveErrorHits ?? 0) + metrics.errors,
+          adaptiveCorrectHits: (existing.adaptiveCorrectHits ?? 0) + metrics.successPresses,
+          adaptiveErrorHits: (existing.adaptiveErrorHits ?? 0) + metrics.falsePresses,
           adaptiveDecayedCorrectHits: newDecayedCorrectHits,
           adaptiveDecayedErrorHits: newDecayedErrorHits,
           adaptiveSamples: updatedSamples,
@@ -575,16 +741,16 @@ export async function updateKeyStatsFromSession(
         await db.keyStats.add({
           key,
           totalHits: metrics.hits,
-          errors: metrics.errors,
+          errors: metrics.actualErrors,
           totalLatency: avgLatency * metrics.hits,
           avgSpeed: sessionWpm,
           lastUpdated: Date.now(),
           adaptiveEwmaCpm: sessionCpm > 0 ? sessionCpm : undefined,
           adaptiveBestCpm: sessionCpm > 0 ? sessionCpm : undefined,
-          adaptiveCorrectHits: metrics.correctHits,
-          adaptiveErrorHits: metrics.errors,
-          adaptiveDecayedCorrectHits: metrics.correctHits,
-          adaptiveDecayedErrorHits: metrics.errors,
+          adaptiveCorrectHits: metrics.successPresses,
+          adaptiveErrorHits: metrics.falsePresses,
+          adaptiveDecayedCorrectHits: metrics.successPresses,
+          adaptiveDecayedErrorHits: metrics.falsePresses,
           adaptiveSamples: newSample ? [newSample] : [],
           adaptiveSampleIndex: 1,
         })

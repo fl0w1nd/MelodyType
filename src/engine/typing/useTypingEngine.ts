@@ -6,6 +6,7 @@ import type {
   CharState,
   KeystrokeEntry,
 } from "./types"
+import { computeWordAccuracyMetrics } from "./accuracyMetrics"
 
 function textToWords(text: string): WordState[] {
   return text.split(" ").map((word) => ({
@@ -218,22 +219,11 @@ export function useTypingEngine(onKeystroke?: () => void) {
     const currentElapsed = elapsedRef.current || elapsed
     const timeInMinutes = currentElapsed > 0 ? currentElapsed / 60 : 0
 
-    let typedChars = 0
-    let charsWithError = 0
-
-    for (const word of state.words) {
-      for (const char of word.chars) {
-        if (char.status !== "pending") {
-          typedChars++
-          if (char.hadError) charsWithError++
-        }
-      }
-    }
-
-    const correctChars = typedChars - charsWithError
+    const accuracyMetrics = computeWordAccuracyMetrics(state.words)
+    const correctChars = accuracyMetrics.correctChars
+    const typedChars = accuracyMetrics.totalChars
     const wpm = timeInMinutes > 0 ? correctChars / 5 / timeInMinutes : 0
     const rawWpm = timeInMinutes > 0 ? typedChars / 5 / timeInMinutes : 0
-    const accuracy = typedChars > 0 ? (correctChars / typedChars) * 100 : 100
 
     let consistency = 100
     if (state.keystrokeLog.length > 2 && state.startTime) {
@@ -267,11 +257,9 @@ export function useTypingEngine(onKeystroke?: () => void) {
       wpm: Number.isFinite(wpm) ? Math.round(wpm * 10) / 10 : 0,
       rawWpm: Number.isFinite(rawWpm) ? Math.round(rawWpm * 10) / 10 : 0,
       melodyIntegrity: 100,
-      accuracy: Number.isFinite(accuracy)
-        ? Math.round(accuracy * 100) / 100
-        : 100,
+      accuracy: Math.round(accuracyMetrics.accuracy * 100) / 100,
       correctChars,
-      incorrectChars: charsWithError,
+      incorrectChars: accuracyMetrics.incorrectChars,
       totalChars: typedChars,
       elapsedTime: currentElapsed,
       consistency: Number.isFinite(consistency) ? Math.round(consistency) : 100,

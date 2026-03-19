@@ -37,6 +37,9 @@ export default function DashboardPage() {
 
   const today = formatLocalDateKey()
   const todayGoal = dailyGoals.find((goal) => goal.date === today)
+  const todaySessions = sessions.filter(
+    (session) => formatLocalDateKey(new Date(session.timestamp)) === today,
+  )
 
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -99,7 +102,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-stretch">
         <ActivityHeatmap sessions={sessions} weeks={12} />
-        <DailyGoalRing todayGoal={todayGoal} />
+        <DailyGoalRing todayGoal={todayGoal} todaySessions={todaySessions} />
       </div>
 
       <Tabs value={selectedMode} onValueChange={handleModeChange}>

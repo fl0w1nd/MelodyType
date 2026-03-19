@@ -1,5 +1,6 @@
 import type { TimeRange } from "./TimeRangeSelector"
 import type { TypingSession } from "@/lib/db"
+import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 
 export function filterSessionsByRange(sessions: TypingSession[], range: TimeRange): TypingSession[] {
   if (range === "recent") {
@@ -58,7 +59,7 @@ export function aggregateSessionsByRange(
       label: formatRecentAxisLabel(new Date(s.timestamp)),
       tooltipLabel: formatRecentTooltipLabel(new Date(s.timestamp)),
       wpm: Math.round(s.wpm * 10) / 10,
-      accuracy: Math.round(s.accuracy * 100) / 100,
+      accuracy: Math.round(computeStoredSessionAccuracyMetrics(s).accuracy * 100) / 100,
       sessions: 1,
       date: new Date(s.timestamp),
     }))
@@ -91,7 +92,11 @@ export function aggregateSessionsByRange(
 
   return sorted.map(([label, sessions]) => {
     const avgWpm = sessions.reduce((sum, s) => sum + s.wpm, 0) / sessions.length
-    const avgAcc = sessions.reduce((sum, s) => sum + s.accuracy, 0) / sessions.length
+    const avgAcc =
+      sessions.reduce(
+        (sum, session) => sum + computeStoredSessionAccuracyMetrics(session).accuracy,
+        0,
+      ) / sessions.length
     return {
       label,
       tooltipLabel: label,
