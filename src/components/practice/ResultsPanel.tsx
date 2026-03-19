@@ -347,12 +347,12 @@ export function ResultsPanel({
                         >
                           <stop
                             offset="5%"
-                            stopColor="oklch(0.55 0.15 55)"
+                            stopColor="var(--primary)"
                             stopOpacity={0.3}
                           />
                           <stop
                             offset="95%"
-                            stopColor="oklch(0.55 0.15 55)"
+                            stopColor="var(--primary)"
                             stopOpacity={0}
                           />
                         </linearGradient>
@@ -374,8 +374,8 @@ export function ResultsPanel({
                       <Tooltip
                         contentStyle={{
                           borderRadius: "8px",
-                          border: "1px solid oklch(0.9 0.01 75)",
-                          backgroundColor: "oklch(0.995 0.003 80)",
+                          border: "1px solid var(--border)",
+                          backgroundColor: "var(--card)",
                           fontSize: "12px",
                         }}
                         formatter={(value) => [`${value} WPM`, "Speed"]}
@@ -384,7 +384,7 @@ export function ResultsPanel({
                       {levelRecord?.bestWpm != null && (
                         <ReferenceLine
                           y={levelRecord.bestWpm}
-                          stroke="oklch(0.75 0.14 65)"
+                          stroke="var(--accent)"
                           strokeDasharray="4 4"
                           strokeWidth={1}
                         />
@@ -392,7 +392,7 @@ export function ResultsPanel({
                       <Area
                         type="monotone"
                         dataKey="wpm"
-                        stroke="oklch(0.55 0.15 55)"
+                        stroke="var(--primary)"
                         strokeWidth={2}
                         fill="url(#resultWpmGradient)"
                       />
