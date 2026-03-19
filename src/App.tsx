@@ -6,6 +6,7 @@ import { MidiProvider } from "@/engine/midi/MidiContext"
 const PracticePage = lazy(() => import("@/pages/PracticePage"))
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"))
 const MidiPage = lazy(() => import("@/pages/MidiPage"))
+const DocsPage = lazy(() => import("@/pages/DocsPage"))
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"))
 
 function PageLoader() {
@@ -29,6 +30,7 @@ export default function App() {
               <Route path="/" element={<PracticePage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/midi" element={<MidiPage />} />
+              <Route path="/docs" element={<DocsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Routes>
