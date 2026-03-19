@@ -40,12 +40,12 @@ function FlowMeterInner({ melodyState, isStarted }: FlowMeterProps) {
   const label = isStarted ? flowLabels[flowState] : flowLabels.idle
 
   return (
-    <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border/40">
+    <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border/40" role="status">
       <Music className={`h-3.5 w-3.5 shrink-0 transition-colors duration-300 ${labelColor}`} />
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium whitespace-nowrap">
         Melody Flow
       </span>
-      <div className="flex-1 h-1.5 min-w-20 bg-secondary/60 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 min-w-20 bg-secondary/60 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} aria-label="Melody flow">
         <motion.div
           className={`h-full rounded-full ${barColor}`}
           animate={{
