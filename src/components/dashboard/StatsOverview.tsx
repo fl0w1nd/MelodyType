@@ -210,7 +210,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
               duration: 0.4,
               ease: [0.25, 1, 0.5, 1],
             }}
-            className={`group relative overflow-hidden rounded-2xl border ${card.borderAccent} bg-card/80 backdrop-blur-sm p-4 transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5`}
+            className={`group relative overflow-hidden rounded-2xl border ${card.borderAccent} bg-card/80 backdrop-blur-sm p-4 transition-all duration-300 ease-out hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-1`}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60`} />
             <div className="relative flex flex-col items-center gap-2">

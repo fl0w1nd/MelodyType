@@ -49,7 +49,7 @@ function TextDisplayInner({
   }
 
   return (
-    <div role="region" aria-label="Typing text area" className="relative rounded-xl bg-card/60 border border-border/50 max-h-48 sm:max-h-56 overflow-hidden flex flex-col">
+    <div role="region" aria-label="Typing text area" className="relative rounded-2xl bg-card/70 border border-border/40 shadow-sm shadow-black/[0.03] max-h-48 sm:max-h-56 overflow-hidden flex flex-col">
       <div className="shrink-0 h-5 sm:h-6" />
 
       <div
@@ -96,7 +96,7 @@ function TextDisplayInner({
                       {char.char}
                     </span>
                     {isCursor && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-pulse rounded-full" />
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-[pulse_1.2s_ease-in-out_infinite]" />
                     )}
                   </span>
                 )
@@ -121,7 +121,7 @@ function TextDisplayInner({
                     >
                       &middot;
                       {isSpaceCursor && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-pulse rounded-full" />
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-[pulse_1.2s_ease-in-out_infinite]" />
                       )}
                     </span>
                   )
