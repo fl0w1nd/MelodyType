@@ -6,6 +6,12 @@ import { createSynth, disposeSynth, ensureAudioStarted } from "./synthManager"
 import { MelodyScheduler, type MelodyCarryoverState } from "./melodyScheduler"
 import { parseMidiToFrames } from "./midiParser"
 import { presetMelodies, presetList } from "./presets"
+import {
+  createMelodyIntegrityTracker,
+  DEFAULT_MELODY_INTEGRITY,
+  updateMelodyIntegrityTracker,
+  resetMelodyIntegrityTracker,
+} from "./melodyIntegrity"
 import { db } from "@/lib/db"
 import type { SelectedMidiSource } from "@/lib/settings"
 import { getAppSetting, setAppSetting } from "@/lib/settings"
@@ -27,10 +33,6 @@ const defaultTestPlaybackPosition: TestPlaybackPosition = {
   current: 0,
   total: 0,
 }
-
-const DEFAULT_MELODY_INTEGRITY = 100
-const MELODY_INTEGRITY_BREAK_PENALTY = 20
-const FLOW_EMPTY_EPSILON = 0.01
 
 function getDefaultSelectedMidi(): SelectedMidiSource | null {
   return presetList[0] ? { type: "preset", id: presetList[0].id } : null
@@ -59,6 +61,7 @@ export function useMidiTrigger() {
   const schedulerRef = useRef<MelodyScheduler>(new MelodyScheduler())
   const melodyStateRef = useRef<MelodyState>(defaultMelodyState)
   const melodyIntegrityRef = useRef(DEFAULT_MELODY_INTEGRITY)
+  const melodyIntegrityTrackerRef = useRef(createMelodyIntegrityTracker())
   const testIndexRef = useRef(0)
   const selectedSourceRef = useRef<SelectedMidiSource | null>(getDefaultSelectedMidi())
   const playlistRef = useRef<SelectedMidiSource[]>([])
@@ -82,31 +85,29 @@ export function useMidiTrigger() {
   }, [])
 
   const resetMelodyIntegrity = useCallback(() => {
+    resetMelodyIntegrityTracker(melodyIntegrityTrackerRef.current)
     melodyIntegrityRef.current = DEFAULT_MELODY_INTEGRITY
     setMelodyIntegrity(DEFAULT_MELODY_INTEGRITY)
   }, [])
 
   const commitMelodyState = useCallback((nextState: MelodyState) => {
     const previousState = melodyStateRef.current
-    const shouldPenalizeIntegrity =
-      expectedFlowResetDepthRef.current === 0 &&
-      previousState.maxFuel > 0 &&
-      previousState.fuel > FLOW_EMPTY_EPSILON &&
-      nextState.fuel <= FLOW_EMPTY_EPSILON
 
     melodyStateRef.current = nextState
     setMelodyState(nextState)
 
-    if (!shouldPenalizeIntegrity) {
-      return
-    }
+    const nextIntegrity = updateMelodyIntegrityTracker({
+      tracker: melodyIntegrityTrackerRef.current,
+      previousState,
+      nextState,
+      now: performance.now(),
+      suspend: expectedFlowResetDepthRef.current > 0,
+    })
 
-    const nextIntegrity = Math.max(
-      0,
-      melodyIntegrityRef.current - MELODY_INTEGRITY_BREAK_PENALTY,
-    )
-    melodyIntegrityRef.current = nextIntegrity
-    setMelodyIntegrity(nextIntegrity)
+    if (nextIntegrity !== melodyIntegrityRef.current) {
+      melodyIntegrityRef.current = nextIntegrity
+      setMelodyIntegrity(nextIntegrity)
+    }
   }, [])
 
   const resetTestPlayback = useCallback((totalFrames: number) => {
@@ -131,7 +132,7 @@ export function useMidiTrigger() {
   }, [beginExpectedFlowReset, commitMelodyState, endExpectedFlowReset])
 
   const startScheduler = useCallback((targetCPM: number) => {
-    if (!configRef.current.isEnabled || !synthRef.current) return false
+    if (!configRef.current.isEnabled) return false
     if (framesRef.current.length === 0) return false
 
     currentTargetCPMRef.current = targetCPM
@@ -166,7 +167,13 @@ export function useMidiTrigger() {
     if (!synthInitPromiseRef.current) {
       synthInitPromiseRef.current = (async () => {
         try {
-          await ensureAudioStarted()
+          try {
+            await ensureAudioStarted()
+          } catch {
+            // In dev, Fast Refresh can dispose the synth before the next user
+            // gesture fully re-unlocks audio. Still recreate the synth so flow
+            // and scheduling can recover immediately.
+          }
           if (!synthRef.current) {
             synthRef.current = createSynth(
               configRef.current.synthType,
@@ -578,17 +585,6 @@ export function useMidiTrigger() {
         ((configRef.current.loopMode === "random" || configRef.current.loopMode === "sequential") && !trackTransitionInFlightRef.current)
       )
 
-    if (shouldAutoResume && !synthRef.current) {
-      void ensureSynthReady()
-        .then((isReady) => {
-          if (!isReady || resumeTargetCPM == null) return
-          startScheduler(resumeTargetCPM)
-          schedulerRef.current.feed(correct)
-        })
-        .catch(() => {})
-      return
-    }
-
     if (shouldAutoResume && resumeTargetCPM != null) {
       startScheduler(resumeTargetCPM)
     }
@@ -597,7 +593,12 @@ export function useMidiTrigger() {
 
     if (!synthRef.current) {
       void ensureSynthReady()
-        .then(() => {
+        .then((isReady) => {
+          if (!isReady) return
+          if (resumeTargetCPM != null && !schedulerRef.current.isActive && framesRef.current.length > 0) {
+            startScheduler(resumeTargetCPM)
+            return
+          }
           resumePendingMelodyStart()
         })
         .catch(() => {})

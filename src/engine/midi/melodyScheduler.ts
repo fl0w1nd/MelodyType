@@ -142,10 +142,22 @@ export class MelodyScheduler {
         this.fuel + amount,
         this.maxFuel * INITIAL_INPUT_FUEL_RATIO,
       )
+      if (this.frames.length > 0 && this.maxFuel > 0) {
+        this.lastTickTime ??= performance.now()
+        this.flowState = "flowing"
+        if (this.synth) {
+          try {
+            this.synth.volume.rampTo(0, 0.08)
+          } catch { /* synth may be disposed */ }
+        }
+        this.playPendingFrames()
+      }
+      this.notifyState()
       return
     }
 
     this.fuel = Math.min(this.maxFuel, this.fuel + amount)
+    this.notifyState()
   }
 
   updateSynth(synth: Tone.PolySynth) {

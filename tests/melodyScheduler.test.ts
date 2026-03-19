@@ -3,10 +3,6 @@ import { MelodyScheduler } from "../src/engine/midi/melodyScheduler"
 import type { MelodyCarryoverState } from "../src/engine/midi/melodyScheduler"
 import type { MidiFrame, MelodyState } from "../src/engine/midi/types"
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeFrames(count: number, spacing = 0.5): MidiFrame[] {
   return Array.from({ length: count }, (_, i) => ({
     time: i * spacing,
@@ -22,10 +18,6 @@ function makeSynth() {
   } as unknown as import("tone").PolySynth
 }
 
-/**
- * Since MelodyScheduler uses `requestAnimationFrame` internally, we stub
- * it with a manually-advanceable version so tests are synchronous.
- */
 function installFakeRAF() {
   const queue: Array<{ id: number; cb: FrameRequestCallback }> = []
   let nextId = 1
@@ -41,13 +33,11 @@ function installFakeRAF() {
     if (idx >= 0) queue.splice(idx, 1)
   })
 
-  /** Flush exactly one queued RAF callback (simulates a single frame). */
   function tick(nowMs?: number) {
     const entry = queue.shift()
     if (entry) entry.cb(nowMs ?? performance.now())
   }
 
-  /** Flush all queued RAF callbacks (careful: ticking can enqueue more). */
   function flushAll(maxIterations = 200, nowMs?: number) {
     let i = 0
     while (queue.length > 0 && i < maxIterations) {
@@ -58,10 +48,6 @@ function installFakeRAF() {
 
   return { tick, flushAll, queue }
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("MelodyScheduler", () => {
   let scheduler: MelodyScheduler
@@ -81,10 +67,6 @@ describe("MelodyScheduler", () => {
     scheduler.stop()
     vi.restoreAllMocks()
   })
-
-  // -----------------------------------------------------------------------
-  // 1. start / stop lifecycle
-  // -----------------------------------------------------------------------
 
   describe("start / stop lifecycle", () => {
     it("should become active after start", () => {
@@ -172,10 +154,6 @@ describe("MelodyScheduler", () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // 2. feed() and fuel management
-  // -----------------------------------------------------------------------
-
   describe("feed() and fuel management", () => {
     it("first correct feed should give at least INITIAL_INPUT_FUEL_RATIO * maxFuel", () => {
       scheduler.start({
@@ -199,8 +177,7 @@ describe("MelodyScheduler", () => {
       })
 
       const maxFuel = scheduler.getState().maxFuel
-      scheduler.feed(false) // incorrect
-      // 0.3 + initial ratio boost
+      scheduler.feed(false)
       expect(scheduler.getState().fuel).toBeGreaterThanOrEqual(maxFuel * 0.5)
     })
 
@@ -212,7 +189,7 @@ describe("MelodyScheduler", () => {
         loopMode: "loop",
       })
 
-      scheduler.feed(true) // first — gets initial boost
+      scheduler.feed(true)
       const afterFirst = scheduler.getState().fuel
       scheduler.feed(true)
       expect(scheduler.getState().fuel).toBeCloseTo(afterFirst + 1.0, 5)
@@ -235,7 +212,7 @@ describe("MelodyScheduler", () => {
     it("fuel should not exceed maxFuel", () => {
       scheduler.start({
         frames: makeFrames(4),
-        targetCPM: 60, // low CPM = small maxFuel
+        targetCPM: 60,
         synth,
         loopMode: "loop",
       })
@@ -246,11 +223,23 @@ describe("MelodyScheduler", () => {
       }
       expect(scheduler.getState().fuel).toBeLessThanOrEqual(maxFuel)
     })
-  })
 
-  // -----------------------------------------------------------------------
-  // 3. resetSession — the critical bug fix
-  // -----------------------------------------------------------------------
+    it("can recover flow on input even when no synth is attached", () => {
+      scheduler.start({
+        frames: makeFrames(4),
+        targetCPM: 180,
+        synth: null,
+        loopMode: "loop",
+        onStateChange: (s) => stateChanges.push(s),
+      })
+
+      scheduler.feed(true)
+
+      const lastState = stateChanges.at(-1)
+      expect(lastState?.flowState).toBe("flowing")
+      expect(lastState?.fuel ?? 0).toBeGreaterThan(0)
+    })
+  })
 
   describe("resetSession — RAF resume after stop", () => {
     it("should resume RAF loop after stop() + resetSession()", () => {
@@ -273,7 +262,7 @@ describe("MelodyScheduler", () => {
       const onPlaybackComplete = vi.fn()
 
       scheduler.start({
-        frames: makeFrames(2, 0.01), // very short frames
+        frames: makeFrames(2, 0.01),
         targetCPM: 300,
         synth,
         loopMode: "once",
@@ -281,11 +270,9 @@ describe("MelodyScheduler", () => {
       })
       expect(scheduler.isActive).toBe(true)
 
-      // Simulate playback completion by stopping (mimics once-mode end)
       scheduler.stop()
       expect(scheduler.isActive).toBe(false)
 
-      // resetSession should re-arm
       scheduler.resetSession(300)
       expect(scheduler.isActive).toBe(true)
     })
@@ -306,7 +293,6 @@ describe("MelodyScheduler", () => {
       scheduler.resetSession(300, true)
       const fuelAfter = scheduler.getState().fuel
 
-      // Bridge should give at least SESSION_BRIDGE_MIN_RATIO (0.5) of maxFuel
       const maxFuel = scheduler.getState().maxFuel
       expect(fuelAfter).toBeGreaterThanOrEqual(maxFuel * 0.5)
       expect(fuelAfter).toBeGreaterThanOrEqual(fuelBefore)
@@ -326,7 +312,6 @@ describe("MelodyScheduler", () => {
 
       scheduler.resetSession(300, false)
 
-      // INITIAL_FUEL_RATIO is 0
       expect(scheduler.getState().fuel).toBe(0)
       expect(scheduler.getState().flowState).toBe("idle")
     })
@@ -340,7 +325,7 @@ describe("MelodyScheduler", () => {
       })
 
       const oldMaxFuel = scheduler.getState().maxFuel
-      scheduler.resetSession(600) // double the CPM
+      scheduler.resetSession(600)
       const newMaxFuel = scheduler.getState().maxFuel
 
       expect(newMaxFuel).toBeCloseTo(oldMaxFuel * 2, 5)
@@ -373,10 +358,6 @@ describe("MelodyScheduler", () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // 4. isActive correctness
-  // -----------------------------------------------------------------------
-
   describe("isActive correctness", () => {
     it("isActive should be false before start", () => {
       expect(scheduler.isActive).toBe(false)
@@ -401,14 +382,9 @@ describe("MelodyScheduler", () => {
       })
 
       scheduler.stop()
-      // isActive requires BOTH isRunning AND rafId — stop sets isRunning=false
       expect(scheduler.isActive).toBe(false)
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 5. switchTrack with carryover
-  // -----------------------------------------------------------------------
 
   describe("switchTrack with carryover", () => {
     it("should carry over fuel when switching tracks", () => {
@@ -460,7 +436,6 @@ describe("MelodyScheduler", () => {
         loopMode: "loop",
       })
 
-      // Should use captureCarryoverState() as fallback
       expect(scheduler.getState().fuel).toBe(fuelBefore)
     })
 
@@ -483,10 +458,6 @@ describe("MelodyScheduler", () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // 6. Tick-driven flow state transitions
-  // -----------------------------------------------------------------------
-
   describe("tick-driven flow state transitions", () => {
     it("should transition idle → flowing when fuel is consumed", () => {
       let now = 0
@@ -500,17 +471,12 @@ describe("MelodyScheduler", () => {
         onStateChange: (s) => stateChanges.push(s),
       })
 
-      scheduler.feed(true) // hasReceivedInput = true, fuel > 0
+      scheduler.feed(true)
 
-      // First tick sets lastTickTime
       now = 100
       raf.tick(now)
-
-      // Second tick actually consumes fuel; advance past STATE_THROTTLE_MS (50ms)
       now = 200
       raf.tick(now)
-
-      // Third tick to ensure notification fires
       now = 300
       raf.tick(now)
 
@@ -523,17 +489,15 @@ describe("MelodyScheduler", () => {
       vi.stubGlobal("performance", { now: () => now })
 
       scheduler.start({
-        frames: makeFrames(10, 0.01), // tight frames
-        targetCPM: 6000, // high consumption rate
+        frames: makeFrames(10, 0.01),
+        targetCPM: 6000,
         synth,
         loopMode: "loop",
         onStateChange: (s) => stateChanges.push(s),
       })
 
-      // Give minimal fuel
-      scheduler.feed(false) // only 0.3 amount after initial boost
+      scheduler.feed(false)
 
-      // Run a few ticks to drain fuel
       for (let i = 0; i < 100; i++) {
         now = i * 20
         raf.tick(now)
@@ -548,16 +512,14 @@ describe("MelodyScheduler", () => {
       vi.stubGlobal("performance", { now: () => now })
 
       scheduler.start({
-        frames: makeFrames(4, 0.01), // frames at 0, 0.01, 0.02, 0.03
+        frames: makeFrames(4, 0.01),
         targetCPM: 300,
         synth,
         loopMode: "loop",
       })
 
-      // Feed enough fuel
       for (let i = 0; i < 10; i++) scheduler.feed(true)
 
-      // Advance time
       now = 0
       raf.tick(now)
       now = 100
@@ -566,10 +528,6 @@ describe("MelodyScheduler", () => {
       expect(synth.triggerAttackRelease).toHaveBeenCalled()
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 7. Loop modes
-  // -----------------------------------------------------------------------
 
   describe("loop modes", () => {
     it("loop mode should reset frameIndex to 0 when reaching end", () => {
@@ -585,13 +543,11 @@ describe("MelodyScheduler", () => {
 
       for (let i = 0; i < 20; i++) scheduler.feed(true)
 
-      // Tick forward enough to exhaust all frames
       for (let i = 0; i < 50; i++) {
         now = i * 30
         raf.tick(now)
       }
 
-      // Should have looped — isActive should still be true
       expect(scheduler.isActive).toBe(true)
     })
 
@@ -642,16 +598,11 @@ describe("MelodyScheduler", () => {
       expect(scheduler.isActive).toBe(false)
       expect(onTrackComplete).toHaveBeenCalledTimes(1)
 
-      // carryover state should be passed
       const carryover = onTrackComplete.mock.calls[0][0] as MelodyCarryoverState
       expect(carryover).not.toBeNull()
       expect(carryover.hasReceivedInput).toBe(true)
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 8. captureCarryoverState
-  // -----------------------------------------------------------------------
 
   describe("captureCarryoverState", () => {
     it("should return null if maxFuel is 0", () => {
@@ -672,14 +623,9 @@ describe("MelodyScheduler", () => {
       expect(carryover).not.toBeNull()
       expect(carryover!.fuel).toBeGreaterThan(0)
       expect(carryover!.hasReceivedInput).toBe(true)
-      // flowState is idle since no tick has run yet
-      expect(carryover!.flowState).toBe("idle")
+      expect(carryover!.flowState).toBe("flowing")
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 9. updateTargetCPM
-  // -----------------------------------------------------------------------
 
   describe("updateTargetCPM", () => {
     it("should update maxFuel proportionally", () => {
@@ -705,15 +651,11 @@ describe("MelodyScheduler", () => {
 
       for (let i = 0; i < 20; i++) scheduler.feed(true)
 
-      scheduler.updateTargetCPM(60) // drastically lower
+      scheduler.updateTargetCPM(60)
       const state = scheduler.getState()
       expect(state.fuel).toBeLessThanOrEqual(state.maxFuel)
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 10. updateSynth
-  // -----------------------------------------------------------------------
 
   describe("updateSynth", () => {
     it("should apply fading volume when flowState is fading", () => {
@@ -727,15 +669,13 @@ describe("MelodyScheduler", () => {
         loopMode: "loop",
       })
 
-      scheduler.feed(false) // small amount of fuel
+      scheduler.feed(false)
 
-      // Drain fuel to get to fading
       for (let i = 0; i < 200; i++) {
         now = i * 20
         raf.tick(now)
       }
 
-      // If flowState is fading, updating synth should apply fade volume
       const state = scheduler.getState()
       const newSynth = makeSynth()
 
@@ -749,10 +689,6 @@ describe("MelodyScheduler", () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // 11. Edge: start with empty frames
-  // -----------------------------------------------------------------------
-
   describe("edge cases", () => {
     it("start with empty frames should still become active (RAF runs)", () => {
       scheduler.start({
@@ -762,7 +698,6 @@ describe("MelodyScheduler", () => {
         loopMode: "loop",
       })
 
-      // isActive is true because start() always sets isRunning + schedules tick
       expect(scheduler.isActive).toBe(true)
       expect(scheduler.getState().totalFrames).toBe(0)
     })
@@ -786,7 +721,7 @@ describe("MelodyScheduler", () => {
     it("carryoverState should clamp fuel within maxFuel", () => {
       scheduler.start({
         frames: makeFrames(4),
-        targetCPM: 60, // maxFuel = 1 * 3 = 3
+        targetCPM: 60,
         synth,
         loopMode: "loop",
         carryoverState: { fuel: 999, flowState: "flowing", hasReceivedInput: true },
@@ -808,10 +743,6 @@ describe("MelodyScheduler", () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // 12. The critical regression test: stop → resetSession → feed → sound
-  // -----------------------------------------------------------------------
-
   describe("regression: stop → resetSession → feed should produce sound", () => {
     it("full cycle: start → stop → resetSession → feed → tick should play notes", () => {
       let now = 0
@@ -827,16 +758,13 @@ describe("MelodyScheduler", () => {
       scheduler.stop()
       expect(scheduler.isActive).toBe(false)
 
-      // This is the critical path that was broken before the fix
       scheduler.resetSession(300)
       expect(scheduler.isActive).toBe(true)
 
-      // Feed keystrokes
       scheduler.feed(true)
       scheduler.feed(true)
       scheduler.feed(true)
 
-      // Run ticks
       now = 0
       raf.tick(now)
       now = 100
@@ -859,7 +787,6 @@ describe("MelodyScheduler", () => {
         onTrackComplete,
       })
 
-      // Feed and drain to trigger track complete
       for (let i = 0; i < 20; i++) scheduler.feed(true)
       for (let i = 0; i < 50; i++) {
         now = i * 30
@@ -869,11 +796,9 @@ describe("MelodyScheduler", () => {
       expect(scheduler.isActive).toBe(false)
       expect(onTrackComplete).toHaveBeenCalled()
 
-      // Simulate practice controller calling resetSession (e.g. new round)
       scheduler.resetSession(300)
       expect(scheduler.isActive).toBe(true)
 
-      // Feed again — should work
       synth.triggerAttackRelease.mockClear()
       scheduler.feed(true)
       scheduler.feed(true)
@@ -894,7 +819,7 @@ describe("MelodyScheduler", () => {
         loopMode: "once",
       })
 
-      scheduler.stop() // simulate once-mode end
+      scheduler.stop()
       expect(scheduler.isActive).toBe(false)
 
       scheduler.resetSession(300)
@@ -902,10 +827,6 @@ describe("MelodyScheduler", () => {
       expect(scheduler.getState().flowState).toBe("idle")
     })
   })
-
-  // -----------------------------------------------------------------------
-  // 13. onStateChange notification
-  // -----------------------------------------------------------------------
 
   describe("onStateChange notifications", () => {
     it("should notify on start", () => {
