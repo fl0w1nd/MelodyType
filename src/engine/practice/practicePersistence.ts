@@ -5,6 +5,7 @@ import {
   INITIAL_UNLOCK_COUNT,
   recomputeAndUnlock,
   updateKeyStatsFromSession,
+  updateBigramStatsFromSession,
 } from "@/engine/typing/adaptiveEngine"
 import { formatLocalDateKey } from "@/lib/date"
 import { getAppSetting } from "@/lib/settings"
@@ -16,6 +17,7 @@ interface PersistCompletedRoundInput {
   adaptiveState: AdaptiveState | null
   metrics: TypingMetrics
   keystrokeLog: KeystrokeEntry[]
+  expectedText?: string
 }
 
 export interface PersistCompletedRoundResult {
@@ -108,6 +110,7 @@ export async function persistCompletedRound({
   adaptiveState,
   metrics,
   keystrokeLog,
+  expectedText,
 }: PersistCompletedRoundInput): Promise<PersistCompletedRoundResult> {
   const previousPersonalBest =
     config.mode === "time" && config.levelId
@@ -150,6 +153,9 @@ export async function persistCompletedRound({
   if (config.mode === "adaptive") {
     const prevUnlocked = adaptiveState?.unlockedKeys ?? []
     await updateKeyStatsFromSession(keystrokeLog)
+    if (expectedText) {
+      await updateBigramStatsFromSession(keystrokeLog, expectedText)
+    }
     nextAdaptiveState = await recomputeAndUnlock()
     const newKeys = nextAdaptiveState.unlockedKeys.filter(
       (key) => !prevUnlocked.includes(key),

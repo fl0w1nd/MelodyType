@@ -16,6 +16,8 @@ export type SelectedMidiSource =
   | { type: "preset"; id: string }
   | { type: "file"; id: number }
 
+export type AdaptivePhase = "progressive" | "reinforcement"
+
 export interface AppSettingsSnapshot {
   showKeyboard: boolean
   dailyGoalMinutes: number
@@ -26,6 +28,7 @@ export interface AppSettingsSnapshot {
   adaptiveRecoverKeys: boolean
   adaptiveForcedKeys: string[]
   adaptiveUnlocked: string[]
+  adaptivePhase: AdaptivePhase
 }
 
 export type SettingKey = keyof AppSettingsSnapshot
@@ -107,6 +110,11 @@ export const appSettingDefinitions: {
     deserialize: (raw) => parseJsonOrFallback(raw, defaultUnlockedKeys),
     serialize: (value) => JSON.stringify(value),
   },
+  adaptivePhase: {
+    defaultValue: "progressive" as const,
+    deserialize: (raw) => (raw === "reinforcement" ? "reinforcement" : "progressive"),
+    serialize: (value) => value,
+  },
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettingsSnapshot = {
@@ -119,6 +127,7 @@ export const DEFAULT_APP_SETTINGS: AppSettingsSnapshot = {
   adaptiveRecoverKeys: appSettingDefinitions.adaptiveRecoverKeys.defaultValue,
   adaptiveForcedKeys: appSettingDefinitions.adaptiveForcedKeys.defaultValue,
   adaptiveUnlocked: appSettingDefinitions.adaptiveUnlocked.defaultValue,
+  adaptivePhase: appSettingDefinitions.adaptivePhase.defaultValue,
 }
 
 // ── Legacy key migration ───────────────────────────────
@@ -202,6 +211,7 @@ export async function getAppSettingsSnapshot(): Promise<AppSettingsSnapshot> {
     adaptiveRecoverKeys: resolve("adaptiveRecoverKeys"),
     adaptiveForcedKeys: resolve("adaptiveForcedKeys"),
     adaptiveUnlocked: resolve("adaptiveUnlocked"),
+    adaptivePhase: resolve("adaptivePhase"),
   }
 }
 

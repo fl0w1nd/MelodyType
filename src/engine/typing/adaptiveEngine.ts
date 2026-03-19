@@ -1,5 +1,5 @@
-import { db, type KeyStat, type TypingSession } from "@/lib/db"
-import { getAppSetting, setAppSetting } from "@/lib/settings"
+import { db, type BigramStat, type KeyStat, type TypingSession } from "@/lib/db"
+import { getAppSetting, setAppSetting, type AdaptivePhase } from "@/lib/settings"
 import {
   DEFAULT_RECOVER_KEYS,
   DEFAULT_TARGET_CPM,
@@ -24,6 +24,8 @@ export const MIN_RECENT_ACCURACY_FOR_MASTERY = 0.92
 export const MIN_LIFETIME_ACCURACY_FOR_MASTERY = 0.85
 export const MIN_LATENCY_MS = 50
 export const MAX_LATENCY_MS = 3000
+export const MIN_BIGRAM_SAMPLES = 5
+export const BIGRAM_ACCURACY_EXPONENT = 1.5
 
 export interface AdaptiveSettings {
   targetCpm: number
@@ -81,6 +83,16 @@ export interface KeyUnlockChecks {
   lifetimeAccuracy: boolean
 }
 
+export interface BigramScore {
+  bigram: string
+  fromKey: string
+  toKey: string
+  score: number
+  speedScore: number
+  accuracyScore: number
+  samples: number
+}
+
 export interface AdaptiveState {
   unlockedKeys: string[]
   focusKey: string | null
@@ -88,6 +100,8 @@ export interface AdaptiveState {
   totalSessions: number
   globalSummary: AdaptiveGlobalSummary
   settings: AdaptiveSettings
+  phase: AdaptivePhase
+  weakBigrams: BigramScore[]
 }
 
 export function computeMastery(ewmaCpm: number | undefined, targetCpm: number = DEFAULT_TARGET_CPM): number {
@@ -327,12 +341,13 @@ export async function forceUnlockKey(key: string): Promise<void> {
 }
 
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
-  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings] = await Promise.all([
+  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
     getAppSetting("adaptiveUnlocked"),
     loadForcedKeys(),
     loadAdaptiveSettings(),
+    getAppSetting("adaptivePhase"),
   ])
 
   const statsMap = new Map<string, KeyStat>()
@@ -391,6 +406,10 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     kc.focused = kc.key === focusKey
   }
 
+  const weakBigrams = phase === "reinforcement"
+    ? await loadWeakBigrams(adaptSettings.targetCpm)
+    : []
+
   return {
     unlockedKeys: keyConfidences.filter((k) => k.unlocked).map((k) => k.key),
     focusKey,
@@ -398,6 +417,8 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     totalSessions: sessions.length,
     globalSummary: computeAdaptiveGlobalSummary(sessions),
     settings: adaptSettings,
+    phase,
+    weakBigrams,
   }
 }
 
@@ -405,27 +426,41 @@ export async function recomputeAndUnlock(): Promise<AdaptiveState> {
   const state = await loadAdaptiveState()
   const { recoverKeys } = state.settings
 
-  const unlockedConfidences = state.keyConfidences.filter((k) => k.unlocked && !k.forced)
-  if (shouldUnlockNextKey(unlockedConfidences, recoverKeys)) {
-    const autoUnlockedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
-    const nextKey = getNextKeyToUnlock(autoUnlockedKeys)
-    if (nextKey) {
-      const kc = state.keyConfidences.find((k) => k.key === nextKey)
-      if (kc) {
-        kc.unlocked = true
-        kc.forced = false
-      }
+  if (state.phase === "progressive") {
+    const unlockedConfidences = state.keyConfidences.filter((k) => k.unlocked && !k.forced)
+    if (shouldUnlockNextKey(unlockedConfidences, recoverKeys)) {
+      const autoUnlockedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
+      const nextKey = getNextKeyToUnlock(autoUnlockedKeys)
+      if (nextKey) {
+        const kc = state.keyConfidences.find((k) => k.key === nextKey)
+        if (kc) {
+          kc.unlocked = true
+          kc.forced = false
+        }
 
-      const savedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
-      await saveUnlockedKeys(savedKeys)
+        const savedKeys = state.keyConfidences.filter((k) => k.unlocked && !k.forced).map((k) => k.key)
+        await saveUnlockedKeys(savedKeys)
 
-      state.unlockedKeys = state.keyConfidences.filter((k) => k.unlocked).map((k) => k.key)
-      const newFocus = getFocusKey(state.keyConfidences, recoverKeys)
-      for (const kc of state.keyConfidences) {
-        kc.focused = kc.key === newFocus
+        state.unlockedKeys = state.keyConfidences.filter((k) => k.unlocked).map((k) => k.key)
+        const newFocus = getFocusKey(state.keyConfidences, recoverKeys)
+        for (const kc of state.keyConfidences) {
+          kc.focused = kc.key === newFocus
+        }
+        state.focusKey = newFocus
+      } else {
+        const allMastered = LETTER_FREQUENCY_ORDER.every((key) => {
+          const kc = state.keyConfidences.find((k) => k.key === key)
+          return kc && isKeyStrictlyMastered(kc)
+        })
+        if (allMastered) {
+          await setAppSetting("adaptivePhase", "reinforcement")
+          state.phase = "reinforcement"
+          state.weakBigrams = await loadWeakBigrams(state.settings.targetCpm)
+        }
       }
-      state.focusKey = newFocus
     }
+  } else {
+    state.weakBigrams = await loadWeakBigrams(state.settings.targetCpm)
   }
 
   return state
@@ -637,4 +672,278 @@ export function computeKeyWeights(
   }
 
   return weights
+}
+
+// ── Bigram / Transition tracking ────────────────────────
+
+interface BigramMetricEntry {
+  successes: number
+  failures: number
+  latencies: number[]
+}
+
+/**
+ * Extract bigram transition metrics from a completed session.
+ *
+ * Attribution rules:
+ * - An "anchor" is the last correctly typed character.
+ * - On correct input: record a successful transition from anchor -> current,
+ *   then move anchor to current.
+ * - On first incorrect input after anchor: record a single failure for
+ *   anchor -> expected. Subsequent errors for the same position are ignored.
+ * - Spaces break the transition chain (anchor resets to null).
+ */
+export function extractBigramMetrics(
+  keystrokeLog: Array<{ key: string; correct: boolean; timestamp: number; wordIndex: number; charIndex: number }>,
+  expectedText: string,
+): Record<string, BigramMetricEntry> {
+  const metrics: Record<string, BigramMetricEntry> = {}
+  let anchor: { key: string; timestamp: number } | null = null
+  let currentExpectedIndex = 0
+  let transitionAlreadyFailed = false
+
+  const ensure = (bigram: string) => {
+    if (!metrics[bigram]) {
+      metrics[bigram] = { successes: 0, failures: 0, latencies: [] }
+    }
+  }
+
+  for (const entry of keystrokeLog) {
+    if (currentExpectedIndex >= expectedText.length) break
+    const expectedChar = expectedText[currentExpectedIndex]
+
+    if (expectedChar === " ") {
+      if (entry.correct && entry.key === " ") {
+        anchor = null
+        currentExpectedIndex++
+        transitionAlreadyFailed = false
+      }
+      continue
+    }
+
+    if (entry.key === " ") {
+      continue
+    }
+
+    const entryLower = entry.key.length === 1 ? entry.key.toLowerCase() : null
+    const expectedLower = expectedChar.toLowerCase()
+    if (!entryLower) continue
+
+    if (entry.correct) {
+      if (anchor && anchor.key !== " ") {
+        const bigram = `${anchor.key}:${entryLower}`
+        ensure(bigram)
+        metrics[bigram].successes++
+        const latency = entry.timestamp - anchor.timestamp
+        if (latency >= MIN_LATENCY_MS && latency <= MAX_LATENCY_MS) {
+          metrics[bigram].latencies.push(latency)
+        }
+      }
+      anchor = { key: entryLower, timestamp: entry.timestamp }
+      currentExpectedIndex++
+      transitionAlreadyFailed = false
+    } else {
+      if (anchor && !transitionAlreadyFailed && anchor.key !== " ") {
+        const bigram = `${anchor.key}:${expectedLower}`
+        ensure(bigram)
+        metrics[bigram].failures++
+        transitionAlreadyFailed = true
+      }
+    }
+  }
+  return metrics
+}
+
+export async function updateBigramStatsFromSession(
+  keystrokeLog: Array<{ key: string; correct: boolean; timestamp: number; wordIndex: number; charIndex: number }>,
+  expectedText: string,
+): Promise<void> {
+  const sessionMetrics = extractBigramMetrics(keystrokeLog, expectedText)
+
+  await db.transaction("rw", db.bigramStats, async () => {
+    for (const [bigramKey, m] of Object.entries(sessionMetrics)) {
+      const [fromKey, toKey] = bigramKey.split(":")
+      if (!fromKey || !toKey) continue
+
+      const avgLatency = m.latencies.length > 0
+        ? m.latencies.reduce((a, b) => a + b, 0) / m.latencies.length
+        : 0
+
+      const existing = await db.bigramStats.where("bigram").equals(bigramKey).first()
+      if (existing) {
+        const newDecayedCorrect = existing.decayedCorrect * ACCURACY_DECAY + m.successes
+        const newDecayedErrors = existing.decayedErrors * ACCURACY_DECAY + m.failures
+
+        const newEwmaLatency = avgLatency > 0
+          ? (existing.ewmaLatency > 0
+            ? existing.ewmaLatency * (1 - EWMA_ALPHA) + avgLatency * EWMA_ALPHA
+            : avgLatency)
+          : existing.ewmaLatency
+
+        const newBestLatency = avgLatency > 0
+          ? (existing.bestLatency > 0
+            ? Math.min(existing.bestLatency, avgLatency)
+            : avgLatency)
+          : existing.bestLatency
+
+        await db.bigramStats.update(existing.id!, {
+          totalAttempts: existing.totalAttempts + m.successes + m.failures,
+          correctAttempts: existing.correctAttempts + m.successes,
+          ewmaLatency: newEwmaLatency,
+          bestLatency: newBestLatency,
+          decayedCorrect: newDecayedCorrect,
+          decayedErrors: newDecayedErrors,
+          lastUpdated: Date.now(),
+        })
+      } else {
+        await db.bigramStats.add({
+          fromKey,
+          toKey,
+          bigram: bigramKey,
+          totalAttempts: m.successes + m.failures,
+          correctAttempts: m.successes,
+          ewmaLatency: avgLatency,
+          bestLatency: avgLatency,
+          decayedCorrect: m.successes,
+          decayedErrors: m.failures,
+          lastUpdated: Date.now(),
+        })
+      }
+    }
+  })
+}
+
+export function computeTransitionScore(
+  stat: BigramStat,
+  targetCpm: number = DEFAULT_TARGET_CPM,
+): BigramScore {
+  const targetLatency = 60000 / targetCpm
+  const speedScore = stat.ewmaLatency > 0
+    ? Math.min(1, targetLatency / stat.ewmaLatency)
+    : 0
+  const total = stat.decayedCorrect + stat.decayedErrors
+  const accuracyScore = total > 0 ? stat.decayedCorrect / total : 0
+  const score = speedScore * Math.pow(accuracyScore, BIGRAM_ACCURACY_EXPONENT)
+
+  return {
+    bigram: stat.bigram,
+    fromKey: stat.fromKey,
+    toKey: stat.toKey,
+    score,
+    speedScore,
+    accuracyScore,
+    samples: stat.totalAttempts,
+  }
+}
+
+export function isBigramMastered(
+  stat: BigramStat,
+  targetCpm: number = DEFAULT_TARGET_CPM,
+): boolean {
+  const targetLatency = 60000 / targetCpm
+  const speedScore = stat.ewmaLatency > 0
+    ? Math.min(1, targetLatency / stat.ewmaLatency)
+    : 0
+  const total = stat.decayedCorrect + stat.decayedErrors
+  const accuracyScore = total > 0 ? stat.decayedCorrect / total : 0
+  return (
+    speedScore >= 1.0 &&
+    accuracyScore >= 0.90 &&
+    stat.totalAttempts >= MIN_BIGRAM_SAMPLES
+  )
+}
+
+export async function loadWeakBigrams(
+  targetCpm: number = DEFAULT_TARGET_CPM,
+  limit: number = 20,
+): Promise<BigramScore[]> {
+  const allStats = await db.bigramStats.toArray()
+  const scored = allStats
+    .filter((s) => s.totalAttempts >= MIN_BIGRAM_SAMPLES)
+    .map((s) => computeTransitionScore(s, targetCpm))
+    .sort((a, b) => a.score - b.score)
+  return scored.slice(0, limit)
+}
+
+export async function loadAllBigramScores(
+  targetCpm: number = DEFAULT_TARGET_CPM,
+): Promise<BigramScore[]> {
+  const allStats = await db.bigramStats.toArray()
+  return allStats.map((s) => computeTransitionScore(s, targetCpm))
+}
+
+/**
+ * One-time backfill: compute approximate bigram stats from historical sessions.
+ * Since historical sessions don't store expectedText, we can only track
+ * transitions between consecutive correct keystrokes (no failure attribution).
+ */
+export async function backfillBigramStatsFromHistory(): Promise<number> {
+  const existingCount = await db.bigramStats.count()
+  if (existingCount > 0) return 0
+
+  const sessions = await db.sessions
+    .where("mode")
+    .equals("adaptive")
+    .toArray()
+
+  if (sessions.length === 0) return 0
+
+  const aggregated: Record<string, {
+    successes: number
+    latencies: number[]
+  }> = {}
+
+  for (const session of sessions) {
+    let prevCorrect: { key: string; timestamp: number } | null = null
+    for (const stroke of session.keystrokes) {
+      if (stroke.key.length !== 1 || stroke.key === " ") {
+        if (stroke.correct) prevCorrect = null
+        continue
+      }
+      const lower = stroke.key.toLowerCase()
+      if (!stroke.correct) {
+        prevCorrect = null
+        continue
+      }
+      if (prevCorrect) {
+        const bigramKey = `${prevCorrect.key}:${lower}`
+        if (!aggregated[bigramKey]) {
+          aggregated[bigramKey] = { successes: 0, latencies: [] }
+        }
+        aggregated[bigramKey].successes++
+        const latency = stroke.timestamp - prevCorrect.timestamp
+        if (latency >= MIN_LATENCY_MS && latency <= MAX_LATENCY_MS) {
+          aggregated[bigramKey].latencies.push(latency)
+        }
+      }
+      prevCorrect = { key: lower, timestamp: stroke.timestamp }
+    }
+  }
+
+  const entries = Object.entries(aggregated)
+  if (entries.length === 0) return 0
+
+  await db.transaction("rw", db.bigramStats, async () => {
+    for (const [bigramKey, m] of entries) {
+      const [fromKey, toKey] = bigramKey.split(":")
+      if (!fromKey || !toKey) continue
+      const avgLatency = m.latencies.length > 0
+        ? m.latencies.reduce((a, b) => a + b, 0) / m.latencies.length
+        : 0
+      await db.bigramStats.add({
+        fromKey,
+        toKey,
+        bigram: bigramKey,
+        totalAttempts: m.successes,
+        correctAttempts: m.successes,
+        ewmaLatency: avgLatency,
+        bestLatency: avgLatency,
+        decayedCorrect: m.successes,
+        decayedErrors: 0,
+        lastUpdated: Date.now(),
+      })
+    }
+  })
+
+  return entries.length
 }

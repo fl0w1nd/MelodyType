@@ -49,6 +49,20 @@ export interface KeyStat {
   adaptiveSampleIndex?: number
 }
 
+export interface BigramStat {
+  id?: number
+  fromKey: string
+  toKey: string
+  bigram: string
+  totalAttempts: number
+  correctAttempts: number
+  ewmaLatency: number
+  bestLatency: number
+  decayedCorrect: number
+  decayedErrors: number
+  lastUpdated: number
+}
+
 export interface MidiFile {
   id?: number
   name: string
@@ -78,6 +92,7 @@ export interface DailyGoal {
 class MelodyTypeDB extends Dexie {
   sessions!: EntityTable<TypingSession, "id">
   keyStats!: EntityTable<KeyStat, "id">
+  bigramStats!: EntityTable<BigramStat, "id">
   midiFiles!: EntityTable<MidiFile, "id">
   settings!: EntityTable<UserSettings, "id">
   dailyGoals!: EntityTable<DailyGoal, "id">
@@ -94,6 +109,14 @@ class MelodyTypeDB extends Dexie {
     this.version(2).stores({
       sessions: "++id, timestamp, mode",
       keyStats: "++id, &key, lastUpdated",
+      midiFiles: "++id, name, isPreset",
+      settings: "++id, &key",
+      dailyGoals: "++id, &date",
+    })
+    this.version(3).stores({
+      sessions: "++id, timestamp, mode",
+      keyStats: "++id, &key, lastUpdated",
+      bigramStats: "++id, &bigram, fromKey, toKey",
       midiFiles: "++id, name, isPreset",
       settings: "++id, &key",
       dailyGoals: "++id, &date",
@@ -118,10 +141,11 @@ export async function setSetting(key: string, value: string): Promise<void> {
 }
 
 export async function exportAllData(): Promise<string> {
-  const [sessions, keyStats, midiFiles, settings, dailyGoals] =
+  const [sessions, keyStats, bigramStats, midiFiles, settings, dailyGoals] =
     await Promise.all([
       db.sessions.toArray(),
       db.keyStats.toArray(),
+      db.bigramStats.toArray(),
       db.midiFiles.toArray(),
       db.settings.toArray(),
       db.dailyGoals.toArray(),
@@ -133,7 +157,7 @@ export async function exportAllData(): Promise<string> {
   }))
 
   return JSON.stringify(
-    { sessions, keyStats, midiFiles: midiFilesExport, settings, dailyGoals },
+    { sessions, keyStats, bigramStats, midiFiles: midiFilesExport, settings, dailyGoals },
     null,
     2,
   )
@@ -144,11 +168,12 @@ export async function importAllData(jsonStr: string): Promise<void> {
 
   await db.transaction(
     "rw",
-    [db.sessions, db.keyStats, db.midiFiles, db.settings, db.dailyGoals],
+    [db.sessions, db.keyStats, db.bigramStats, db.midiFiles, db.settings, db.dailyGoals],
     async () => {
       await Promise.all([
         db.sessions.clear(),
         db.keyStats.clear(),
+        db.bigramStats.clear(),
         db.midiFiles.clear(),
         db.settings.clear(),
         db.dailyGoals.clear(),
@@ -156,6 +181,7 @@ export async function importAllData(jsonStr: string): Promise<void> {
 
       if (data.sessions) await db.sessions.bulkAdd(data.sessions)
       if (data.keyStats) await db.keyStats.bulkAdd(data.keyStats)
+      if (data.bigramStats) await db.bigramStats.bulkAdd(data.bigramStats)
       if (data.midiFiles) {
         const restored = data.midiFiles.map(
           (f: { data: number[] } & Omit<MidiFile, "data">) => ({

@@ -3,7 +3,7 @@ import { useMidi } from "@/engine/midi/MidiContext"
 import { useTypingEngine } from "@/engine/typing/useTypingEngine"
 import { generateWordText } from "@/engine/typing/wordLists"
 import { getRandomQuoteAsync, preloadQuotes } from "@/engine/typing/quoteLoader"
-import { generateAdaptiveText } from "@/engine/typing/pseudoWords"
+import { generateAdaptiveText, generateReinforcementText } from "@/engine/typing/pseudoWords"
 import type {
   KeystrokeEntry,
   PracticeModeConfig,
@@ -193,12 +193,14 @@ export function usePracticeSessionController({
     adaptiveLoaded.current = true
     void loadAdaptiveState().then((nextState) => {
       setAdaptiveState(nextState)
-      const text = generateAdaptiveText(
-        nextState.keyConfidences,
-        nextState.unlockedKeys,
-        nextState.focusKey,
-        ADAPTIVE_WORD_COUNT,
-      )
+      const text = nextState.phase === "reinforcement"
+        ? generateReinforcementText(nextState.weakBigrams, ADAPTIVE_WORD_COUNT)
+        : generateAdaptiveText(
+            nextState.keyConfidences,
+            nextState.unlockedKeys,
+            nextState.focusKey,
+            ADAPTIVE_WORD_COUNT,
+          )
       loadText(text)
       void startMelody(getTargetCPM({ mode: "adaptive" }, nextState))
     })
@@ -214,6 +216,12 @@ export function usePracticeSessionController({
         case "adaptive": {
           const resolvedAdaptiveState = nextAdaptiveState ?? adaptiveState
           if (resolvedAdaptiveState) {
+            if (resolvedAdaptiveState.phase === "reinforcement") {
+              return generateReinforcementText(
+                resolvedAdaptiveState.weakBigrams,
+                ADAPTIVE_WORD_COUNT,
+              )
+            }
             return generateAdaptiveText(
               resolvedAdaptiveState.keyConfidences,
               resolvedAdaptiveState.unlockedKeys,
@@ -397,12 +405,14 @@ export function usePracticeSessionController({
 
   const startAdaptiveNextRound = useCallback(
     (nextAdaptiveState: AdaptiveState) => {
-      const text = generateAdaptiveText(
-        nextAdaptiveState.keyConfidences,
-        nextAdaptiveState.unlockedKeys,
-        nextAdaptiveState.focusKey,
-        ADAPTIVE_WORD_COUNT,
-      )
+      const text = nextAdaptiveState.phase === "reinforcement"
+        ? generateReinforcementText(nextAdaptiveState.weakBigrams, ADAPTIVE_WORD_COUNT)
+        : generateAdaptiveText(
+            nextAdaptiveState.keyConfidences,
+            nextAdaptiveState.unlockedKeys,
+            nextAdaptiveState.focusKey,
+            ADAPTIVE_WORD_COUNT,
+          )
       loadText(text)
       setAdaptiveState(nextAdaptiveState)
       setRoundCount((value) => value + 1)
@@ -498,11 +508,21 @@ export function usePracticeSessionController({
 
     void (async () => {
       try {
+        const expectedChars: string[] = []
+        for (let wi = 0; wi < state.words.length; wi++) {
+          if (wi > 0) expectedChars.push(" ")
+          for (const ch of state.words[wi].chars) {
+            expectedChars.push(ch.char)
+          }
+        }
+        const expectedText = expectedChars.join("")
+
         const result = await persistCompletedRound({
           config,
           adaptiveState,
           metrics: roundMetrics,
           keystrokeLog: state.keystrokeLog,
+          expectedText,
         })
 
         if (config.mode === "time") {
@@ -532,6 +552,7 @@ export function usePracticeSessionController({
     state.isFinished,
     state.isStarted,
     state.keystrokeLog,
+    state.words,
   ])
 
   useEffect(() => {

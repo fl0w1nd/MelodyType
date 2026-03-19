@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import { Brain, Clock, Quote } from "lucide-react"
@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { StatsOverview } from "@/components/dashboard/StatsOverview"
 import { WpmChart, AccuracyChart } from "@/components/dashboard/WpmChart"
 import { KeyboardHeatmap } from "@/components/dashboard/KeyboardHeatmap"
+import { TransitionHeatmap } from "@/components/dashboard/TransitionHeatmap"
 import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
@@ -15,6 +16,8 @@ import { AdaptiveProgressCard } from "@/components/dashboard/AdaptiveProgressCar
 import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap"
 import { formatLocalDateKey } from "@/lib/date"
 import type { DailyGoal, TypingSession } from "@/lib/db"
+import { loadAllBigramScores, backfillBigramStatsFromHistory } from "@/engine/typing/adaptiveEngine"
+import type { BigramScore } from "@/engine/typing/adaptiveEngine"
 
 type DashboardMode = "adaptive" | "time" | "quote"
 
@@ -40,6 +43,21 @@ export default function DashboardPage() {
 
   const [heatmapMode, setHeatmapMode] = useState<"errors" | "speed">("errors")
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
+  const [bigramScores, setBigramScores] = useState<BigramScore[]>([])
+
+  const bigramStatsVersion = useLiveQuery(
+    () => db.bigramStats.count(),
+    [],
+    0,
+  )
+
+  useEffect(() => {
+    void (async () => {
+      await backfillBigramStatsFromHistory()
+      const scores = await loadAllBigramScores()
+      setBigramScores(scores)
+    })()
+  }, [bigramStatsVersion])
 
   return (
     <div className="flex flex-col gap-6">
@@ -110,6 +128,10 @@ export default function DashboardPage() {
                 mode={heatmapMode}
               />
             </div>
+
+            {mode === "adaptive" && bigramScores.length > 0 && (
+              <TransitionHeatmap bigramScores={bigramScores} />
+            )}
 
             <KeyDetailPanel sessions={sessions.filter((s) => s.mode === mode)} />
 
