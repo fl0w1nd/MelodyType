@@ -30,20 +30,20 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
 
   return (
     <div className="flex flex-col gap-0" role="status" aria-live="polite">
-      <div className="flex items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
+      <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
         <MetricItem
           icon={<Gauge className="h-4 w-4" />}
           label="WPM"
           value={isStarted ? metrics.wpm.toFixed(0) : "—"}
           accent
         />
-        <div className="w-px h-8 bg-border/60" />
+        <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Target className="h-4 w-4" />}
           label="Accuracy"
           value={isStarted ? `${metrics.accuracy.toFixed(1)}%` : "—"}
         />
-        <div className="w-px h-8 bg-border/60" />
+        <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Clock className="h-4 w-4" />}
           label={remaining != null ? "Remaining" : "Time"}
@@ -51,13 +51,13 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           urgent={isUrgent}
           critical={isCritical}
         />
-        <div className="w-px h-8 bg-border/60" />
+        <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Zap className="h-4 w-4" />}
           label="Raw"
           value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
         />
-        <div className="w-px h-8 bg-border/60" />
+        <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Music className="h-4 w-4" />}
           label="Integrity"

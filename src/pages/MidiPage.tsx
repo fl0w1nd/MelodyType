@@ -235,7 +235,7 @@ export default function MidiPage() {
   }, [getCurrentTestFrame, triggerNextFrame])
 
   return (
-    <div className="flex flex-col gap-5 h-[calc(100vh-10rem)]">
+    <div className="flex flex-col gap-5 lg:h-[calc(100vh-10rem)]">
       {/* ── Top Control Bar ── */}
       <div className="shrink-0 rounded-xl bg-card ring-1 ring-foreground/10 px-5 py-3">
         <div className="flex items-center gap-x-4">
@@ -354,7 +354,7 @@ export default function MidiPage() {
       </div>
 
       {/* ── Main Content: Three-Column Layout ── */}
-      <div className="flex-1 min-h-0 flex gap-4">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
         {/* Presets Column */}
         <div className="flex-[3] min-w-0 flex flex-col">
           <div className="shrink-0 flex items-center gap-2 mb-3">
