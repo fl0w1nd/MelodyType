@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
@@ -338,6 +339,7 @@ function KeyProgressPanelInner({
             icon={<TrendingUp className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.score.delta, "", 0) : undefined}
             deltaValue={globalSummary.score.delta}
+            tooltip="Combined performance score factoring both speed and accuracy"
           />
           <InlineMetric
             label="Integrity"
@@ -345,6 +347,7 @@ function KeyProgressPanelInner({
             icon={<Music className="h-3 w-3" />}
             delta={showIntegrityDelta ? formatDelta(globalSummary.integrity.delta, "%", 0) : undefined}
             deltaValue={globalSummary.integrity.delta}
+            tooltip="Melody integrity — how well your typing rhythm maintains the musical flow"
           />
           <InlineMetric
             label="Target"
@@ -712,6 +715,7 @@ function InlineMetric({
   delta,
   deltaValue,
   accent,
+  tooltip,
 }: {
   label: string
   value: string
@@ -719,8 +723,9 @@ function InlineMetric({
   delta?: string
   deltaValue?: number
   accent?: boolean
+  tooltip?: string
 }) {
-  return (
+  const content = (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="text-muted-foreground/70">{icon}</span>
       <div className="min-w-0">
@@ -753,6 +758,19 @@ function InlineMetric({
         </div>
       </div>
     </div>
+  )
+
+  if (!tooltip) return content
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<div className="flex min-w-0" />}>
+        {content}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

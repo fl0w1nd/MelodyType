@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import type { TypingSession, DailyGoal } from "@/lib/db"
 import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
@@ -103,6 +104,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Gauge,
       label: "Avg WPM",
       value: stats.avgWpm.toString(),
+      tooltip: "Average typing speed across all sessions, measured in Words Per Minute",
       accent: "from-amber-500/20 to-orange-500/5",
       iconColor: "text-amber-600 dark:text-amber-400",
       borderAccent: "border-amber-500/20",
@@ -111,6 +113,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Trophy,
       label: "Best WPM",
       value: stats.bestWpm.toString(),
+      tooltip: "Your highest recorded typing speed in any single session",
       accent: "from-yellow-500/20 to-amber-500/5",
       iconColor: "text-yellow-600 dark:text-yellow-400",
       borderAccent: "border-yellow-500/20",
@@ -119,6 +122,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Target,
       label: "Accuracy",
       value: `${stats.avgAccuracy}%`,
+      tooltip: "Average percentage of keystrokes that were correct across all sessions",
       accent: "from-emerald-500/20 to-teal-500/5",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       borderAccent: "border-emerald-500/20",
@@ -127,6 +131,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Music,
       label: "Melody Integrity",
       value: stats.melodyIntegritySamples > 0 ? `${stats.avgMelodyIntegrity}%` : "—",
+      tooltip: "How consistently you maintain the musical flow while typing. Higher means smoother, more rhythmic input.",
       accent: "from-sky-500/20 to-cyan-500/5",
       iconColor: "text-sky-600 dark:text-sky-400",
       borderAccent: "border-sky-500/20",
@@ -135,6 +140,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Hash,
       label: "Sessions",
       value: stats.totalSessions.toString(),
+      tooltip: "Total number of completed practice sessions",
       accent: "from-blue-500/20 to-indigo-500/5",
       iconColor: "text-blue-600 dark:text-blue-400",
       borderAccent: "border-blue-500/20",
@@ -143,6 +149,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Clock,
       label: "Practice",
       value: `${stats.totalTime}m`,
+      tooltip: "Total time spent practicing, measured in minutes",
       accent: "from-violet-500/20 to-purple-500/5",
       iconColor: "text-violet-600 dark:text-violet-400",
       borderAccent: "border-violet-500/20",
@@ -151,6 +158,7 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       icon: Flame,
       label: "Streak",
       value: `${stats.streak}d`,
+      tooltip: "Consecutive days with at least one completed practice session",
       accent: "from-rose-500/20 to-red-500/5",
       iconColor: "text-rose-600 dark:text-rose-400",
       borderAccent: "border-rose-500/20",
@@ -201,30 +209,38 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {heroMetrics.map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.1 + i * 0.06,
-              duration: 0.4,
-              ease: [0.25, 1, 0.5, 1],
-            }}
-            className={`group relative overflow-hidden rounded-2xl border ${card.borderAccent} bg-card/80 backdrop-blur-sm p-4 transition-all duration-300 ease-out hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-1`}
-          >
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60`} />
-            <div className="relative flex flex-col items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-background/60 backdrop-blur-sm shadow-sm">
-                <card.icon className={`h-4 w-4 ${card.iconColor}`} />
+          <Tooltip key={card.label}>
+            <TooltipTrigger
+              render={
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: 0.1 + i * 0.06,
+                    duration: 0.4,
+                    ease: [0.25, 1, 0.5, 1],
+                  }}
+                  className={`group relative overflow-hidden rounded-2xl border ${card.borderAccent} bg-card/80 backdrop-blur-sm p-4 transition-all duration-300 ease-out hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-1`}
+                />
+              }
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60`} />
+              <div className="relative flex flex-col items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-background/60 backdrop-blur-sm shadow-sm">
+                  <card.icon className={`h-4 w-4 ${card.iconColor}`} />
+                </div>
+                <span className="text-2xl font-mono font-bold tabular-nums tracking-tight text-foreground">
+                  {card.value}
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
+                  {card.label}
+                </span>
               </div>
-              <span className="text-2xl font-mono font-bold tabular-nums tracking-tight text-foreground">
-                {card.value}
-              </span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
-                {card.label}
-              </span>
-            </div>
-          </motion.div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-center">
+              {card.tooltip}
+            </TooltipContent>
+          </Tooltip>
         ))}
       </div>
     </div>

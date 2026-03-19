@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { CalendarCheck, Check, Flame } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
 import { useAppSetting, setAppSetting } from "@/lib/settings"
@@ -298,26 +299,35 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
             {
               label: "Progress",
               value: `${Math.round(pct)}%`,
+              tooltip: "Percentage of your daily practice time goal completed",
             },
             {
               label: "Sessions",
               value: (todayGoal?.sessionsCount ?? 0).toString(),
+              tooltip: "Number of practice sessions completed today",
             },
             {
               label: "Best WPM",
               value: todayGoal ? Math.round(todayGoal.bestWpm).toString() : "—",
+              tooltip: "Your highest typing speed achieved in today's sessions",
             },
             {
               label: "Avg Acc",
               value: avgAcc != null ? `${avgAcc.toFixed(1)}%` : "—",
+              tooltip: "Average accuracy across all of today's practice sessions",
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-xl bg-secondary/30 p-2.5 text-center">
-              <div className="text-sm font-mono font-bold tabular-nums">{item.value}</div>
-              <div className="text-[9px] text-muted-foreground uppercase tracking-widest mt-0.5">
-                {item.label}
-              </div>
-            </div>
+            <Tooltip key={item.label}>
+              <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-2.5 text-center" />}>
+                <div className="text-sm font-mono font-bold tabular-nums">{item.value}</div>
+                <div className="text-[9px] text-muted-foreground uppercase tracking-widest mt-0.5">
+                  {item.label}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                {item.tooltip}
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       </div>

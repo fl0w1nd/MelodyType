@@ -2,6 +2,7 @@ import { memo, useMemo } from "react"
 import { Gauge, Target, Clock, Zap, Music } from "lucide-react"
 import { motion } from "framer-motion"
 import type { TypingMetrics } from "@/engine/typing/types"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 
 interface MetricsBarProps {
   metrics: TypingMetrics
@@ -35,6 +36,7 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           icon={<Gauge className="h-4 w-4" />}
           label="WPM"
           value={isStarted ? metrics.wpm.toFixed(0) : "—"}
+          tooltip="Words Per Minute — your net typing speed after accounting for errors"
           accent
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
@@ -42,12 +44,14 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           icon={<Target className="h-4 w-4" />}
           label="Accuracy"
           value={isStarted ? `${metrics.accuracy.toFixed(1)}%` : "—"}
+          tooltip="Percentage of characters typed correctly without errors"
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Clock className="h-4 w-4" />}
           label={remaining != null ? "Remaining" : "Time"}
           value={timeValue}
+          tooltip={remaining != null ? "Time left before the session ends" : "Elapsed time since you started typing"}
           urgent={isUrgent}
           critical={isCritical}
         />
@@ -56,12 +60,14 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           icon={<Zap className="h-4 w-4" />}
           label="Raw"
           value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
+          tooltip="Raw WPM — total typing speed including errors, before accuracy penalty is applied"
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Music className="h-4 w-4" />}
           label="Integrity"
           value={isStarted ? `${metrics.melodyIntegrity.toFixed(0)}%` : "—"}
+          tooltip="Melody Integrity — how well your typing rhythm maintains the musical flow. Higher means smoother melody."
         />
       </div>
 
@@ -120,6 +126,7 @@ function MetricItem({
   icon,
   label,
   value,
+  tooltip,
   accent,
   urgent,
   critical,
@@ -127,6 +134,7 @@ function MetricItem({
   icon: React.ReactNode
   label: string
   value: string
+  tooltip?: string
   accent?: boolean
   urgent?: boolean
   critical?: boolean
@@ -139,7 +147,7 @@ function MetricItem({
         ? "text-primary"
         : "text-foreground"
 
-  return (
+  const content = (
     <div className="flex items-center gap-2">
       <span className={`transition-colors duration-300 ${critical ? "text-destructive/60" : urgent ? "text-amber-500/60" : "text-muted-foreground/60"}`}>
         {icon}
@@ -155,6 +163,19 @@ function MetricItem({
         </span>
       </div>
     </div>
+  )
+
+  if (!tooltip) return content
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<div />}>
+        {content}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
