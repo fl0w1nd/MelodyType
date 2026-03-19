@@ -8,7 +8,8 @@ import {
 } from "@/engine/typing/adaptiveEngine"
 import { formatLocalDateKey } from "@/lib/date"
 import { getAppSetting } from "@/lib/settings"
-import { getLevelPersonalBest } from "./sessionQueries"
+import { getLevelPersonalBest, getTimeLevelRecord } from "./sessionQueries"
+import type { LevelRecord } from "@/engine/typing/timeLevels"
 
 interface PersistCompletedRoundInput {
   config: PracticeModeConfig
@@ -22,6 +23,7 @@ export interface PersistCompletedRoundResult {
   newlyUnlocked: string | null
   previousPersonalBest: number | null
   isNewPersonalBest: boolean
+  timeLevelRecord: LevelRecord | null
 }
 
 function toStoredKeystrokes(keystrokeLog: KeystrokeEntry[]): KeystrokeRecord[] {
@@ -139,6 +141,7 @@ export async function persistCompletedRound({
 
   let nextAdaptiveState: AdaptiveState | null = null
   let newlyUnlocked: string | null = null
+  let timeLevelRecord: LevelRecord | null = null
   const isNewPersonalBest =
     config.mode === "time" &&
     config.levelId != null &&
@@ -156,6 +159,10 @@ export async function persistCompletedRound({
     await updateClassicKeyStats(keystrokeLog)
   }
 
+  if (config.mode === "time" && config.levelId) {
+    timeLevelRecord = await getTimeLevelRecord(config.levelId)
+  }
+
   await updateDailyGoal(metrics)
 
   return {
@@ -163,5 +170,6 @@ export async function persistCompletedRound({
     newlyUnlocked,
     previousPersonalBest,
     isNewPersonalBest,
+    timeLevelRecord,
   }
 }

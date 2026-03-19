@@ -23,6 +23,7 @@ import { setAppSetting } from "@/lib/settings"
 import {
   TIME_LEVELS,
   getLevelById,
+  type LevelRecord,
   type TimeLevel,
 } from "@/engine/typing/timeLevels"
 import { persistCompletedRound } from "./practicePersistence"
@@ -108,8 +109,8 @@ interface UsePracticeSessionControllerOptions {
 }
 
 interface TimeResultSummary {
-  previousPersonalBest: number | null
   isNewPersonalBest: boolean
+  levelRecord: LevelRecord | null
 }
 
 export function usePracticeSessionController({
@@ -417,7 +418,6 @@ export function usePracticeSessionController({
     const handler = (event: KeyboardEvent) => {
       const isAdaptiveMode = config.mode === "adaptive"
       const isTimeLevelSelect = config.mode === "time" && !activeLevel
-
       if (isTimeLevelSelect) return
 
       if (state.isFinished && !isAdaptiveMode) {
@@ -507,8 +507,8 @@ export function usePracticeSessionController({
 
         if (config.mode === "time") {
           setTimeResultSummary({
-            previousPersonalBest: result.previousPersonalBest,
             isNewPersonalBest: result.isNewPersonalBest,
+            levelRecord: result.timeLevelRecord,
           })
         }
 

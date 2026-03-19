@@ -103,8 +103,8 @@ export default function PracticePage() {
               onNextLevel={activeLevel ? actions.handleNextLevel : undefined}
               modeConfig={config}
               keystrokeLog={state.keystrokeLog}
-              previousPersonalBest={timeResultSummary?.previousPersonalBest ?? null}
               isNewPersonalBest={timeResultSummary?.isNewPersonalBest ?? false}
+              levelRecord={timeResultSummary?.levelRecord ?? null}
               wordsCompleted={state.words.filter((word) => word.completed).length}
             />
           ) : (
