@@ -21,6 +21,7 @@ export interface AppSettingsSnapshot {
   dailyGoalMinutes: number
   midiConfig: MidiConfig
   selectedMidi: SelectedMidiSource | null
+  midiPlaylist: SelectedMidiSource[]
   adaptiveTargetCpm: number
   adaptiveRecoverKeys: boolean
   adaptiveForcedKeys: string[]
@@ -81,6 +82,11 @@ export const appSettingDefinitions: {
     deserialize: (raw) => parseJsonOrFallback(raw, defaultSelectedMidi),
     serialize: (value) => JSON.stringify(value),
   },
+  midiPlaylist: {
+    defaultValue: [],
+    deserialize: (raw) => parseJsonOrFallback(raw, []),
+    serialize: (value) => JSON.stringify(value),
+  },
   adaptiveTargetCpm: {
     defaultValue: DEFAULT_TARGET_CPM,
     deserialize: (raw) => parseNumberOrFallback(raw, DEFAULT_TARGET_CPM),
@@ -108,6 +114,7 @@ export const DEFAULT_APP_SETTINGS: AppSettingsSnapshot = {
   dailyGoalMinutes: appSettingDefinitions.dailyGoalMinutes.defaultValue,
   midiConfig: appSettingDefinitions.midiConfig.defaultValue,
   selectedMidi: appSettingDefinitions.selectedMidi.defaultValue,
+  midiPlaylist: appSettingDefinitions.midiPlaylist.defaultValue,
   adaptiveTargetCpm: appSettingDefinitions.adaptiveTargetCpm.defaultValue,
   adaptiveRecoverKeys: appSettingDefinitions.adaptiveRecoverKeys.defaultValue,
   adaptiveForcedKeys: appSettingDefinitions.adaptiveForcedKeys.defaultValue,
@@ -190,6 +197,7 @@ export async function getAppSettingsSnapshot(): Promise<AppSettingsSnapshot> {
     dailyGoalMinutes: resolve("dailyGoalMinutes"),
     midiConfig: resolve("midiConfig"),
     selectedMidi: resolve("selectedMidi"),
+    midiPlaylist: resolve("midiPlaylist"),
     adaptiveTargetCpm: resolve("adaptiveTargetCpm"),
     adaptiveRecoverKeys: resolve("adaptiveRecoverKeys"),
     adaptiveForcedKeys: resolve("adaptiveForcedKeys"),

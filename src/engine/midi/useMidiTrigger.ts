@@ -51,6 +51,7 @@ export function useMidiTrigger() {
     getDefaultSelectedMidi(),
   )
   const [testFrameInfo, setTestFrameInfo] = useState<TestPlaybackPosition>(defaultTestPlaybackPosition)
+  const [playlist, setPlaylist] = useState<SelectedMidiSource[]>([])
 
   const framesRef = useRef<MidiFrame[]>([])
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -60,6 +61,7 @@ export function useMidiTrigger() {
   const melodyIntegrityRef = useRef(DEFAULT_MELODY_INTEGRITY)
   const testIndexRef = useRef(0)
   const selectedSourceRef = useRef<SelectedMidiSource | null>(getDefaultSelectedMidi())
+  const playlistRef = useRef<SelectedMidiSource[]>([])
   const currentTargetCPMRef = useRef<number | null>(null)
   const pendingStartCPMRef = useRef<number | null>(null)
   const synthInitPromiseRef = useRef<Promise<boolean> | null>(null)
@@ -360,35 +362,54 @@ export function useMidiTrigger() {
     [applyFrames, persistSelectedMidi],
   )
 
-  const playRandomNextTrack = useCallback(async (carryoverState: MelodyCarryoverState | null) => {
-    if (!configRef.current.isEnabled || configRef.current.loopMode !== "random") {
+  const playNextTrack = useCallback(async (carryoverState: MelodyCarryoverState | null) => {
+    const loopMode = configRef.current.loopMode
+    if (!configRef.current.isEnabled || (loopMode !== "random" && loopMode !== "sequential")) {
       return
     }
 
     trackTransitionInFlightRef.current = true
 
     try {
-      const userMidiFiles = await db.midiFiles.toArray()
-      const availableSources: SelectedMidiSource[] = [
-        ...presetList.map((preset) => ({ type: "preset" as const, id: preset.id })),
-        ...userMidiFiles
-          .filter((file) => file.id != null)
-          .map((file) => ({ type: "file" as const, id: file.id! })),
-      ]
+      const playlist = playlistRef.current
+      let availableSources: SelectedMidiSource[]
+
+      if (playlist.length > 0) {
+        availableSources = playlist
+      } else {
+        const userMidiFiles = await db.midiFiles.toArray()
+        availableSources = [
+          ...presetList.map((preset) => ({ type: "preset" as const, id: preset.id })),
+          ...userMidiFiles
+            .filter((file) => file.id != null)
+            .map((file) => ({ type: "file" as const, id: file.id! })),
+        ]
+      }
 
       if (availableSources.length === 0) {
         stopMelody()
         return
       }
 
-      const currentSource = selectedSourceRef.current
-      const candidateSources =
-        currentSource && availableSources.length > 1
-          ? availableSources.filter((source) => !isSameSource(source, currentSource))
-          : availableSources
-      const nextSource =
-        candidateSources[Math.floor(Math.random() * candidateSources.length)] ??
-        availableSources[0]
+      let nextSource: SelectedMidiSource
+      if (loopMode === "sequential") {
+        const currentSource = selectedSourceRef.current
+        const currentIdx = currentSource
+          ? availableSources.findIndex((s) => isSameSource(s, currentSource))
+          : -1
+        const nextIdx = (currentIdx + 1) % availableSources.length
+        nextSource = availableSources[nextIdx]
+      } else {
+        const currentSource = selectedSourceRef.current
+        const candidateSources =
+          currentSource && availableSources.length > 1
+            ? availableSources.filter((source) => !isSameSource(source, currentSource))
+            : availableSources
+        nextSource =
+          candidateSources[Math.floor(Math.random() * candidateSources.length)] ??
+          availableSources[0]
+      }
+
       const targetCPM = currentTargetCPMRef.current ?? pendingStartCPMRef.current
 
       if (targetCPM != null) {
@@ -410,9 +431,9 @@ export function useMidiTrigger() {
 
   useEffect(() => {
     onTrackCompleteRef.current = (carryoverState) => {
-      void playRandomNextTrack(carryoverState)
+      void playNextTrack(carryoverState)
     }
-  }, [playRandomNextTrack])
+  }, [playNextTrack])
 
   useEffect(() => {
     onPlaybackCompleteRef.current = () => {
@@ -423,6 +444,12 @@ export function useMidiTrigger() {
     }
   }, [beginExpectedFlowReset, endExpectedFlowReset])
 
+  const updatePlaylist = useCallback(async (next: SelectedMidiSource[]) => {
+    playlistRef.current = next
+    setPlaylist(next)
+    await setAppSetting("midiPlaylist", next)
+  }, [])
+
   const restoreSelectedMidi = useCallback(async () => {
     // Restore settings first so practice and the MIDI page read the same source
     // and playback mode after a reload.
@@ -430,6 +457,10 @@ export function useMidiTrigger() {
     setConfig(savedConfig)
     configRef.current = savedConfig
     schedulerRef.current.updateLoopMode(savedConfig.loopMode)
+
+    const savedPlaylist = await getAppSetting("midiPlaylist")
+    playlistRef.current = savedPlaylist
+    setPlaylist(savedPlaylist)
 
     const savedSource = await getAppSetting("selectedMidi")
     if (savedSource?.type === "preset") {
@@ -544,7 +575,7 @@ export function useMidiTrigger() {
       !schedulerRef.current.isActive &&
       (
         configRef.current.loopMode === "loop" ||
-        (configRef.current.loopMode === "random" && !trackTransitionInFlightRef.current)
+        ((configRef.current.loopMode === "random" || configRef.current.loopMode === "sequential") && !trackTransitionInFlightRef.current)
       )
 
     if (shouldAutoResume && !synthRef.current) {
@@ -612,6 +643,8 @@ export function useMidiTrigger() {
     updateConfig,
     selectedSource,
     testFrameInfo,
+    playlist,
+    updatePlaylist,
     loadFrames,
     loadFramesOnly,
     selectPreset,

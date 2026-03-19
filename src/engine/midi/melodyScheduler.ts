@@ -4,7 +4,7 @@ import type { MidiFrame, FlowState, MelodyState } from "./types"
 const FADE_VOLUME_DB = -18
 const STATE_THROTTLE_MS = 50
 
-export type LoopMode = "loop" | "once" | "random"
+export type LoopMode = "loop" | "once" | "sequential" | "random"
 
 export interface SchedulerOptions {
   frames: MidiFrame[]
@@ -317,7 +317,7 @@ export class MelodyScheduler {
       if (this.loopMode === "loop") {
         this.frameIndex = 0
         this.virtualTime -= this.loopDuration
-      } else if (this.loopMode === "random") {
+      } else if (this.loopMode === "random" || this.loopMode === "sequential") {
         this.isRunning = false
         this.rafId = null
         this.frameIndex = 0

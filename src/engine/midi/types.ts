@@ -23,7 +23,7 @@ export type SynthType = "piano" | "strings" | "synth" | "musicBox" | "bell"
 export interface MidiConfig {
   volume: number
   synthType: SynthType
-  loopMode: "loop" | "once" | "random"
+  loopMode: "loop" | "once" | "sequential" | "random"
   isEnabled: boolean
 }
 
