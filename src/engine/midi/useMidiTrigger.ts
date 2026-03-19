@@ -117,6 +117,8 @@ export function useMidiTrigger() {
 
   const stopMelody = useCallback(() => {
     pendingCarryoverStateRef.current = null
+    // Some resets are expected control-flow transitions, not playback failures.
+    // Guard them so Melody Integrity only tracks accidental drops to zero.
     beginExpectedFlowReset()
     try {
       schedulerRef.current.stop()
@@ -422,6 +424,8 @@ export function useMidiTrigger() {
   }, [beginExpectedFlowReset, endExpectedFlowReset])
 
   const restoreSelectedMidi = useCallback(async () => {
+    // Restore settings first so practice and the MIDI page read the same source
+    // and playback mode after a reload.
     const savedConfig = await getAppSetting("midiConfig")
     setConfig(savedConfig)
     configRef.current = savedConfig

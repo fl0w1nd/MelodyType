@@ -406,6 +406,8 @@ export function usePracticeSessionController({
       setAdaptiveState(nextAdaptiveState)
       setRoundCount((value) => value + 1)
       adaptiveContinuingRef.current = false
+      // Adaptive mode chains rounds into one continuous music session: we
+      // refresh the text while asking MIDI to bridge the current playback state.
       resetMelodySession(getTargetCPM(config, nextAdaptiveState), true)
     },
     [config, getTargetCPM, loadText, resetMelodySession],

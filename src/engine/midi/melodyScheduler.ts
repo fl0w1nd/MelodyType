@@ -136,6 +136,8 @@ export class MelodyScheduler {
     const amount = correct ? 1.0 : 0.3
     if (!this.hasReceivedInput) {
       this.hasReceivedInput = true
+      // The first successful keystroke should make playback feel alive
+      // immediately, but resets must still come back empty until input arrives.
       this.fuel = Math.max(
         this.fuel + amount,
         this.maxFuel * INITIAL_INPUT_FUEL_RATIO,
@@ -181,6 +183,8 @@ export class MelodyScheduler {
     }
 
     if (bridge && this.hasReceivedInput) {
+      // Adaptive round-to-round transitions preserve momentum: keep the current
+      // fuel if it is healthy, otherwise lift it to a half-bar floor.
       const minimumBridgeFuel = this.maxFuel * SESSION_BRIDGE_MIN_RATIO
       this.fuel = Math.min(this.maxFuel, Math.max(this.fuel, minimumBridgeFuel))
       this.flowState = "flowing"

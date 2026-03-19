@@ -45,6 +45,8 @@ export async function getRandomQuoteAsync(
   const quotes = await loadQuotes()
   const pool = length ? quotes.filter((q) => q.length === length) : quotes
   const list = pool.length > 0 ? pool : quotes
+  // Keep quote mode functional even if the bundled data file is unexpectedly
+  // empty after filtering or during local development.
   if (list.length === 0) return fallbackQuote
   return list[Math.floor(Math.random() * list.length)]
 }

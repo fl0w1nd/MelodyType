@@ -137,6 +137,8 @@ export function useTypingEngine(onKeystroke?: () => void) {
           charIndex: next.currentCharIndex,
         }
 
+        // Practice is intentionally forward-only: mistakes are part of the
+        // attempt and are not corrected in place with backspace.
         if (e.key === "Backspace") {
           return next
         }
