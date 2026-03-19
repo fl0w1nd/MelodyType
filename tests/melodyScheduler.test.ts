@@ -309,6 +309,7 @@ describe("MelodyScheduler", () => {
       // Bridge should give at least SESSION_BRIDGE_MIN_RATIO (0.5) of maxFuel
       const maxFuel = scheduler.getState().maxFuel
       expect(fuelAfter).toBeGreaterThanOrEqual(maxFuel * 0.5)
+      expect(fuelAfter).toBeGreaterThanOrEqual(fuelBefore)
       expect(scheduler.getState().flowState).toBe("flowing")
     })
 

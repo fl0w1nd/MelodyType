@@ -16,7 +16,6 @@ import {
   LETTER_FREQUENCY_ORDER,
   type KeyConfidence,
 } from "../src/engine/typing/adaptiveEngine"
-import type { LearningRateResult } from "../src/engine/typing/learningRate"
 
 function makeKC(overrides: Partial<KeyConfidence> & { key: string }): KeyConfidence {
   return {

@@ -154,9 +154,8 @@ describe("computeLearningRate", () => {
     const d = result!.model.derivative()
     const v1 = d.eval(1)
     const v2 = d.eval(15)
-    // For perfectly linear data, the quadratic term should be near zero,
-    // but the model is degree 2 so it's a Polynomial with that degree
-    expect(result!.model).toBeDefined()
+    expect(v1).not.toBeNaN()
+    expect(v2).not.toBeNaN()
   })
 
   it("uses degree 3 for 21+ samples", () => {
