@@ -1,8 +1,9 @@
-import { NavLink, Outlet } from "react-router-dom"
+import { NavLink, Outlet, useLocation } from "react-router-dom"
 import { Keyboard, BarChart3, Music, Settings } from "lucide-react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
+import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
 
 const navItems = [
   { to: "/", icon: Keyboard, label: "Practice" },
@@ -12,6 +13,9 @@ const navItems = [
 ]
 
 export function AppLayout() {
+  const location = useLocation()
+  const showFloatingPlayer = location.pathname !== "/midi"
+
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-background relative">
@@ -81,6 +85,8 @@ export function AppLayout() {
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {showFloatingPlayer && <MidiFloatingPlayer />}
 
         <footer className="border-t border-border/40 py-4">
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">
