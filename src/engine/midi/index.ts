@@ -1,5 +1,5 @@
 export { parseMidiToFrames, getMidiInfo } from "./midiParser"
-export { createSynth, ensureAudioStarted, midiNumberToNote, isValidMidiNote } from "./synthManager"
+export { createSynth, ensureAudioStarted, isAudioRunning, midiNumberToNote, isValidMidiNote } from "./synthManager"
 export { useMidiTrigger } from "./useMidiTrigger"
 export { presetMelodies, presetList } from "./presets"
 export type { MidiFrame, MidiNote, MidiFileInfo, SynthType, MidiConfig, FlowState, MelodyState } from "./types"

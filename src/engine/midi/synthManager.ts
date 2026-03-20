@@ -3,8 +3,12 @@ import type { SynthType } from "./types"
 
 const synthGainMap = new WeakMap<Tone.PolySynth, Tone.Volume>()
 
+export function isAudioRunning(): boolean {
+  return Tone.getContext().state === "running"
+}
+
 export async function ensureAudioStarted(): Promise<void> {
-  if (Tone.getContext().state === "running") return
+  if (isAudioRunning()) return
   await Tone.start()
 }
 

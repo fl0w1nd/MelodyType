@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type * as Tone from "tone"
 import type { MidiFrame, SynthType, MidiConfig, MelodyState } from "./types"
 import { defaultMidiConfig } from "./types"
-import { createSynth, disposeSynth, ensureAudioStarted } from "./synthManager"
+import { createSynth, disposeSynth, ensureAudioStarted, isAudioRunning } from "./synthManager"
 import { MelodyScheduler, type MelodyCarryoverState } from "./melodyScheduler"
 import { parseMidiToFrames } from "./midiParser"
 import { presetMelodies, presetList } from "./presets"
@@ -68,6 +68,7 @@ export function useMidiTrigger() {
   const currentTargetCPMRef = useRef<number | null>(null)
   const pendingStartCPMRef = useRef<number | null>(null)
   const synthInitPromiseRef = useRef<Promise<boolean> | null>(null)
+  const synthInitStartsAudioRef = useRef(false)
   const pendingCarryoverStateRef = useRef<MelodyCarryoverState | null>(null)
   const trackTransitionInFlightRef = useRef(false)
   const expectedFlowResetDepthRef = useRef(0)
@@ -161,18 +162,47 @@ export function useMidiTrigger() {
     return startScheduler(pendingTargetCPM)
   }, [startScheduler])
 
-  const ensureSynthReady = useCallback(async (): Promise<boolean> => {
-    if (synthRef.current) return true
+  const ensureSynthReady = useCallback(async (
+    options?: { startAudio?: boolean },
+  ): Promise<boolean> => {
+    const shouldStartAudio = options?.startAudio !== false
+
+    if (synthRef.current) {
+      if (shouldStartAudio && !isAudioRunning()) {
+        await ensureAudioStarted()
+      }
+      return true
+    }
+
+    if (shouldStartAudio && synthInitPromiseRef.current && !synthInitStartsAudioRef.current) {
+      const pendingInit = synthInitPromiseRef.current
+      synthInitStartsAudioRef.current = true
+      let upgradedInitPromise: Promise<boolean> | null = null
+      upgradedInitPromise = (async () => {
+        try {
+          const isReady = await pendingInit
+          if (!isReady) return false
+          await ensureAudioStarted()
+          return true
+        } catch {
+          return false
+        } finally {
+          if (synthInitPromiseRef.current === upgradedInitPromise) {
+            synthInitPromiseRef.current = null
+            synthInitStartsAudioRef.current = false
+          }
+        }
+      })()
+      synthInitPromiseRef.current = upgradedInitPromise
+    }
 
     if (!synthInitPromiseRef.current) {
-      synthInitPromiseRef.current = (async () => {
+      synthInitStartsAudioRef.current = shouldStartAudio
+      let initPromise: Promise<boolean> | null = null
+      initPromise = (async () => {
         try {
-          try {
+          if (shouldStartAudio) {
             await ensureAudioStarted()
-          } catch {
-            // In dev, Fast Refresh can dispose the synth before the next user
-            // gesture fully re-unlocks audio. Still recreate the synth so flow
-            // and scheduling can recover immediately.
           }
           if (!synthRef.current) {
             synthRef.current = createSynth(
@@ -185,9 +215,13 @@ export function useMidiTrigger() {
         } catch {
           return false
         } finally {
-          synthInitPromiseRef.current = null
+          if (synthInitPromiseRef.current === initPromise) {
+            synthInitPromiseRef.current = null
+            synthInitStartsAudioRef.current = false
+          }
         }
       })()
+      synthInitPromiseRef.current = initPromise
     }
 
     return synthInitPromiseRef.current
@@ -202,7 +236,7 @@ export function useMidiTrigger() {
         return
       }
 
-      const isReady = await ensureSynthReady()
+      const isReady = await ensureSynthReady({ startAudio: false })
       if (!isReady) return
       startScheduler(targetCPM)
     },
@@ -578,39 +612,47 @@ export function useMidiTrigger() {
     if (!configRef.current.isEnabled) return
 
     const resumeTargetCPM = currentTargetCPMRef.current
-    const shouldAutoResume =
-      resumeTargetCPM != null &&
-      framesRef.current.length > 0 &&
-      !schedulerRef.current.isActive &&
-      (
-        configRef.current.loopMode === "loop" ||
-        ((configRef.current.loopMode === "random" || configRef.current.loopMode === "sequential") && !trackTransitionInFlightRef.current)
-      )
 
-    if (shouldAutoResume && resumeTargetCPM != null) {
-      startScheduler(resumeTargetCPM)
+    const doFeed = () => {
+      const shouldAutoResume =
+        resumeTargetCPM != null &&
+        framesRef.current.length > 0 &&
+        !schedulerRef.current.isActive &&
+        (
+          configRef.current.loopMode === "loop" ||
+          ((configRef.current.loopMode === "random" || configRef.current.loopMode === "sequential") && !trackTransitionInFlightRef.current)
+        )
+
+      if (shouldAutoResume && resumeTargetCPM != null) {
+        startScheduler(resumeTargetCPM)
+      }
+
+      schedulerRef.current.feed(correct)
     }
-
-    schedulerRef.current.feed(correct)
 
     if (!synthRef.current) {
       void ensureSynthReady()
         .then((isReady) => {
           if (!isReady) return
-          if (resumeTargetCPM != null && !schedulerRef.current.isActive && framesRef.current.length > 0) {
-            startScheduler(resumeTargetCPM)
-            return
-          }
+          doFeed()
           resumePendingMelodyStart()
         })
         .catch((err) => {
           console.error("[MidiTrigger] Synth initialization failed:", err)
         })
-    } else {
-      void ensureAudioStarted().catch((err) => {
-        console.error("[MidiTrigger] Audio context start failed:", err)
-      })
+      return
     }
+
+    if (!isAudioRunning()) {
+      void ensureAudioStarted()
+        .then(() => doFeed())
+        .catch((err) => {
+          console.error("[MidiTrigger] Audio context start failed:", err)
+        })
+      return
+    }
+
+    doFeed()
   }, [ensureSynthReady, resumePendingMelodyStart, startScheduler])
 
   const updateTargetCPM = useCallback((targetCPM: number) => {
