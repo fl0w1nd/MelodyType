@@ -150,7 +150,7 @@ const en = {
     title: "Adaptive Practice",
     subtitle: "Progressive key unlocking based on your performance",
     defaultSuffix: "· Default",
-    requireCurrentMastery: "Require Current Mastery",
+    requireCurrentMastery: "Strict Current Mastery",
     requireCurrentMasteryDesc:
       "All active keys must reach the current target value at all times to unlock the next letter, and will no longer be based on historical best performance.",
     stats: {
@@ -740,7 +740,7 @@ const en = {
       },
       options: {
         title: "Options",
-        desc: "The Options panel (gear icon) lets you adjust the target CPM, toggle the \"Require Current Mastery\" gate.",
+        desc: "The Options panel (gear icon) lets you adjust the target CPM, toggle the \"Strict Current Mastery\" gate.",
       },
     },
     time: {

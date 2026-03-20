@@ -208,6 +208,7 @@ export default function PracticePage() {
                         isAdaptive ? adaptiveState?.keyConfidences : undefined
                       }
                       adaptiveMode={isAdaptive}
+                      recoverKeys={adaptiveState?.settings.recoverKeys}
                     />
                   </motion.div>
                 )}

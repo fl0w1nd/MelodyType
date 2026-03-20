@@ -14,6 +14,7 @@ import {
   MIN_HITS_FOR_MASTERY,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
+  MIN_SAMPLES_FOR_STABLE_SIGNAL,
   DEFAULT_TARGET_CPM,
   LETTER_FREQUENCY_ORDER,
   type KeyConfidence,
@@ -24,6 +25,7 @@ function makeKC(overrides: Partial<KeyConfidence> & { key: string }): KeyConfide
   return {
     confidence: 0,
     bestConfidence: 0,
+    qualifiedBestConfidence: 0,
     speed: 0,
     accuracy: 0,
     lifetimeAccuracy: 0,
@@ -99,9 +101,9 @@ describe("getKeyUnlockChecks", () => {
       key: "e",
       confidence: 1.5,
       bestConfidence: 1.5,
-      samples: 15,
+      samples: 55,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     const checks = getKeyUnlockChecks(kc)
     expect(checks).toEqual({
@@ -117,11 +119,65 @@ describe("getKeyUnlockChecks", () => {
       key: "e",
       confidence: 0.5,
       bestConfidence: 1.0,
-      samples: 10,
-      accuracy: 92,
-      lifetimeAccuracy: 85,
+      samples: 55,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
     })
     expect(getKeyUnlockChecks(kc, false).speed).toBe(true)
+  })
+
+  it("keeps all checks passed after historical qualification when recoverKeys=false", () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.4,
+      bestConfidence: 1.2,
+      qualifiedBestConfidence: 1.2,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getKeyUnlockChecks(kc, false)).toEqual({
+      speed: true,
+      hits: true,
+      recentAccuracy: true,
+      lifetimeAccuracy: true,
+    })
+  })
+
+  it("does not keep historical qualification when recoverKeys=true", () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.4,
+      bestConfidence: 1.2,
+      qualifiedBestConfidence: 1.2,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getKeyUnlockChecks(kc, true)).toEqual({
+      speed: false,
+      hits: true,
+      recentAccuracy: false,
+      lifetimeAccuracy: false,
+    })
+  })
+
+  it("drops back to live checks when target CPM increases beyond historical qualification", () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.6,
+      bestConfidence: 0.9,
+      qualifiedBestConfidence: 0.9,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getKeyUnlockChecks(kc, false)).toEqual({
+      speed: false,
+      hits: true,
+      recentAccuracy: false,
+      lifetimeAccuracy: false,
+    })
   })
 
   it("uses confidence when recoverKeys=true", () => {
@@ -129,9 +185,9 @@ describe("getKeyUnlockChecks", () => {
       key: "e",
       confidence: 0.5,
       bestConfidence: 1.0,
-      samples: 10,
-      accuracy: 92,
-      lifetimeAccuracy: 85,
+      samples: 55,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
     })
     expect(getKeyUnlockChecks(kc, true).speed).toBe(false)
   })
@@ -157,22 +213,22 @@ describe("getKeyUnlockChecks", () => {
     expect(getKeyUnlockChecks(kc).hits).toBe(false)
   })
 
-  it("recentAccuracy passes at exactly 92", () => {
+  it("recentAccuracy passes at exactly 90", () => {
     const kc = makeKC({ key: "e", accuracy: MIN_RECENT_ACCURACY_FOR_MASTERY * 100 })
     expect(getKeyUnlockChecks(kc).recentAccuracy).toBe(true)
   })
 
-  it("recentAccuracy fails just below 92", () => {
+  it("recentAccuracy fails just below 90", () => {
     const kc = makeKC({ key: "e", accuracy: MIN_RECENT_ACCURACY_FOR_MASTERY * 100 - 0.01 })
     expect(getKeyUnlockChecks(kc).recentAccuracy).toBe(false)
   })
 
-  it("lifetimeAccuracy passes at exactly 85", () => {
+  it("lifetimeAccuracy passes at exactly 88", () => {
     const kc = makeKC({ key: "e", lifetimeAccuracy: MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100 })
     expect(getKeyUnlockChecks(kc).lifetimeAccuracy).toBe(true)
   })
 
-  it("lifetimeAccuracy fails just below 85", () => {
+  it("lifetimeAccuracy fails just below 88", () => {
     const kc = makeKC({ key: "e", lifetimeAccuracy: MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100 - 0.01 })
     expect(getKeyUnlockChecks(kc).lifetimeAccuracy).toBe(false)
   })
@@ -187,9 +243,9 @@ describe("isKeyReadyToUnlock", () => {
       key: "e",
       confidence: 1.2,
       bestConfidence: 1.2,
-      samples: 12,
+      samples: 60,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyReadyToUnlock(kc)).toBe(true)
   })
@@ -201,7 +257,7 @@ describe("isKeyReadyToUnlock", () => {
       bestConfidence: 1.2,
       samples: 5,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyReadyToUnlock(kc)).toBe(false)
   })
@@ -211,9 +267,9 @@ describe("isKeyReadyToUnlock", () => {
       key: "e",
       confidence: 0.8,
       bestConfidence: 0.8,
-      samples: 15,
+      samples: 60,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyReadyToUnlock(kc)).toBe(false)
   })
@@ -223,9 +279,9 @@ describe("isKeyReadyToUnlock", () => {
       key: "e",
       confidence: 0.5,
       bestConfidence: 1.2,
-      samples: 15,
+      samples: 60,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyReadyToUnlock(kc, false)).toBe(true)
     expect(isKeyReadyToUnlock(kc, true)).toBe(false)
@@ -236,36 +292,65 @@ describe("isKeyReadyToUnlock", () => {
 // isKeyStrictlyMastered
 // ---------------------------------------------------------------------------
 describe("isKeyStrictlyMastered", () => {
-  it("returns true when all strict conditions met", () => {
+  it("returns true when all strict conditions met (default recoverKeys=false uses bestConfidence)", () => {
     const kc = makeKC({
       key: "e",
       confidence: 1.0,
-      samples: 10,
-      accuracy: 92,
-      lifetimeAccuracy: 85,
+      bestConfidence: 1.0,
+      samples: 60,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyStrictlyMastered(kc)).toBe(true)
   })
 
-  it("uses confidence (not bestConfidence)", () => {
+  it("uses bestConfidence when recoverKeys=false (default)", () => {
     const kc = makeKC({
       key: "e",
       confidence: 0.9,
       bestConfidence: 1.5,
-      samples: 20,
+      samples: 60,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
-    expect(isKeyStrictlyMastered(kc)).toBe(false)
+    expect(isKeyStrictlyMastered(kc)).toBe(true)
+    expect(isKeyStrictlyMastered(kc, false)).toBe(true)
+  })
+
+  it("uses confidence when recoverKeys=true", () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.9,
+      bestConfidence: 1.5,
+      samples: 60,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
+    })
+    expect(isKeyStrictlyMastered(kc, true)).toBe(false)
+  })
+
+  it("keeps mastered state after historical qualification when recoverKeys=false", () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.6,
+      bestConfidence: 1.2,
+      qualifiedBestConfidence: 1.2,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(isKeyStrictlyMastered(kc, false)).toBe(true)
+    expect(isKeyStrictlyMastered(kc, true)).toBe(false)
   })
 
   it("returns false if samples below threshold", () => {
     const kc = makeKC({
       key: "e",
       confidence: 1.5,
+      bestConfidence: 1.5,
       samples: 9,
       accuracy: 95,
-      lifetimeAccuracy: 90,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyStrictlyMastered(kc)).toBe(false)
   })
@@ -274,9 +359,10 @@ describe("isKeyStrictlyMastered", () => {
     const kc = makeKC({
       key: "e",
       confidence: 1.5,
-      samples: 15,
-      accuracy: 91.99,
-      lifetimeAccuracy: 90,
+      bestConfidence: 1.5,
+      samples: 60,
+      accuracy: 89.99,
+      lifetimeAccuracy: 95,
     })
     expect(isKeyStrictlyMastered(kc)).toBe(false)
   })
@@ -285,9 +371,10 @@ describe("isKeyStrictlyMastered", () => {
     const kc = makeKC({
       key: "e",
       confidence: 1.5,
-      samples: 15,
+      bestConfidence: 1.5,
+      samples: 60,
       accuracy: 95,
-      lifetimeAccuracy: 84.99,
+      lifetimeAccuracy: 87.99,
     })
     expect(isKeyStrictlyMastered(kc)).toBe(false)
   })
@@ -307,14 +394,77 @@ describe("getAdaptiveKeyTier", () => {
       key: "e",
       confidence: 1.0,
       bestConfidence: 1.0,
-      samples: 10,
-      accuracy: 92,
-      lifetimeAccuracy: 85,
+      samples: 60,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
     })
     expect(getAdaptiveKeyTier(kc)).toBe("mastered")
   })
 
-  it('returns "good" when bestConfidence >= 1.0 but not strictly mastered', () => {
+  it('returns "mastered" via bestConfidence when recoverKeys=false even if confidence dropped', () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.8,
+      bestConfidence: 1.2,
+      samples: 60,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
+    })
+    expect(getAdaptiveKeyTier(kc, false)).toBe("mastered")
+  })
+
+  it('stays "mastered" when recoverKeys=false after speed and accuracy regress, if historically qualified', () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.6,
+      bestConfidence: 1.2,
+      qualifiedBestConfidence: 1.2,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getAdaptiveKeyTier(kc, false)).toBe("mastered")
+  })
+
+  it('returns "good" when recoverKeys=true and confidence dropped below 1.0', () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.8,
+      bestConfidence: 1.2,
+      samples: 60,
+      accuracy: 95,
+      lifetimeAccuracy: 95,
+    })
+    expect(getAdaptiveKeyTier(kc, true)).toBe("good")
+  })
+
+  it('retreats from "mastered" when recoverKeys=true and accuracy regresses', () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 1.1,
+      bestConfidence: 1.2,
+      qualifiedBestConfidence: 1.2,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getAdaptiveKeyTier(kc, true)).toBe("good")
+  })
+
+  it('retreats to the corresponding tier when target CPM rises above historical qualification', () => {
+    const kc = makeKC({
+      key: "e",
+      confidence: 0.6,
+      bestConfidence: 0.9,
+      qualifiedBestConfidence: 0.9,
+      samples: 60,
+      accuracy: 70,
+      lifetimeAccuracy: 80,
+    })
+    expect(getAdaptiveKeyTier(kc, false)).toBe("learning")
+  })
+
+  it('returns "good" when bestConfidence >= 1.0 but accuracy insufficient for mastery', () => {
     const kc = makeKC({
       key: "e",
       confidence: 0.8,
@@ -354,7 +504,7 @@ describe("getAdaptiveKeyTier", () => {
     expect(getAdaptiveKeyTier(kc)).toBe("learning")
   })
 
-  it("boundary: bestConfidence exactly 1.0 but confidence < 1.0 → good", () => {
+  it("boundary: bestConfidence exactly 1.0 but confidence < 1.0 → good (no samples)", () => {
     const kc = makeKC({ key: "e", confidence: 0.5, bestConfidence: 1.0 })
     expect(getAdaptiveKeyTier(kc)).toBe("good")
   })
@@ -370,15 +520,15 @@ describe("shouldUnlockNextKey", () => {
 
   it("returns true when all non-forced unlocked keys are ready", () => {
     const confs = [
-      makeKC({ key: "e", bestConfidence: 1.0, samples: 10, accuracy: 92, lifetimeAccuracy: 85 }),
-      makeKC({ key: "n", bestConfidence: 1.0, samples: 10, accuracy: 92, lifetimeAccuracy: 85 }),
+      makeKC({ key: "e", bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
+      makeKC({ key: "n", bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
     ]
     expect(shouldUnlockNextKey(confs)).toBe(true)
   })
 
   it("returns false when any non-forced unlocked key is not ready", () => {
     const confs = [
-      makeKC({ key: "e", bestConfidence: 1.0, samples: 10, accuracy: 92, lifetimeAccuracy: 85 }),
+      makeKC({ key: "e", bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
       makeKC({ key: "n", bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
     ]
     expect(shouldUnlockNextKey(confs)).toBe(false)
@@ -386,7 +536,7 @@ describe("shouldUnlockNextKey", () => {
 
   it("ignores forced keys", () => {
     const confs = [
-      makeKC({ key: "e", bestConfidence: 1.0, samples: 10, accuracy: 92, lifetimeAccuracy: 85 }),
+      makeKC({ key: "e", bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
       makeKC({ key: "z", forced: true, bestConfidence: 0.1, samples: 1, accuracy: 50, lifetimeAccuracy: 50 }),
     ]
     expect(shouldUnlockNextKey(confs)).toBe(true)
@@ -401,16 +551,61 @@ describe("shouldUnlockNextKey", () => {
 
   it("respects recoverKeys=true (uses confidence instead of bestConfidence)", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 0.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "e", confidence: 0.5, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
     ]
     expect(shouldUnlockNextKey(confs, false)).toBe(true)
     expect(shouldUnlockNextKey(confs, true)).toBe(false)
   })
 
+  it("keeps progression open when recoverKeys=false and the key was historically qualified", () => {
+    const confs = [
+      makeKC({
+        key: "e",
+        confidence: 0.4,
+        bestConfidence: 1.2,
+        qualifiedBestConfidence: 1.2,
+        samples: 60,
+        accuracy: 70,
+        lifetimeAccuracy: 80,
+      }),
+    ]
+    expect(shouldUnlockNextKey(confs, false)).toBe(true)
+  })
+
+  it("blocks progression again when recoverKeys=true after a regression", () => {
+    const confs = [
+      makeKC({
+        key: "e",
+        confidence: 0.4,
+        bestConfidence: 1.2,
+        qualifiedBestConfidence: 1.2,
+        samples: 60,
+        accuracy: 70,
+        lifetimeAccuracy: 80,
+      }),
+    ]
+    expect(shouldUnlockNextKey(confs, true)).toBe(false)
+  })
+
+  it("blocks progression again when target CPM rises above historical qualification", () => {
+    const confs = [
+      makeKC({
+        key: "e",
+        confidence: 0.6,
+        bestConfidence: 0.9,
+        qualifiedBestConfidence: 0.9,
+        samples: 60,
+        accuracy: 70,
+        lifetimeAccuracy: 80,
+      }),
+    ]
+    expect(shouldUnlockNextKey(confs, false)).toBe(false)
+  })
+
   it("ignores locked keys (unlocked: false)", () => {
     const confs = [
       makeKC({ key: "e", unlocked: false, bestConfidence: 0.1 }),
-      makeKC({ key: "n", bestConfidence: 1.0, samples: 10, accuracy: 92, lifetimeAccuracy: 85 }),
+      makeKC({ key: "n", bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
     ]
     // The locked key is filtered by k.unlocked && !k.forced, so only "n" is checked
     expect(shouldUnlockNextKey(confs)).toBe(true)
@@ -463,17 +658,17 @@ describe("getFocusKey", () => {
     expect(getFocusKey(confs)).toBeNull()
   })
 
-  it("returns null when all unlocked keys are mastered (current confidence)", () => {
+  it("returns null when all unlocked keys are mastered under the active gate", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
-      makeKC({ key: "n", confidence: 1.2, bestConfidence: 1.2, samples: 12, accuracy: 93, lifetimeAccuracy: 88 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
+      makeKC({ key: "n", confidence: 1.2, bestConfidence: 1.2, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
     ]
     expect(getFocusKey(confs)).toBeNull()
   })
 
   it("returns the only blocked key", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
       makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
     ]
     expect(getFocusKey(confs)).toBe("n")
@@ -482,26 +677,34 @@ describe("getFocusKey", () => {
   it("returns first unmastered key in frequency order", () => {
     // Both "n" and "i" are unmastered; "n" comes first in frequency order
     const confs = [
-      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
       makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 90 }),
       makeKC({ key: "i", confidence: 0.3, bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 80 }),
     ]
     expect(getFocusKey(confs)).toBe("n")
   })
 
-  it("retreats focus when CPM raised (bestConfidence high but confidence low)", () => {
-    // "e" has high bestConfidence but current confidence dropped below 1.0
+  it("does not retreat focus when recoverKeys=false and only current confidence dropped", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 0.8, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "e", confidence: 0.8, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
       makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
     ]
-    expect(getFocusKey(confs)).toBe("e")
+    expect(getFocusKey(confs, false)).toBe("n")
+  })
+
+  it("retreats focus when recoverKeys=true and current confidence dropped", () => {
+    // "e" has high bestConfidence but current confidence dropped below 1.0
+    const confs = [
+      makeKC({ key: "e", confidence: 0.8, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
+    ]
+    expect(getFocusKey(confs, true)).toBe("e")
   })
 
   it("does not consider locked keys", () => {
     const confs = [
       makeKC({ key: "e", unlocked: false, confidence: 0.0, bestConfidence: 0.0, samples: 0 }),
-      makeKC({ key: "n", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "n", confidence: 1.5, bestConfidence: 1.5, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }),
     ]
     expect(getFocusKey(confs)).toBeNull()
   })
@@ -516,91 +719,103 @@ describe("getFocusKey", () => {
 // ---------------------------------------------------------------------------
 describe("computeKeyWeights", () => {
   it("assigns weight 4.0 for confidence < 0.4", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.3, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.3, bestConfidence: 0.3, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(4.0)
   })
 
   it("assigns weight 2.5 for confidence in [0.4, 0.7)", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.5, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.5, bestConfidence: 0.5, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(2.5)
   })
 
   it("assigns weight 1.5 for confidence in [0.7, 1.0)", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.8, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.8, bestConfidence: 0.8, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(1.5)
   })
 
   it("assigns weight 1.0 for confidence >= 1.0", () => {
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(1.0)
   })
 
+  it("uses bestConfidence when recoverKeys=false", () => {
+    const confs = [makeKC({ key: "e", confidence: 0.3, bestConfidence: 1.2, samples: 20 })]
+    const weights = computeKeyWeights(confs, ["e"], null, false)
+    expect(weights.get("e")).toBe(1.0)
+  })
+
+  it("uses current confidence when recoverKeys=true", () => {
+    const confs = [makeKC({ key: "e", confidence: 0.3, bestConfidence: 1.2, samples: 20 })]
+    const weights = computeKeyWeights(confs, ["e"], null, true)
+    expect(weights.get("e")).toBe(4.0)
+  })
+
   it("boundary: confidence exactly 0.4 → weight 2.5", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.4, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.4, bestConfidence: 0.4, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(2.5)
   })
 
   it("boundary: confidence exactly 0.7 → weight 1.5", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.7, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.7, bestConfidence: 0.7, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(1.5)
   })
 
   it("multiplies focusKey weight by 2.0", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.5, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.5, bestConfidence: 0.5, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], "e")
     expect(weights.get("e")).toBe(2.5 * 2.0)
   })
 
   it("focusKey multiplier stacks with confidence bracket", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.3, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 0.3, bestConfidence: 0.3, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], "e")
     expect(weights.get("e")).toBe(4.0 * 2.0)
   })
 
   it("focusKey multiplier for high-confidence key", () => {
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: 20 })]
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: 20 })]
     const weights = computeKeyWeights(confs, ["e"], "e")
     expect(weights.get("e")).toBe(1.0 * 2.0)
   })
 
-  it("applies new key boost (samples < MIN_HITS_FOR_MASTERY)", () => {
-    // confidence >= 1.0 → base weight 1.0, but samples < 10 → max(1.0, 3.0) = 3.0
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: 5 })]
+  it("applies new key boost (samples < MIN_SAMPLES_FOR_STABLE_SIGNAL)", () => {
+    // confidence >= 1.0 → base weight 1.0, but samples < 15 → max(1.0, 3.0) = 3.0
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: 5 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(3.0)
   })
 
   it("new key boost does not reduce an already higher weight", () => {
-    // confidence < 0.4 → base weight 4.0, samples < 10 → max(4.0, 3.0) = 4.0
-    const confs = [makeKC({ key: "e", confidence: 0.1, samples: 5 })]
+    // confidence < 0.4 → base weight 4.0, samples < 15 → max(4.0, 3.0) = 4.0
+    const confs = [makeKC({ key: "e", confidence: 0.1, bestConfidence: 0.1, samples: 5 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(4.0)
   })
 
   it("new key boost applies after focusKey multiplier", () => {
-    // confidence >= 1.0 → 1.0, focusKey → 1.0 * 2.0 = 2.0, samples < 10 → max(2.0, 3.0) = 3.0
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: 5 })]
+    // confidence >= 1.0 → 1.0, focusKey → 1.0 * 2.0 = 2.0, samples < 15 → max(2.0, 3.0) = 3.0
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: 5 })]
     const weights = computeKeyWeights(confs, ["e"], "e")
     expect(weights.get("e")).toBe(3.0)
   })
 
   it("focusKey multiplier + low confidence + new key boost", () => {
-    // confidence < 0.4 → 4.0, focusKey → 4.0 * 2.0 = 8.0, samples < 10 → max(8.0, 3.0) = 8.0
-    const confs = [makeKC({ key: "e", confidence: 0.1, samples: 2 })]
+    // confidence < 0.4 → 4.0, focusKey → 4.0 * 2.0 = 8.0, samples < 15 → max(8.0, 3.0) = 8.0
+    const confs = [makeKC({ key: "e", confidence: 0.1, bestConfidence: 0.1, samples: 2 })]
     const weights = computeKeyWeights(confs, ["e"], "e")
     expect(weights.get("e")).toBe(8.0)
   })
 
   it("excludes keys not in unlockedKeys", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 0.5, samples: 20 }),
-      makeKC({ key: "n", confidence: 0.5, samples: 20 }),
+      makeKC({ key: "e", confidence: 0.5, bestConfidence: 0.5, samples: 20 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 20 }),
     ]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.has("e")).toBe(true)
@@ -613,17 +828,17 @@ describe("computeKeyWeights", () => {
   })
 
   it("returns empty map when no confidences match unlocked keys", () => {
-    const confs = [makeKC({ key: "e", confidence: 0.5 })]
+    const confs = [makeKC({ key: "e", confidence: 0.5, bestConfidence: 0.5 })]
     const weights = computeKeyWeights(confs, ["n"], null)
     expect(weights.size).toBe(0)
   })
 
   it("handles multiple keys with different brackets", () => {
     const confs = [
-      makeKC({ key: "e", confidence: 0.1, samples: 20 }),
-      makeKC({ key: "n", confidence: 0.5, samples: 20 }),
-      makeKC({ key: "i", confidence: 0.8, samples: 20 }),
-      makeKC({ key: "t", confidence: 1.2, samples: 20 }),
+      makeKC({ key: "e", confidence: 0.1, bestConfidence: 0.1, samples: 20 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 20 }),
+      makeKC({ key: "i", confidence: 0.8, bestConfidence: 0.8, samples: 20 }),
+      makeKC({ key: "t", confidence: 1.2, bestConfidence: 1.2, samples: 20 }),
     ]
     const weights = computeKeyWeights(confs, ["e", "n", "i", "t"], "e")
     expect(weights.get("e")).toBe(8.0) // 4.0 * 2.0
@@ -632,14 +847,14 @@ describe("computeKeyWeights", () => {
     expect(weights.get("t")).toBe(1.0)
   })
 
-  it("samples exactly at MIN_HITS_FOR_MASTERY → no new key boost", () => {
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: MIN_HITS_FOR_MASTERY })]
+  it("samples exactly at MIN_SAMPLES_FOR_STABLE_SIGNAL → no new key boost", () => {
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: MIN_SAMPLES_FOR_STABLE_SIGNAL })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(1.0)
   })
 
-  it("samples at MIN_HITS_FOR_MASTERY - 1 → new key boost applies", () => {
-    const confs = [makeKC({ key: "e", confidence: 1.0, samples: MIN_HITS_FOR_MASTERY - 1 })]
+  it("samples at MIN_SAMPLES_FOR_STABLE_SIGNAL - 1 → new key boost applies", () => {
+    const confs = [makeKC({ key: "e", confidence: 1.0, bestConfidence: 1.0, samples: MIN_SAMPLES_FOR_STABLE_SIGNAL - 1 })]
     const weights = computeKeyWeights(confs, ["e"], null)
     expect(weights.get("e")).toBe(3.0)
   })

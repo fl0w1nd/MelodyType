@@ -41,6 +41,7 @@ export interface KeyStat {
   lastUpdated: number
   adaptiveEwmaCpm?: number
   adaptiveBestCpm?: number
+  adaptiveQualifiedBestCpm?: number
   adaptiveCorrectHits?: number
   adaptiveErrorHits?: number
   adaptiveDecayedCorrectHits?: number

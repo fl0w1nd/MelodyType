@@ -61,9 +61,9 @@ Each key has its own learning curve. The system tracks your EWMA speed (exponent
 
 A key is considered mastered when:
 - EWMA speed reaches your target CPM (default 175, configurable 75–750)
-- At least 15 correct keystrokes recorded
-- Recent accuracy ≥ 85% (decay-weighted)
-- Lifetime accuracy ≥ 75%
+- At least 35 correct keystrokes recorded
+- Recent accuracy ≥ 90% (decay-weighted)
+- Lifetime accuracy ≥ 88%
 
 **Continuous Sessions**
 
@@ -72,7 +72,7 @@ In adaptive mode, rounds flow seamlessly. Complete a round and the next text app
 **Settings**
 
 - **Target Speed** — Adjust your mastery threshold (75–750 CPM) with preset quick-picks
-- **Require Current Mastery** — Require current speed (not just historical best) to count toward unlock eligibility. Helps revisit skills that have regressed.
+- **Strict Current Mastery** — Require current speed (not just historical best) to count toward unlock eligibility. Helps revisit skills that have regressed.
 - **Manual Unlock** — Click any locked key pill to unlock it early, skipping the normal progression gate
 
 ### Practice Modes

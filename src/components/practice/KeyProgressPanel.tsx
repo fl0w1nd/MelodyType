@@ -92,7 +92,7 @@ function KeyProgressPanelInner({
   const unlockedKeys = keyConfidences.filter((k) => k.unlocked)
   const lockedKeys = keyConfidences.filter((k) => !k.unlocked)
   const progressionKeys = unlockedKeys.filter((k) => !k.forced)
-  const masteredCount = unlockedKeys.filter((k) => isKeyStrictlyMastered(k)).length
+  const masteredCount = unlockedKeys.filter((k) => isKeyStrictlyMastered(k, recoverKeys)).length
   const readyToUnlockCount = progressionKeys.filter((k) =>
     isKeyReadyToUnlock(k, recoverKeys),
   ).length
@@ -152,7 +152,7 @@ function KeyProgressPanelInner({
               key={kc.key}
               className={cn(
                 "w-5 h-5 flex items-center justify-center rounded text-[9px] font-mono font-medium border transition-colors",
-                getAdaptiveKeyToneClass(kc),
+                getAdaptiveKeyToneClass(kc, recoverKeys),
                 kc.focused && "ring-1 ring-primary ring-offset-1 ring-offset-background",
               )}
             >
@@ -398,7 +398,7 @@ function KeyProgressPanelInner({
             transition={{ duration: 0.32, ease: "easeOut" }}
             className={cn(
               "w-6 h-6 flex items-center justify-center rounded text-[10px] font-mono font-medium border transition-all",
-              getAdaptiveKeyToneClass(kc),
+              getAdaptiveKeyToneClass(kc, recoverKeys),
               !kc.unlocked && onUnlockKey && "cursor-pointer hover:border-primary/40 hover:bg-primary/5",
               kc.focused && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
             )}
@@ -615,7 +615,7 @@ function KeyStatCard({
           <div
             className={cn(
               "w-7 h-7 flex items-center justify-center rounded text-xs font-mono font-bold border",
-              getAdaptiveKeyToneClass(keyConf),
+              getAdaptiveKeyToneClass(keyConf, recoverKeys),
             )}
           >
             {keyConf.key.toUpperCase()}
@@ -641,7 +641,7 @@ function KeyStatCard({
       <div className="mt-3">
         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all duration-300", getAdaptiveKeyBarClass(keyConf))}
+            className={cn("h-full rounded-full transition-all duration-300", getAdaptiveKeyBarClass(keyConf, recoverKeys))}
             style={{ width: `${Math.min(keyConf.confidence * 100, 100)}%`, transition: "width 0.3s" }}
           />
         </div>

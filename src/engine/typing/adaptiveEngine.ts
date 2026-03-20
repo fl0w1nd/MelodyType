@@ -24,14 +24,25 @@ export {
 export const MIN_TARGET_CPM = 75
 export const MAX_TARGET_CPM = 750
 export const EWMA_ALPHA = 0.1
-export const MIN_HITS_FOR_MASTERY = 10
+export const MIN_HITS_FOR_MASTERY = 35
 export const ACCURACY_DECAY = 0.95
-export const MIN_RECENT_ACCURACY_FOR_MASTERY = 0.92
-export const MIN_LIFETIME_ACCURACY_FOR_MASTERY = 0.85
+export const MIN_RECENT_ACCURACY_FOR_MASTERY = 0.90
+export const MIN_LIFETIME_ACCURACY_FOR_MASTERY = 0.88
 export const MIN_LATENCY_MS = 50
 export const MAX_LATENCY_MS = 3000
 export const MIN_BIGRAM_SAMPLES = 5
 export const BIGRAM_ACCURACY_EXPONENT = 1.5
+export const MIN_SESSION_LATENCY_SAMPLES = 3
+export const MIN_SAMPLES_FOR_STABLE_SIGNAL = 15
+
+function medianLatency(latencies: number[]): number {
+  if (latencies.length === 0) return 0
+  const sorted = [...latencies].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid]
+}
 
 export interface AdaptiveSettings {
   targetCpm: number
@@ -72,6 +83,7 @@ export interface KeyConfidence {
   key: string
   confidence: number
   bestConfidence: number
+  qualifiedBestConfidence: number
   speed: number
   accuracy: number
   lifetimeAccuracy: number
@@ -244,18 +256,17 @@ export function getNextKeyToUnlock(
 }
 
 export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean = false): string | null {
-  void recoverKeys
   const unlockedByKey = new Map(
     confidences.filter((k) => k.unlocked).map((k) => [k.key, k]),
   )
 
   // Scan in frequency order and return the first unlocked key that is not
-  // mastered at the current target CPM.  Always use current confidence so
-  // that raising the target properly retreats focus to earlier keys.
+  // ready under the active gating mode. When recoverKeys is off, focus
+  // should stay on new/unready letters instead of reviving older ones.
   for (const key of LETTER_FREQUENCY_ORDER) {
     const kc = unlockedByKey.get(key)
     if (!kc) continue
-    if (!isKeyReadyToUnlock(kc, true)) {
+    if (!isKeyReadyToUnlock(kc, recoverKeys)) {
       return key
     }
   }
@@ -267,6 +278,15 @@ export function getKeyUnlockChecks(
   keyConfidence: KeyConfidence,
   recoverKeys: boolean = false,
 ): KeyUnlockChecks {
+  if (!recoverKeys && keyConfidence.qualifiedBestConfidence >= 1.0) {
+    return {
+      speed: true,
+      hits: true,
+      recentAccuracy: true,
+      lifetimeAccuracy: true,
+    }
+  }
+
   const gatedConfidence = recoverKeys
     ? keyConfidence.confidence
     : keyConfidence.bestConfidence
@@ -288,9 +308,14 @@ export function isKeyReadyToUnlock(
   return Object.values(checks).every(Boolean)
 }
 
-export function isKeyStrictlyMastered(keyConfidence: KeyConfidence): boolean {
+export function isKeyStrictlyMastered(keyConfidence: KeyConfidence, recoverKeys: boolean = false): boolean {
+  if (!recoverKeys && keyConfidence.qualifiedBestConfidence >= 1.0) {
+    return true
+  }
+
+  const speedConfidence = recoverKeys ? keyConfidence.confidence : keyConfidence.bestConfidence
   return (
-    keyConfidence.confidence >= 1.0 &&
+    speedConfidence >= 1.0 &&
     keyConfidence.samples >= MIN_HITS_FOR_MASTERY &&
     keyConfidence.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100 &&
     keyConfidence.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100
@@ -299,9 +324,9 @@ export function isKeyStrictlyMastered(keyConfidence: KeyConfidence): boolean {
 
 export type AdaptiveKeyTier = "locked" | "weak" | "learning" | "good" | "mastered"
 
-export function getAdaptiveKeyTier(keyConfidence: KeyConfidence): AdaptiveKeyTier {
+export function getAdaptiveKeyTier(keyConfidence: KeyConfidence, recoverKeys: boolean = false): AdaptiveKeyTier {
   if (!keyConfidence.unlocked) return "locked"
-  if (isKeyStrictlyMastered(keyConfidence)) return "mastered"
+  if (isKeyStrictlyMastered(keyConfidence, recoverKeys)) return "mastered"
   if (keyConfidence.bestConfidence >= 1.0) return "good"
   if (keyConfidence.confidence >= 0.4) return "learning"
   return "weak"
@@ -357,6 +382,7 @@ interface AdaptiveKeySessionMetrics {
 interface AdaptiveKeyBackfillState {
   adaptiveEwmaCpm?: number
   adaptiveBestCpm?: number
+  adaptiveQualifiedBestCpm?: number
   adaptiveCorrectHits: number
   adaptiveErrorHits: number
   adaptiveDecayedCorrectHits: number
@@ -421,6 +447,26 @@ function collectAdaptiveSessionKeyMetrics(
   return keyMetrics
 }
 
+function qualifiesForLatchedMastery(params: {
+  ewmaCpm?: number
+  correctHits: number
+  errorHits: number
+  decayedCorrectHits: number
+  decayedErrorHits: number
+}): boolean {
+  const { ewmaCpm, correctHits, errorHits, decayedCorrectHits, decayedErrorHits } = params
+  if (!ewmaCpm || ewmaCpm <= 0) return false
+
+  const samples = correctHits + errorHits
+  if (samples < MIN_HITS_FOR_MASTERY) return false
+
+  const recentAccuracy = computeAccuracyPercent(decayedCorrectHits, decayedErrorHits, 0)
+  if (recentAccuracy < MIN_RECENT_ACCURACY_FOR_MASTERY * 100) return false
+
+  const lifetimeAccuracy = computeAccuracyPercent(correctHits, errorHits, 0)
+  return lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100
+}
+
 async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
   if (adaptiveAccuracyBackfillPromise) {
     await adaptiveAccuracyBackfillPromise
@@ -453,10 +499,10 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
 
       for (const [key, metrics] of Object.entries(keyMetrics)) {
         const aggregate = ensureAggregate(key)
+        const hasEnoughSamples = metrics.correctLatencies.length >= MIN_SESSION_LATENCY_SAMPLES
         const avgLatency =
-          metrics.correctLatencies.length > 0
-            ? metrics.correctLatencies.reduce((sum, latency) => sum + latency, 0) /
-              metrics.correctLatencies.length
+          hasEnoughSamples
+            ? medianLatency(metrics.correctLatencies)
             : 0
         const sessionCpm = avgLatency > 0 ? 60000 / avgLatency : 0
         const prevEwma = aggregate.adaptiveEwmaCpm
@@ -474,6 +520,19 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
           aggregate.adaptiveDecayedCorrectHits * ACCURACY_DECAY + metrics.successPresses
         aggregate.adaptiveDecayedErrorHits =
           aggregate.adaptiveDecayedErrorHits * ACCURACY_DECAY + metrics.falsePresses
+
+        if (qualifiesForLatchedMastery({
+          ewmaCpm: newEwma,
+          correctHits: aggregate.adaptiveCorrectHits,
+          errorHits: aggregate.adaptiveErrorHits,
+          decayedCorrectHits: aggregate.adaptiveDecayedCorrectHits,
+          decayedErrorHits: aggregate.adaptiveDecayedErrorHits,
+        })) {
+          aggregate.adaptiveQualifiedBestCpm = Math.max(
+            aggregate.adaptiveQualifiedBestCpm ?? 0,
+            newEwma ?? 0,
+          )
+        }
 
         if (sessionCpm > 0) {
           aggregate.adaptiveSamples = [
@@ -503,6 +562,7 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
         const adaptiveFields = {
           adaptiveEwmaCpm: aggregate.adaptiveEwmaCpm,
           adaptiveBestCpm: aggregate.adaptiveBestCpm,
+          adaptiveQualifiedBestCpm: aggregate.adaptiveQualifiedBestCpm,
           adaptiveCorrectHits: aggregate.adaptiveCorrectHits,
           adaptiveErrorHits: aggregate.adaptiveErrorHits,
           adaptiveDecayedCorrectHits: aggregate.adaptiveDecayedCorrectHits,
@@ -537,6 +597,7 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
 export { ensureAdaptiveAccuracyStatsBackfilled }
 
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
+  await ensureAdaptiveAccuracyStatsBackfilled()
 
   const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
     db.keyStats.toArray(),
@@ -564,12 +625,14 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
 
     const ewmaCpm = stat?.adaptiveEwmaCpm
     const bestCpm = stat?.adaptiveBestCpm
+    const qualifiedBestCpm = stat?.adaptiveQualifiedBestCpm
     const correctHits = stat?.adaptiveCorrectHits ?? 0
     const errorHits = stat?.adaptiveErrorHits ?? 0
     const decayedCorrectHits = stat?.adaptiveDecayedCorrectHits ?? correctHits
     const decayedErrorHits = stat?.adaptiveDecayedErrorHits ?? errorHits
     const confidence = computeMastery(ewmaCpm, adaptSettings.targetCpm)
     const bestConfidence = computeMastery(bestCpm, adaptSettings.targetCpm)
+    const qualifiedBestConfidence = computeMastery(qualifiedBestCpm, adaptSettings.targetCpm)
 
     const accuracy = computeAccuracyPercent(
       decayedCorrectHits,
@@ -588,6 +651,7 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
       key: letter,
       confidence,
       bestConfidence,
+      qualifiedBestConfidence,
       speed,
       accuracy,
       lifetimeAccuracy,
@@ -648,7 +712,7 @@ export async function recomputeAndUnlock(): Promise<AdaptiveState> {
       } else {
         const allMastered = LETTER_FREQUENCY_ORDER.every((key) => {
           const kc = state.keyConfidences.find((k) => k.key === key)
-          return kc && isKeyStrictlyMastered(kc)
+          return kc && isKeyStrictlyMastered(kc, recoverKeys)
         })
         if (allMastered) {
           await setAppSetting("adaptivePhase", "reinforcement")
@@ -675,8 +739,9 @@ export async function updateKeyStatsFromSession(
 
   await db.transaction("rw", db.keyStats, async () => {
     for (const [key, metrics] of Object.entries(keyMetrics)) {
-      const avgLatency = metrics.correctLatencies.length > 0
-        ? metrics.correctLatencies.reduce((a, b) => a + b, 0) / metrics.correctLatencies.length
+      const hasEnoughSamples = metrics.correctLatencies.length >= MIN_SESSION_LATENCY_SAMPLES
+      const avgLatency = hasEnoughSamples
+        ? medianLatency(metrics.correctLatencies)
         : 0
 
       const sessionCpm = avgLatency > 0 ? (60000 / avgLatency) : 0
@@ -704,6 +769,20 @@ export async function updateKeyStatsFromSession(
           (existing.adaptiveDecayedErrorHits ?? existing.adaptiveErrorHits ?? 0) *
           ACCURACY_DECAY +
           metrics.falsePresses
+        const newCorrectHits = (existing.adaptiveCorrectHits ?? 0) + metrics.successPresses
+        const newErrorHits = (existing.adaptiveErrorHits ?? 0) + metrics.falsePresses
+        const qualifiedBestCpm = qualifiesForLatchedMastery({
+          ewmaCpm: newEwma ?? existing.adaptiveEwmaCpm,
+          correctHits: newCorrectHits,
+          errorHits: newErrorHits,
+          decayedCorrectHits: newDecayedCorrectHits,
+          decayedErrorHits: newDecayedErrorHits,
+        })
+          ? Math.max(
+              existing.adaptiveQualifiedBestCpm ?? 0,
+              newEwma ?? existing.adaptiveEwmaCpm ?? 0,
+            )
+          : existing.adaptiveQualifiedBestCpm
 
         const prevSamples = existing.adaptiveSamples ?? []
         const prevIndex = existing.adaptiveSampleIndex ?? prevSamples.length
@@ -725,8 +804,9 @@ export async function updateKeyStatsFromSession(
           lastUpdated: Date.now(),
           adaptiveEwmaCpm: newEwma ?? existing.adaptiveEwmaCpm,
           adaptiveBestCpm: newBest || existing.adaptiveBestCpm,
-          adaptiveCorrectHits: (existing.adaptiveCorrectHits ?? 0) + metrics.successPresses,
-          adaptiveErrorHits: (existing.adaptiveErrorHits ?? 0) + metrics.falsePresses,
+          adaptiveQualifiedBestCpm: qualifiedBestCpm,
+          adaptiveCorrectHits: newCorrectHits,
+          adaptiveErrorHits: newErrorHits,
           adaptiveDecayedCorrectHits: newDecayedCorrectHits,
           adaptiveDecayedErrorHits: newDecayedErrorHits,
           adaptiveSamples: updatedSamples,
@@ -749,6 +829,15 @@ export async function updateKeyStatsFromSession(
           lastUpdated: Date.now(),
           adaptiveEwmaCpm: sessionCpm > 0 ? sessionCpm : undefined,
           adaptiveBestCpm: sessionCpm > 0 ? sessionCpm : undefined,
+          adaptiveQualifiedBestCpm: qualifiesForLatchedMastery({
+            ewmaCpm: sessionCpm > 0 ? sessionCpm : undefined,
+            correctHits: metrics.successPresses,
+            errorHits: metrics.falsePresses,
+            decayedCorrectHits: metrics.successPresses,
+            decayedErrorHits: metrics.falsePresses,
+          })
+            ? sessionCpm
+            : undefined,
           adaptiveCorrectHits: metrics.successPresses,
           adaptiveErrorHits: metrics.falsePresses,
           adaptiveDecayedCorrectHits: metrics.successPresses,
@@ -761,8 +850,8 @@ export async function updateKeyStatsFromSession(
   })
 }
 
-export function getAdaptiveKeyToneClass(keyConfidence: KeyConfidence): string {
-  switch (getAdaptiveKeyTier(keyConfidence)) {
+export function getAdaptiveKeyToneClass(keyConfidence: KeyConfidence, recoverKeys: boolean = false): string {
+  switch (getAdaptiveKeyTier(keyConfidence, recoverKeys)) {
     case "mastered":
       return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
     case "good":
@@ -777,8 +866,8 @@ export function getAdaptiveKeyToneClass(keyConfidence: KeyConfidence): string {
   }
 }
 
-export function getAdaptiveKeyBarClass(keyConfidence: KeyConfidence): string {
-  switch (getAdaptiveKeyTier(keyConfidence)) {
+export function getAdaptiveKeyBarClass(keyConfidence: KeyConfidence, recoverKeys: boolean = false): string {
+  switch (getAdaptiveKeyTier(keyConfidence, recoverKeys)) {
     case "mastered":
       return "bg-emerald-500"
     case "good":
@@ -792,9 +881,9 @@ export function getAdaptiveKeyBarClass(keyConfidence: KeyConfidence): string {
   }
 }
 
-export function getAdaptiveKeyColorClass(kc: KeyConfidence): string {
+export function getAdaptiveKeyColorClass(kc: KeyConfidence, recoverKeys: boolean = false): string {
   if (!kc.unlocked) return "bg-muted/20 border-border/30 text-muted-foreground/30"
-  switch (getAdaptiveKeyTier(kc)) {
+  switch (getAdaptiveKeyTier(kc, recoverKeys)) {
     case "mastered":
       return "bg-emerald-500/25 border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
     case "good":
@@ -811,6 +900,7 @@ export function computeKeyWeights(
   confidences: KeyConfidence[],
   unlockedKeys: string[],
   focusKey: string | null,
+  recoverKeys: boolean = false,
 ): Map<string, number> {
   const weights = new Map<string, number>()
   const unlockedSet = new Set(unlockedKeys)
@@ -818,13 +908,14 @@ export function computeKeyWeights(
   for (const kc of confidences) {
     if (!unlockedSet.has(kc.key)) continue
 
+    const gatedConfidence = recoverKeys ? kc.confidence : kc.bestConfidence
     let weight = 1.0
 
-    if (kc.confidence < 0.4) {
+    if (gatedConfidence < 0.4) {
       weight = 4.0
-    } else if (kc.confidence < 0.7) {
+    } else if (gatedConfidence < 0.7) {
       weight = 2.5
-    } else if (kc.confidence < 1.0) {
+    } else if (gatedConfidence < 1.0) {
       weight = 1.5
     }
 
@@ -834,7 +925,7 @@ export function computeKeyWeights(
 
     // Keep newly introduced keys in heavy rotation until they have enough
     // samples for their confidence and accuracy signals to stabilize.
-    if (kc.samples < MIN_HITS_FOR_MASTERY) {
+    if (kc.samples < MIN_SAMPLES_FOR_STABLE_SIGNAL) {
       weight = Math.max(weight, 3.0)
     }
 
@@ -931,7 +1022,7 @@ export async function updateBigramStatsFromSession(
       if (!fromKey || !toKey) continue
 
       const avgLatency = m.latencies.length > 0
-        ? m.latencies.reduce((a, b) => a + b, 0) / m.latencies.length
+        ? medianLatency(m.latencies)
         : 0
 
       const existing = await db.bigramStats.where("bigram").equals(bigramKey).first()
@@ -1098,7 +1189,7 @@ export async function backfillBigramStatsFromHistory(): Promise<number> {
       const [fromKey, toKey] = bigramKey.split(":")
       if (!fromKey || !toKey) continue
       const avgLatency = m.latencies.length > 0
-        ? m.latencies.reduce((a, b) => a + b, 0) / m.latencies.length
+        ? medianLatency(m.latencies)
         : 0
       await db.bigramStats.add({
         fromKey,

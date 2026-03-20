@@ -48,6 +48,7 @@ interface VirtualKeyboardProps {
   nextKey?: string
   keyConfidences?: KeyConfidence[]
   adaptiveMode?: boolean
+  recoverKeys?: boolean
 }
 
 function VirtualKeyboardInner({
@@ -55,6 +56,7 @@ function VirtualKeyboardInner({
   nextKey,
   keyConfidences,
   adaptiveMode = false,
+  recoverKeys = false,
 }: VirtualKeyboardProps) {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set())
 
@@ -110,7 +112,7 @@ function VirtualKeyboardInner({
             const isHighlighted = highlightKeys?.has(keyLower)
             const isNext = nextKey?.toLowerCase() === keyLower
             const kc = confidenceMap.get(keyLower)
-            const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColorClass(kc) : ""
+            const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColorClass(kc, recoverKeys) : ""
             const isFocused = adaptiveMode && kc?.focused
 
             return (
@@ -142,7 +144,7 @@ function VirtualKeyboardInner({
                   <div
                     className={cn(
                       "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 rounded-full transition-all",
-                      getAdaptiveKeyBarClass(kc),
+                      getAdaptiveKeyBarClass(kc, recoverKeys),
                     )}
                     style={{ width: `${Math.min(kc.confidence * 100, 100) * 0.7}%` }}
                   />

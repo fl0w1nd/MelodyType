@@ -38,8 +38,9 @@ export function AdaptiveProgressCard() {
   const stats = useMemo(() => {
     if (!adaptiveState) return null
 
+    const { recoverKeys } = adaptiveState.settings
     const unlocked = adaptiveState.keyConfidences.filter((k) => k.unlocked)
-    const mastered = unlocked.filter((k) => isKeyStrictlyMastered(k))
+    const mastered = unlocked.filter((k) => isKeyStrictlyMastered(k, recoverKeys))
     const avgConfidence =
       unlocked.length > 0
         ? unlocked.reduce((sum, k) => sum + k.confidence, 0) / unlocked.length
@@ -70,6 +71,8 @@ export function AdaptiveProgressCard() {
       focusKey: adaptiveState.focusKey,
     }
   }, [adaptiveState])
+
+  const recoverKeys = adaptiveState?.settings.recoverKeys ?? false
 
   if (!adaptiveState || !stats) {
     return (
@@ -206,7 +209,7 @@ export function AdaptiveProgressCard() {
                 transition={{ delay: i * 0.015, duration: 0.2 }}
                 className={cn(
                   "relative w-7 h-7 flex items-center justify-center rounded-md text-[10px] font-mono font-semibold border transition-all duration-200",
-                  getAdaptiveKeyToneClass(kc),
+                  getAdaptiveKeyToneClass(kc, recoverKeys),
                   kc.focused &&
                     "ring-2 ring-primary/50 ring-offset-1 ring-offset-background scale-110",
                 )}
@@ -221,7 +224,7 @@ export function AdaptiveProgressCard() {
                   <div
                     className={cn(
                       "absolute bottom-0 left-0 right-0 h-0.5 rounded-b",
-                      getAdaptiveKeyBarClass(kc),
+                      getAdaptiveKeyBarClass(kc, recoverKeys),
                     )}
                     style={{ width: `${Math.min(kc.confidence * 100, 100)}%` }}
                   />
@@ -239,7 +242,7 @@ export function AdaptiveProgressCard() {
               </span>
               <div className="space-y-1.5">
                 {stats.weakest.map((kc) => (
-                  <KeyStatMiniRow key={kc.key} kc={kc} variant="weak" />
+                  <KeyStatMiniRow key={kc.key} kc={kc} variant="weak" recoverKeys={recoverKeys} />
                 ))}
               </div>
             </div>
@@ -249,7 +252,7 @@ export function AdaptiveProgressCard() {
               </span>
               <div className="space-y-1.5">
                 {stats.strongest.map((kc) => (
-                  <KeyStatMiniRow key={kc.key} kc={kc} variant="strong" />
+                  <KeyStatMiniRow key={kc.key} kc={kc} variant="strong" recoverKeys={recoverKeys} />
                 ))}
               </div>
             </div>
@@ -309,16 +312,18 @@ function MetricPill({
 function KeyStatMiniRow({
   kc,
   variant,
+  recoverKeys = false,
 }: {
   kc: KeyConfidence
   variant: "weak" | "strong"
+  recoverKeys?: boolean
 }) {
   return (
     <div className="flex items-center gap-2">
       <div
         className={cn(
           "w-5 h-5 flex items-center justify-center rounded-md text-[9px] font-mono font-bold border",
-          getAdaptiveKeyToneClass(kc),
+          getAdaptiveKeyToneClass(kc, recoverKeys),
         )}
       >
         {kc.key.toUpperCase()}

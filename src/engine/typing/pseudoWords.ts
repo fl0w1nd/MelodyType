@@ -60,6 +60,9 @@ function scoreRealWord(
     const focusCount = word.split(focusKey).length - 1
     if (focusCount > 0) {
       score += focusCount * 1.5
+      if (word.indexOf(focusKey) > 0) {
+        score += 1.0
+      }
     }
   }
 
@@ -71,6 +74,7 @@ export function generateAdaptiveText(
   unlockedKeys: string[],
   focusKey: string | null,
   wordCount: number = 30,
+  recoverKeys: boolean = false,
 ): string {
   const availableKeys = new Set(unlockedKeys.filter((k) => /^[a-z]$/.test(k)))
 
@@ -80,7 +84,7 @@ export function generateAdaptiveText(
     availableKeys.add("a")
   }
 
-  const keyWeights = computeKeyWeights(keyConfidences, unlockedKeys, focusKey)
+  const keyWeights = computeKeyWeights(keyConfidences, unlockedKeys, focusKey, recoverKeys)
 
   const realWords = filterRealWords(availableKeys, focusKey)
   const realWordWeights = new Map(

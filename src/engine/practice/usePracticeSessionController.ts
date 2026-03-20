@@ -189,6 +189,7 @@ export function usePracticeSessionController({
             nextState.unlockedKeys,
             nextState.focusKey,
             ADAPTIVE_WORD_COUNT,
+            nextState.settings.recoverKeys,
           )
       loadText(text)
       void startMelody(getTargetCPM({ mode: "adaptive" }, nextState))
@@ -216,6 +217,7 @@ export function usePracticeSessionController({
               resolvedAdaptiveState.unlockedKeys,
               resolvedAdaptiveState.focusKey,
               ADAPTIVE_WORD_COUNT,
+              resolvedAdaptiveState.settings.recoverKeys,
             )
           }
           return generateWordText("easy", 25)
@@ -400,6 +402,7 @@ export function usePracticeSessionController({
             nextAdaptiveState.unlockedKeys,
             nextAdaptiveState.focusKey,
             ADAPTIVE_WORD_COUNT,
+            nextAdaptiveState.settings.recoverKeys,
           )
       loadText(text)
       setAdaptiveState(nextAdaptiveState)

@@ -79,7 +79,7 @@ export function generateMarkovWord(
   for (let attempt = 0; attempt < 5; attempt++) {
     const chain: number[] = []
 
-    if (focusKey && filter.has(focusKey)) {
+    if (focusKey && filter.has(focusKey) && Math.random() < 0.3) {
       const fi = charToIndex.get(focusKey)
       if (fi !== undefined) chain.push(fi)
     }
@@ -113,16 +113,31 @@ export function generateMarkovWord(
 
     const word = chain.map((i) => alphabetChars[i]).join("")
     if (word.length >= MIN_WORD_LENGTH) {
-      if (focusKey && word.includes(focusKey)) return word
+      if (focusKey && word.includes(focusKey)) {
+        if (word.indexOf(focusKey) > 0) return word
+        if (word.length > bestWord.length) bestWord = word
+        continue
+      }
       if (!focusKey) return word
       if (word.length > bestWord.length) bestWord = word
     }
   }
 
   if (bestWord.length > 0) {
-    if (focusKey && !bestWord.includes(focusKey) && filter.has(focusKey)) {
-      const pos = Math.floor(Math.random() * bestWord.length)
-      bestWord = bestWord.slice(0, pos) + focusKey + bestWord.slice(pos + 1)
+    if (focusKey && filter.has(focusKey)) {
+      const idx = bestWord.indexOf(focusKey)
+      if (idx < 0) {
+        const pos = bestWord.length > 1
+          ? 1 + Math.floor(Math.random() * (bestWord.length - 1))
+          : 0
+        bestWord = bestWord.slice(0, pos) + focusKey + bestWord.slice(pos + 1)
+      } else if (idx === 0 && bestWord.length > 1) {
+        const newPos = 1 + Math.floor(Math.random() * (bestWord.length - 1))
+        const chars = bestWord.split("")
+        chars[0] = chars[newPos]
+        chars[newPos] = focusKey
+        bestWord = chars.join("")
+      }
     }
     return bestWord
   }
