@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { motion } from "framer-motion"
 import { Brain, Clock, Quote } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { db } from "@/lib/db"
 import { StatsOverview } from "@/components/dashboard/StatsOverview"
@@ -22,16 +23,8 @@ type DashboardMode = "adaptive" | "time" | "quote"
 const EMPTY_SESSIONS: TypingSession[] = []
 const EMPTY_DAILY_GOALS: DailyGoal[] = []
 
-const dashboardModeMeta: Record<
-  DashboardMode,
-  { label: string; icon: React.ReactNode }
-> = {
-  adaptive: { label: "Adaptive", icon: <Brain className="h-4 w-4" /> },
-  time: { label: "Time", icon: <Clock className="h-4 w-4" /> },
-  quote: { label: "Quote", icon: <Quote className="h-4 w-4" /> },
-}
-
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const sessions =
     useLiveQuery(() => db.sessions.orderBy("timestamp").toArray()) ?? EMPTY_SESSIONS
   const dailyGoals = useLiveQuery(() => db.dailyGoals.toArray()) ?? EMPTY_DAILY_GOALS
@@ -49,6 +42,12 @@ export default function DashboardPage() {
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
   const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null)
   const bigramScores = useLiveQuery(() => loadAllBigramScores(), [], [])
+
+  const dashboardModeMeta: Record<DashboardMode, { label: string; icon: React.ReactNode }> = {
+    adaptive: { label: t("dashboardPage.tabs.adaptive"), icon: <Brain className="h-4 w-4" /> },
+    time: { label: t("dashboardPage.tabs.time"), icon: <Clock className="h-4 w-4" /> },
+    quote: { label: t("dashboardPage.tabs.quote"), icon: <Quote className="h-4 w-4" /> },
+  }
 
   const sessionsByMode = useMemo(() => {
     const map: Record<DashboardMode, TypingSession[]> = { adaptive: [], time: [], quote: [] }

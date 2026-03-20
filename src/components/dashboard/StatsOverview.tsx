@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import type { TypingSession, DailyGoal } from "@/lib/db"
@@ -22,6 +23,8 @@ interface StatsOverviewProps {
 }
 
 export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
+  const { t } = useTranslation()
+
   const stats = useMemo(() => {
     if (sessions.length === 0) {
       return {
@@ -102,63 +105,63 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
   const heroMetrics = [
     {
       icon: Gauge,
-      label: "Avg WPM",
+      label: t("statsOverview.metrics.avgWpm"),
       value: stats.avgWpm.toString(),
-      tooltip: "Average typing speed across all sessions, measured in Words Per Minute",
+      tooltip: t("statsOverview.tooltips.avgWpm"),
       accent: "from-amber-500/20 to-orange-500/5",
       iconColor: "text-amber-600 dark:text-amber-400",
       borderAccent: "border-amber-500/20",
     },
     {
       icon: Trophy,
-      label: "Best WPM",
+      label: t("statsOverview.metrics.bestWpm"),
       value: stats.bestWpm.toString(),
-      tooltip: "Your highest recorded typing speed in any single session",
+      tooltip: t("statsOverview.tooltips.bestWpm"),
       accent: "from-yellow-500/20 to-amber-500/5",
       iconColor: "text-yellow-600 dark:text-yellow-400",
       borderAccent: "border-yellow-500/20",
     },
     {
       icon: Target,
-      label: "Accuracy",
+      label: t("statsOverview.metrics.accuracy"),
       value: `${stats.avgAccuracy}%`,
-      tooltip: "Average percentage of keystrokes that were correct across all sessions",
+      tooltip: t("statsOverview.tooltips.accuracy"),
       accent: "from-emerald-500/20 to-teal-500/5",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       borderAccent: "border-emerald-500/20",
     },
     {
       icon: Music,
-      label: "Melody Integrity",
+      label: t("statsOverview.metrics.melodyIntegrity"),
       value: stats.melodyIntegritySamples > 0 ? `${stats.avgMelodyIntegrity}%` : "—",
-      tooltip: "How consistently you maintain the musical flow while typing. Higher means smoother, more rhythmic input.",
+      tooltip: t("statsOverview.tooltips.melodyIntegrity"),
       accent: "from-sky-500/20 to-cyan-500/5",
       iconColor: "text-sky-600 dark:text-sky-400",
       borderAccent: "border-sky-500/20",
     },
     {
       icon: Hash,
-      label: "Sessions",
+      label: t("statsOverview.metrics.sessions"),
       value: stats.totalSessions.toString(),
-      tooltip: "Total number of completed practice sessions",
+      tooltip: t("statsOverview.tooltips.sessions"),
       accent: "from-blue-500/20 to-indigo-500/5",
       iconColor: "text-blue-600 dark:text-blue-400",
       borderAccent: "border-blue-500/20",
     },
     {
       icon: Clock,
-      label: "Practice",
+      label: t("statsOverview.metrics.practice"),
       value: `${stats.totalTime}m`,
-      tooltip: "Total time spent practicing, measured in minutes",
+      tooltip: t("statsOverview.tooltips.practice"),
       accent: "from-violet-500/20 to-purple-500/5",
       iconColor: "text-violet-600 dark:text-violet-400",
       borderAccent: "border-violet-500/20",
     },
     {
       icon: Flame,
-      label: "Streak",
+      label: t("statsOverview.metrics.streak"),
       value: `${stats.streak}d`,
-      tooltip: "Consecutive days with at least one completed practice session",
+      tooltip: t("statsOverview.tooltips.streak"),
       accent: "from-rose-500/20 to-red-500/5",
       iconColor: "text-rose-600 dark:text-rose-400",
       borderAccent: "border-rose-500/20",
@@ -175,10 +178,12 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
       >
         <div>
           <h1 className="text-2xl font-serif font-bold tracking-tight text-foreground">
-            Dashboard
+            {t("statsOverview.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {sessions.length > 0 ? "Track your typing journey" : "Start practicing to see your progress"}
+            {sessions.length > 0
+              ? t("statsOverview.subtitle")
+              : t("statsOverview.subtitleEmpty")}
           </p>
         </div>
         {stats.recentTrend && (
@@ -191,17 +196,23 @@ export function StatsOverview({ sessions, dailyGoals }: StatsOverviewProps) {
             {stats.recentTrend === "up" && (
               <>
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-emerald-600 dark:text-emerald-400">Improving</span>
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {t("statsOverview.trends.improving")}
+                </span>
               </>
             )}
             {stats.recentTrend === "down" && (
               <>
                 <TrendingDown className="h-3.5 w-3.5 text-rose-500" />
-                <span className="text-rose-600 dark:text-rose-400">Needs focus</span>
+                <span className="text-rose-600 dark:text-rose-400">
+                  {t("statsOverview.trends.needsFocus")}
+                </span>
               </>
             )}
             {stats.recentTrend === "stable" && (
-              <span className="text-muted-foreground">Steady pace</span>
+              <span className="text-muted-foreground">
+                {t("statsOverview.trends.steadyPace")}
+              </span>
             )}
           </motion.div>
         )}

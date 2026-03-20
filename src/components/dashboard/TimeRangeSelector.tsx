@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { CalendarDays, Clock, CalendarRange, Calendar } from "lucide-react"
 
@@ -9,14 +10,16 @@ interface TimeRangeSelectorProps {
   className?: string
 }
 
-const ranges: { value: TimeRange; label: string; icon: React.ReactNode }[] = [
-  { value: "recent", label: "Recent", icon: <Clock className="h-3.5 w-3.5" /> },
-  { value: "day", label: "Day", icon: <CalendarDays className="h-3.5 w-3.5" /> },
-  { value: "week", label: "Week", icon: <CalendarRange className="h-3.5 w-3.5" /> },
-  { value: "month", label: "Month", icon: <Calendar className="h-3.5 w-3.5" /> },
-]
-
 export function TimeRangeSelector({ value, onChange, className }: TimeRangeSelectorProps) {
+  const { t } = useTranslation()
+
+  const ranges: { value: TimeRange; label: string; icon: React.ReactNode }[] = [
+    { value: "recent", label: t("timeRangeSelector.recent"), icon: <Clock className="h-3.5 w-3.5" /> },
+    { value: "day", label: t("timeRangeSelector.day"), icon: <CalendarDays className="h-3.5 w-3.5" /> },
+    { value: "week", label: t("timeRangeSelector.week"), icon: <CalendarRange className="h-3.5 w-3.5" /> },
+    { value: "month", label: t("timeRangeSelector.month"), icon: <Calendar className="h-3.5 w-3.5" /> },
+  ]
+
   return (
     <div className={cn("inline-flex items-center gap-0.5 rounded-xl bg-secondary/60 p-1", className)}>
       {ranges.map((range) => (

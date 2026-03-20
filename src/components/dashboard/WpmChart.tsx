@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { TrendingUp, Target, BarChart3 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 import { TimeRangeSelector, type TimeRange } from "./TimeRangeSelector"
@@ -23,7 +24,6 @@ import {
 
 interface WpmChartProps {
   sessions: TypingSession[]
-  title?: string
 }
 
 const tooltipStyle = {
@@ -42,6 +42,7 @@ function WpmChartInner({
   data: AggregatedDataPoint[]
   range: TimeRange
 }) {
+  const { t } = useTranslation()
   const summary = useMemo(() => {
     if (data.length === 0) return null
     const avg = Math.round(data.reduce((s, d) => s + d.wpm, 0) / data.length)
@@ -57,7 +58,7 @@ function WpmChartInner({
           <div className="flex items-baseline gap-1">
             <span className="text-lg font-mono font-bold tabular-nums">{summary.avg}</span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              avg wpm
+              {t("wpmChart.summaryStats.avgWpm")}
             </span>
           </div>
           <div className="h-4 w-px bg-border" />
@@ -65,7 +66,9 @@ function WpmChartInner({
             <span className="text-lg font-mono font-bold tabular-nums text-amber-600 dark:text-amber-400">
               {summary.max}
             </span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">peak</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {t("wpmChart.summaryStats.peak")}
+            </span>
           </div>
           {range !== "recent" && (
             <>
@@ -73,7 +76,7 @@ function WpmChartInner({
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-mono tabular-nums">{summary.totalSessions}</span>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                  sessions
+                  {t("wpmChart.summaryStats.sessions")}
                 </span>
               </div>
             </>
@@ -106,7 +109,10 @@ function WpmChartInner({
             contentStyle={tooltipStyle}
             labelStyle={{ fontWeight: 600, marginBottom: 4 }}
             labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipLabel ?? ""}
-            formatter={(value) => [`${Number(value).toFixed(1)} wpm`, "Speed"]}
+            formatter={(value) => [
+              t("wpmChart.tooltips.wpmUnit", { n: Number(value).toFixed(1) }),
+              t("wpmChart.tooltips.speed"),
+            ]}
           />
           <Area
             type="monotone"
@@ -124,6 +130,7 @@ function WpmChartInner({
 }
 
 function AccuracyChartInner({ data }: { data: AggregatedDataPoint[] }) {
+  const { t } = useTranslation()
   const summary = useMemo(() => {
     if (data.length === 0) return null
     const avg = Math.round((data.reduce((s, d) => s + d.accuracy, 0) / data.length) * 10) / 10
@@ -137,7 +144,9 @@ function AccuracyChartInner({ data }: { data: AggregatedDataPoint[] }) {
         <div className="flex items-center gap-4 px-2 mb-3">
           <div className="flex items-baseline gap-1">
             <span className="text-lg font-mono font-bold tabular-nums">{summary.avg}%</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">avg</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {t("wpmChart.summaryStats.avg")}
+            </span>
           </div>
           <div className="h-4 w-px bg-border" />
           <div className="flex items-baseline gap-1">
@@ -145,7 +154,7 @@ function AccuracyChartInner({ data }: { data: AggregatedDataPoint[] }) {
               {summary.min}%
             </span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              floor
+              {t("wpmChart.summaryStats.floor")}
             </span>
           </div>
         </div>
@@ -177,7 +186,10 @@ function AccuracyChartInner({ data }: { data: AggregatedDataPoint[] }) {
             contentStyle={tooltipStyle}
             labelStyle={{ fontWeight: 600, marginBottom: 4 }}
             labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipLabel ?? ""}
-            formatter={(value) => [`${Number(value).toFixed(2)}%`, "Accuracy"]}
+            formatter={(value) => [
+              t("wpmChart.tooltips.accUnit", { n: Number(value).toFixed(2) }),
+              t("wpmChart.tooltips.accuracy"),
+            ]}
           />
           <Line
             type="monotone"
@@ -208,6 +220,7 @@ function ChartShell({
   className?: string
   children: React.ComponentType<{ data: AggregatedDataPoint[]; range: TimeRange }>
 }) {
+  const { t } = useTranslation()
   const [range, setRange] = useState<TimeRange>("recent")
   const filtered = useMemo(() => filterSessionsByRange(sessions, range), [sessions, range])
   const data = useMemo(() => aggregateSessionsByRange(filtered, range), [filtered, range])
@@ -237,7 +250,7 @@ function ChartShell({
         {data.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-52 text-muted-foreground">
             <BarChart3 className="h-8 w-8 mb-2 opacity-30" />
-            <span className="text-sm">No data for this period</span>
+            <span className="text-sm">{t("wpmChart.noData")}</span>
           </div>
         ) : (
           <Inner data={data} range={range} />
@@ -247,10 +260,11 @@ function ChartShell({
   )
 }
 
-export function WpmChart({ sessions, title = "Speed Progress" }: WpmChartProps) {
+export function WpmChart({ sessions }: WpmChartProps) {
+  const { t } = useTranslation()
   return (
     <ChartShell
-      title={title}
+      title={t("wpmChart.speedProgress")}
       icon={<TrendingUp className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />}
       iconColor="bg-amber-500/10"
       sessions={sessions}
@@ -260,10 +274,11 @@ export function WpmChart({ sessions, title = "Speed Progress" }: WpmChartProps) 
   )
 }
 
-export function AccuracyChart({ sessions, title = "Accuracy Trend" }: WpmChartProps) {
+export function AccuracyChart({ sessions }: WpmChartProps) {
+  const { t } = useTranslation()
   return (
     <ChartShell
-      title={title}
+      title={t("wpmChart.accuracyTrend")}
       icon={<Target className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
       iconColor="bg-emerald-500/10"
       sessions={sessions}

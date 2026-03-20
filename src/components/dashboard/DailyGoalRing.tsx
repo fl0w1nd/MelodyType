@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { CalendarCheck, Check, Flame } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
@@ -48,6 +49,7 @@ interface DailyGoalRingProps {
 }
 
 export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) {
+  const { t } = useTranslation()
   const dailyGoalMinutes = useAppSetting("dailyGoalMinutes")
   const [dragging, setDragging] = useState(false)
   const [localMinutes, setLocalMinutes] = useState<number | null>(null)
@@ -134,6 +136,29 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
     [],
   )
 
+  const statsItems = [
+    {
+      label: t("dailyGoalRing.stats.progress"),
+      value: `${Math.round(pct)}%`,
+      tooltip: t("dailyGoalRing.tooltips.progress"),
+    },
+    {
+      label: t("dailyGoalRing.stats.sessions"),
+      value: (todayGoal?.sessionsCount ?? 0).toString(),
+      tooltip: t("dailyGoalRing.tooltips.sessions"),
+    },
+    {
+      label: t("dailyGoalRing.stats.bestWpm"),
+      value: todayGoal ? Math.round(todayGoal.bestWpm).toString() : "—",
+      tooltip: t("dailyGoalRing.tooltips.bestWpm"),
+    },
+    {
+      label: t("dailyGoalRing.stats.avgAcc"),
+      value: avgAcc != null ? `${avgAcc.toFixed(1)}%` : "—",
+      tooltip: t("dailyGoalRing.tooltips.avgAcc"),
+    },
+  ]
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -147,7 +172,7 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
             <CalendarCheck className="h-3.5 w-3.5 text-primary" />
           </div>
           <h3 className="text-sm font-semibold text-foreground tracking-tight">
-            Today&apos;s Goal
+            {t("dailyGoalRing.title")}
           </h3>
           {done && (
             <motion.div
@@ -157,14 +182,15 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5"
             >
               <Check className="h-3 w-3 text-emerald-500" />
-              <span className="text-[10px] font-medium text-emerald-500">Done</span>
+              <span className="text-[10px] font-medium text-emerald-500">
+                {t("dailyGoalRing.done")}
+              </span>
             </motion.div>
           )}
         </div>
       </div>
 
       <div className="flex flex-col items-center gap-3 px-5 pb-5 pt-1">
-        {/* Circular Dial */}
         <div className="relative w-[180px] h-[180px]">
           <svg
             ref={svgRef}
@@ -175,27 +201,25 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
             onPointerMove={onMove}
             onPointerUp={onUp}
             role="slider"
-            aria-label="Daily practice goal in minutes"
+            aria-label={t("dailyGoalRing.title")}
             aria-valuemin={0}
             aria-valuemax={120}
             aria-valuenow={target}
           >
-            {/* Graduation ticks */}
-            {ticks.map((t, i) => (
+            {ticks.map((tick, i) => (
               <line
                 key={i}
-                x1={t.p1.x}
-                y1={t.p1.y}
-                x2={t.p2.x}
-                y2={t.p2.y}
+                x1={tick.p1.x}
+                y1={tick.p1.y}
+                x2={tick.p2.x}
+                y2={tick.p2.y}
                 stroke="currentColor"
-                className={t.major ? "text-muted-foreground/35" : "text-muted-foreground/15"}
-                strokeWidth={t.major ? 1.5 : 0.8}
+                className={tick.major ? "text-muted-foreground/35" : "text-muted-foreground/15"}
+                strokeWidth={tick.major ? 1.5 : 0.8}
                 strokeLinecap="round"
               />
             ))}
 
-            {/* Minute labels */}
             {labels.map(({ m, pos }) => (
               <text
                 key={m}
@@ -210,7 +234,6 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               </text>
             ))}
 
-            {/* Background track */}
             <circle
               cx={CX}
               cy={CY}
@@ -221,7 +244,6 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               strokeWidth={SW}
             />
 
-            {/* Target arc */}
             {targetAngle > 0.5 && (
               <path
                 d={svgArc(R, 0, Math.min(targetAngle, 359.99))}
@@ -233,7 +255,6 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               />
             )}
 
-            {/* Progress arc */}
             {completed > 0 && progressAngle > 0.5 && (
               <motion.path
                 d={svgArc(R, 0, Math.min(progressAngle, 359.99))}
@@ -248,7 +269,6 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               />
             )}
 
-            {/* Thumb */}
             <circle
               cx={thumb.x}
               cy={thumb.y}
@@ -265,7 +285,6 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
             />
           </svg>
 
-          {/* Center display */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <motion.span
               className="text-3xl font-mono font-bold tabular-nums leading-none"
@@ -277,46 +296,25 @@ export function DailyGoalRing({ todayGoal, todaySessions }: DailyGoalRingProps) 
               {target}
             </motion.span>
             <span className="text-[9px] text-muted-foreground uppercase tracking-widest mt-1">
-              minutes
+              {t("dailyGoalRing.minutes")}
             </span>
           </div>
         </div>
 
-        {/* Completed progress */}
         {completed > 0 && (
           <div className="flex items-center gap-1.5 -mt-1">
             <Flame className="h-3.5 w-3.5 text-orange-400" />
             <span className="text-xs font-mono font-medium tabular-nums">
               {Math.round(completed * 10) / 10}
             </span>
-            <span className="text-xs text-muted-foreground">/ {target} min</span>
+            <span className="text-xs text-muted-foreground">
+              {t("dailyGoalRing.ofMinutes", { n: target })}
+            </span>
           </div>
         )}
 
-        {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 w-full">
-          {[
-            {
-              label: "Progress",
-              value: `${Math.round(pct)}%`,
-              tooltip: "Percentage of your daily practice time goal completed",
-            },
-            {
-              label: "Sessions",
-              value: (todayGoal?.sessionsCount ?? 0).toString(),
-              tooltip: "Number of practice sessions completed today",
-            },
-            {
-              label: "Best WPM",
-              value: todayGoal ? Math.round(todayGoal.bestWpm).toString() : "—",
-              tooltip: "Your highest typing speed achieved in today's sessions",
-            },
-            {
-              label: "Avg Acc",
-              value: avgAcc != null ? `${avgAcc.toFixed(1)}%` : "—",
-              tooltip: "Average accuracy across all of today's practice sessions",
-            },
-          ].map((item) => (
+          {statsItems.map((item) => (
             <Tooltip key={item.label}>
               <TooltipTrigger render={<div className="rounded-xl bg-secondary/30 p-2.5 text-center" />}>
                 <div className="text-sm font-mono font-bold tabular-nums">{item.value}</div>
