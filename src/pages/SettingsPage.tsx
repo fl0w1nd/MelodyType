@@ -11,7 +11,6 @@ import {
   Info,
   Check,
   AlertTriangle,
-  Globe,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,11 +30,9 @@ import {
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
 } from "@/engine/typing/adaptiveEngine"
-import type { SupportedLanguage } from "@/i18n"
-import { SUPPORTED_LANGUAGES } from "@/i18n"
 
 export default function SettingsPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [exportStatus, setExportStatus] = useState<"idle" | "success" | "error">("idle")
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle")
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
@@ -108,28 +105,6 @@ export default function SettingsPage() {
     await midi.resetMidiState()
     setResetSettingsDialogOpen(false)
   }, [midi])
-
-  const handleLanguageChange = useCallback(
-    (lang: SupportedLanguage | "auto") => {
-      if (lang === "auto") {
-        localStorage.removeItem("melodytype-language")
-        void i18n.changeLanguage(navigator.language)
-      } else {
-        void i18n.changeLanguage(lang)
-      }
-    },
-    [i18n],
-  )
-
-  const currentLang = SUPPORTED_LANGUAGES.includes(i18n.language as SupportedLanguage)
-    ? (i18n.language as SupportedLanguage)
-    : "auto"
-
-  const langOptions: Array<{ value: SupportedLanguage | "auto"; label: string }> = [
-    { value: "auto", label: t("settingsPage.language.auto") },
-    { value: "en", label: t("settingsPage.language.en") },
-    { value: "zh", label: t("settingsPage.language.zh") },
-  ]
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
@@ -256,36 +231,6 @@ export default function SettingsPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Language */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-4 w-4 text-primary" />
-            {t("settingsPage.language.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            {t("settingsPage.language.label")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {langOptions.map((opt) => {
-              const isActive = opt.value === currentLang
-              return (
-                <Button
-                  key={opt.value}
-                  variant={isActive ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleLanguageChange(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              )
-            })}
           </div>
         </CardContent>
       </Card>

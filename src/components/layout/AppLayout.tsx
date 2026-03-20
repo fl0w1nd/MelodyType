@@ -1,16 +1,43 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom"
-import { Keyboard, BarChart3, Music, Settings, BookOpen, Github } from "lucide-react"
+import { Keyboard, BarChart3, Music, Settings, BookOpen, Github, Globe } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
 import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
 import { GuidedTour, TourReplayButton } from "@/components/GuidedTour"
 import { useTranslation } from "react-i18next"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { SUPPORTED_LANGUAGES } from "@/i18n"
+import type { SupportedLanguage } from "@/i18n"
 
 export function AppLayout() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const showFloatingPlayer = location.pathname !== "/midi"
+
+  const handleLanguageChange = (lang: SupportedLanguage | "auto") => {
+    if (lang === "auto") {
+      localStorage.removeItem("melodytype-language")
+      void i18n.changeLanguage(navigator.language)
+    } else {
+      void i18n.changeLanguage(lang)
+    }
+  }
+
+  const currentLang = SUPPORTED_LANGUAGES.includes(i18n.language as SupportedLanguage)
+    ? (i18n.language as SupportedLanguage)
+    : "auto"
+
+  const langOptions: Array<{ value: SupportedLanguage | "auto"; label: string; flag: string }> = [
+    { value: "auto", label: "Auto", flag: "🌐" },
+    { value: "en", label: "English", flag: "🇺🇸" },
+    { value: "zh", label: "中文", flag: "🇨🇳" },
+  ]
 
   const navItems = [
     { to: "/", icon: Keyboard, label: t("nav.practice") },
@@ -90,6 +117,33 @@ export function AppLayout() {
                   <Github className="h-4 w-4" />
                 </TooltipTrigger>
                 <TooltipContent side="bottom">{t("nav.githubRepository")}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <Globe className="h-4 w-4" />
+                      <span className="hidden sm:inline">{langOptions.find((opt) => opt.value === currentLang)?.label}</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-32">
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-border mb-1">
+                        {t("settingsPage.language.title")}
+                      </div>
+                      {langOptions.map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.value}
+                          onClick={() => handleLanguageChange(opt.value)}
+                          className="gap-2 cursor-pointer"
+                        >
+                          <span>{opt.flag}</span>
+                          <span>{opt.label}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("settingsPage.language.title")}</TooltipContent>
               </Tooltip>
             </nav>
           </div>
