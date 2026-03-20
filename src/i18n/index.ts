@@ -2,11 +2,12 @@ import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 import LanguageDetector from "i18next-browser-languagedetector"
 import en from "./locales/en"
-import zh from "./locales/zh"
+import zhHans from "./locales/zhHans"
+import zhHant from "./locales/zhHant"
 
-export type SupportedLanguage = "en" | "zh"
+export type SupportedLanguage = "en" | "zh-Hans" | "zh-Hant"
 
-export const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["en", "zh"]
+export const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["en", "zh-Hans", "zh-Hant"]
 
 i18n
   .use(LanguageDetector)
@@ -14,11 +15,11 @@ i18n
   .init({
     resources: {
       en: { translation: en },
-      zh: { translation: zh },
+      "zh-Hans": { translation: zhHans },
+      "zh-Hant": { translation: zhHant },
     },
     fallbackLng: "en",
     supportedLngs: SUPPORTED_LANGUAGES,
-    // LanguageDetector order: localStorage key "i18nextLng", then browser navigator
     detection: {
       order: ["localStorage", "navigator"],
       lookupLocalStorage: "melodytype-language",

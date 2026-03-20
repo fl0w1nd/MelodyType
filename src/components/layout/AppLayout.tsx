@@ -36,7 +36,8 @@ export function AppLayout() {
   const langOptions: Array<{ value: SupportedLanguage | "auto"; label: string; flag: string }> = [
     { value: "auto", label: "Auto", flag: "🌐" },
     { value: "en", label: "English", flag: "🇺🇸" },
-    { value: "zh", label: "中文", flag: "🇨🇳" },
+    { value: "zh-Hans", label: "简体中文", flag: "🇨🇳" },
+    { value: "zh-Hant", label: "繁體中文", flag: "🇨🇳" },
   ]
 
   const navItems = [
