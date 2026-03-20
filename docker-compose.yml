@@ -1,0 +1,7 @@
+services:
+  melodytype:
+    build: .
+    image: ghcr.io/fl0w1nd/melodytype:latest
+    ports:
+      - "3000:80"
+    restart: unless-stopped

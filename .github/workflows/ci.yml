@@ -10,6 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   ci:
     name: Lint / Type-check / Test / Build
@@ -41,8 +45,122 @@ jobs:
       - name: Build
         run: pnpm build
 
+  # ── main branch: release ──────────────────────────────────
+
+  release:
+    name: Release
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      created: ${{ steps.check.outputs.created }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from package.json
+        id: version
+        run: echo "value=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.value }}" >/dev/null 2>&1; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog
+        if: steps.check.outputs.created == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            cat > /tmp/changelog.md <<MD
+          ## 🎉 MelodyType v${VERSION}
+
+          首个发行版本。
+
+          MelodyType 是一款全客户端的打字练习应用，基于自适应学习引擎，帮助用户高效提升打字速度与准确率。
+          MD
+          else
+            RANGE="${PREV_TAG}..HEAD"
+            FEATS=$(git log "$RANGE" --pretty=format:"%s" | grep -E "^feat" | sed 's/^/- /' || true)
+            FIXES=$(git log "$RANGE" --pretty=format:"%s" | grep -E "^fix"  | sed 's/^/- /' || true)
+            MISC=$(git log "$RANGE"  --pretty=format:"%s" | grep -vE "^(feat|fix)" | sed 's/^/- /' || true)
+
+            {
+              echo "## MelodyType v${VERSION}"
+              echo ""
+              if [ -n "$FEATS" ]; then
+                echo "### ✨ Features"
+                echo "$FEATS"
+                echo ""
+              fi
+              if [ -n "$FIXES" ]; then
+                echo "### 🐛 Bug Fixes"
+                echo "$FIXES"
+                echo ""
+              fi
+              if [ -n "$MISC" ]; then
+                echo "### 📦 Misc"
+                echo "$MISC"
+              fi
+            } > /tmp/changelog.md
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.created == 'true'
+        run: |
+          gh release create "v${{ steps.version.outputs.value }}" \
+            --title "v${{ steps.version.outputs.value }}" \
+            --notes-file /tmp/changelog.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── main branch: docker image (version + latest) ─────────
+
+  docker-release:
+    name: Docker (Release)
+    needs: [ci, release]
+    if: needs.release.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ needs.release.outputs.version }}
+            type=raw,value=latest
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── main branch: deploy to Vercel ────────────────────────
+
   deploy:
-    name: Deploy to Vercel (Production)
+    name: Deploy to Vercel
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -82,3 +200,38 @@ jobs:
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ── dev branch: docker image (dev + sha) ─────────────────
+
+  docker-dev:
+    name: Docker (Dev)
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=dev
+            type=sha,prefix=sha-,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
