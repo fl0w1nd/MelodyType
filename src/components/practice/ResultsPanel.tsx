@@ -38,7 +38,6 @@ import type {
 } from "@/engine/typing/types"
 import {
   TIME_GRADE_META,
-  TIER_META,
   getLevelById,
   getNextGradeRequirement,
   getTimeGrade,

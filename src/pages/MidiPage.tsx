@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
+import { useTranslation } from "react-i18next"
 import {
   Music,
   Upload,
@@ -55,19 +56,19 @@ import { cn } from "@/lib/utils"
 
 const EMPTY_MIDI_FILES: MidiFile[] = []
 
-const synthOptions: { value: SynthType; label: string; icon: string }[] = [
-  { value: "piano", label: "Piano", icon: "🎹" },
-  { value: "strings", label: "Strings", icon: "🎻" },
-  { value: "synth", label: "Synth", icon: "🎛️" },
-  { value: "musicBox", label: "Music Box", icon: "🎵" },
-  { value: "bell", label: "Bell", icon: "🔔" },
+const synthOptionsBases: { value: SynthType; key: string; icon: string }[] = [
+  { value: "piano", key: "midiPage.synths.piano", icon: "🎹" },
+  { value: "strings", key: "midiPage.synths.strings", icon: "🎻" },
+  { value: "synth", key: "midiPage.synths.synth", icon: "🎛️" },
+  { value: "musicBox", key: "midiPage.synths.musicBox", icon: "🎵" },
+  { value: "bell", key: "midiPage.synths.bell", icon: "🔔" },
 ]
 
-const loopOptions = [
-  { value: "loop" as const, label: "Loop", icon: Repeat },
-  { value: "once" as const, label: "Once", icon: ArrowRight },
-  { value: "sequential" as const, label: "Sequential", icon: ListOrdered },
-  { value: "random" as const, label: "Random", icon: Shuffle },
+const loopOptionBases = [
+  { value: "loop" as const, key: "midiPage.loopModes.loop", icon: Repeat },
+  { value: "once" as const, key: "midiPage.loopModes.once", icon: ArrowRight },
+  { value: "sequential" as const, key: "midiPage.loopModes.sequential", icon: ListOrdered },
+  { value: "random" as const, key: "midiPage.loopModes.random", icon: Shuffle },
 ]
 
 interface PendingUpload {
@@ -82,6 +83,7 @@ function isActivationKey(key: string) {
 }
 
 export default function MidiPage() {
+  const { t } = useTranslation()
   const userMidiFiles = useLiveQuery(() => db.midiFiles.toArray()) ?? EMPTY_MIDI_FILES
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [testNotes, setTestNotes] = useState<string[]>([])
@@ -261,11 +263,11 @@ export default function MidiPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {synthOptions.map((opt) => (
+                {synthOptionsBases.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     <span className="flex items-center gap-1.5">
                       <span>{opt.icon}</span>
-                      <span>{opt.label}</span>
+                      <span>{t(opt.key)}</span>
                     </span>
                   </SelectItem>
                 ))}
@@ -296,7 +298,7 @@ export default function MidiPage() {
 
           {/* Loop mode — icon-only with tooltips */}
           <div className="flex items-center gap-0.5 shrink-0">
-            {loopOptions.map((opt) => (
+            {loopOptionBases.map((opt) => (
               <Tooltip key={opt.value}>
                 <TooltipTrigger
                   render={
@@ -309,7 +311,7 @@ export default function MidiPage() {
                 >
                   <opt.icon className="h-3.5 w-3.5" />
                 </TooltipTrigger>
-                <TooltipContent side="bottom">{opt.label}</TooltipContent>
+                <TooltipContent side="bottom">{t(opt.key)}</TooltipContent>
               </Tooltip>
             ))}
           </div>
@@ -347,7 +349,7 @@ export default function MidiPage() {
               disabled={testFrameInfo.total === 0}
             >
               <Play className="h-3 w-3" />
-              Test
+              {t("midiPage.testButton")}
             </Button>
           </div>
         </div>
@@ -359,7 +361,7 @@ export default function MidiPage() {
         <div className="flex-[3] min-w-0 flex flex-col">
           <div className="shrink-0 flex items-center gap-2 mb-3">
             <Music className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">Presets</span>
+            <span className="text-sm font-medium">{t("midiPage.presets")}</span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 leading-tight">
               {presetList.length}
             </Badge>
@@ -425,10 +427,10 @@ export default function MidiPage() {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-                      {preset.frameCount} frames
+                      {t("midiPage.frames", { n: preset.frameCount })}
                     </span>
                     {selectedPreset === preset.id && (
-                      <Badge className="text-[10px] px-1.5 py-0">Active</Badge>
+                      <Badge className="text-[10px] px-1.5 py-0">{t("midiPage.activeBadge")}</Badge>
                     )}
                   </div>
                 </div>
@@ -441,7 +443,7 @@ export default function MidiPage() {
         <div className="flex-[3] min-w-0 flex flex-col">
           <div className="shrink-0 flex items-center gap-2 mb-3">
             <FileAudio className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">Your Files</span>
+            <span className="text-sm font-medium">{t("midiPage.yourFiles")}</span>
             {userMidiFiles.length > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 leading-tight">
                 {userMidiFiles.length}
@@ -455,7 +457,7 @@ export default function MidiPage() {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="h-3 w-3" />
-              Upload
+              {t("midiPage.upload")}
             </Button>
             <input
               ref={fileInputRef}
@@ -476,10 +478,10 @@ export default function MidiPage() {
                   <Upload className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium text-foreground/80">
-                  Upload your MIDI files
+                  {t("midiPage.emptyFiles")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-[180px] text-center">
-                  Drop .mid files here or click to browse. Your files play alongside presets.
+                  {t("midiPage.emptyFilesDesc")}
                 </p>
               </button>
             ) : (
@@ -561,11 +563,11 @@ export default function MidiPage() {
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-                        {file.frameCount} frames · {new Date(file.uploadedAt).toLocaleDateString()}
-                      </span>
-                      {selectedFile === file.id && (
-                        <Badge className="text-[10px] px-1.5 py-0">Active</Badge>
-                      )}
+                      {t("midiPage.frames", { n: file.frameCount })} · {new Date(file.uploadedAt).toLocaleDateString()}
+                    </span>
+                    {selectedFile === file.id && (
+                      <Badge className="text-[10px] px-1.5 py-0">{t("midiPage.activeBadge")}</Badge>
+                    )}
                     </div>
                   </div>
                 ))}
@@ -576,7 +578,7 @@ export default function MidiPage() {
                   className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/50 p-3 hover:border-primary/30 hover:bg-card transition-colors cursor-pointer"
                 >
                   <Upload className="h-4 w-4 text-muted-foreground/50" />
-                  <span className="text-xs text-muted-foreground">Add more</span>
+                  <span className="text-xs text-muted-foreground">{t("midiPage.addMore")}</span>
                 </button>
               </div>
             )}
@@ -587,7 +589,7 @@ export default function MidiPage() {
         <div className="flex-[2] min-w-0 flex flex-col rounded-xl border border-border/60 bg-card/50">
           <div className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
             <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">Playlist</span>
+            <span className="text-sm font-medium">{t("midiPage.playlist")}</span>
             {playlist.length > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 leading-tight">
                 {playlist.length}
@@ -601,7 +603,7 @@ export default function MidiPage() {
                 className="text-xs text-muted-foreground hover:text-destructive"
                 onClick={() => void updatePlaylist([])}
               >
-                Clear
+                {t("midiPage.clearPlaylist")}
               </Button>
             )}
           </div>
@@ -612,10 +614,10 @@ export default function MidiPage() {
                   <ListMusic className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs font-medium text-foreground/70">
-                  Playlist is empty
+                  {t("midiPage.emptyPlaylist")}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-1 text-center">
-                  Use <Plus className="inline h-3 w-3 -mt-px" /> to add tracks
+                  {t("midiPage.emptyPlaylistHint")}
                 </p>
               </div>
             ) : (
@@ -672,7 +674,7 @@ export default function MidiPage() {
                         </span>
                       </div>
                       {isActive && (
-                        <Badge className="text-[9px] px-1 py-0 shrink-0">Playing</Badge>
+                        <Badge className="text-[9px] px-1 py-0 shrink-0">{t("midiPage.playingBadge")}</Badge>
                       )}
                       <Button
                         variant="ghost"
@@ -694,7 +696,7 @@ export default function MidiPage() {
           {playlist.length > 0 && (
             <div className="shrink-0 px-3 py-2 border-t border-border/40">
               <span className="text-[11px] text-muted-foreground">
-                {playlist.length} item{playlist.length !== 1 ? "s" : ""}
+                {t("midiPage.itemCount", { count: playlist.length })}
               </span>
             </div>
           )}
@@ -708,15 +710,15 @@ export default function MidiPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload MIDI File</DialogTitle>
+            <DialogTitle>{t("midiPage.uploadDialog.title")}</DialogTitle>
             <DialogDescription>
-              Edit the name and add a description before saving.
+              {t("midiPage.uploadDialog.subtitle")}
             </DialogDescription>
           </DialogHeader>
           {pendingUpload && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Name</label>
+                <label className="text-sm font-medium">{t("midiPage.uploadDialog.name")}</label>
                 <input
                   type="text"
                   value={pendingUpload.name}
@@ -728,32 +730,32 @@ export default function MidiPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">{t("midiPage.uploadDialog.description")}</label>
                 <textarea
                   value={pendingUpload.description}
                   onChange={(e) =>
                     setPendingUpload({ ...pendingUpload, description: e.target.value })
                   }
-                  placeholder="Optional description..."
+                  placeholder={t("midiPage.uploadDialog.descriptionPlaceholder")}
                   rows={2}
                   className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                 />
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <FileAudio className="h-3.5 w-3.5" />
-                <span>{pendingUpload.frameCount} frames detected</span>
+                <span>{t("midiPage.uploadDialog.framesDetected", { n: pendingUpload.frameCount })}</span>
               </div>
             </div>
           )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>
-              Cancel
+              {t("midiPage.uploadDialog.cancel")}
             </DialogClose>
             <Button
               onClick={handleConfirmUpload}
               disabled={!pendingUpload?.name.trim()}
             >
-              Save
+              {t("midiPage.uploadDialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -766,14 +768,14 @@ export default function MidiPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit MIDI File</DialogTitle>
+            <DialogTitle>{t("midiPage.editDialog.title")}</DialogTitle>
             <DialogDescription>
-              Update the name and description.
+              {t("midiPage.editDialog.subtitle")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">{t("midiPage.editDialog.name")}</label>
               <input
                 type="text"
                 value={editName}
@@ -783,11 +785,11 @@ export default function MidiPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Description</label>
+              <label className="text-sm font-medium">{t("midiPage.editDialog.description")}</label>
               <textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Optional description..."
+                placeholder={t("midiPage.editDialog.descriptionPlaceholder")}
                 rows={2}
                 className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
@@ -795,13 +797,13 @@ export default function MidiPage() {
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>
-              Cancel
+              {t("midiPage.editDialog.cancel")}
             </DialogClose>
             <Button
               onClick={handleSaveEdit}
               disabled={!editName.trim()}
             >
-              Save
+              {t("midiPage.editDialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

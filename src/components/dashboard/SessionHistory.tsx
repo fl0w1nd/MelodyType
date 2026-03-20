@@ -11,25 +11,27 @@ interface SessionHistoryProps {
   sessions: TypingSession[]
 }
 
+type TFn = (key: string, opts?: Record<string, unknown>) => string
+
+function formatTimeAgo(timestamp: number, t: TFn): string {
+  const diff = Date.now() - timestamp
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return t("sessionHistory.timeAgo.justNow")
+  if (minutes < 60) return t("sessionHistory.timeAgo.minutesAgo", { n: minutes })
+  if (hours < 24) return t("sessionHistory.timeAgo.hoursAgo", { n: hours })
+  if (days < 7) return t("sessionHistory.timeAgo.daysAgo", { n: days })
+  return new Date(timestamp).toLocaleDateString()
+}
+
 export function SessionHistory({ sessions }: SessionHistoryProps) {
   const { t } = useTranslation()
   const recent = useMemo(
     () => [...sessions].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20),
     [sessions],
   )
-
-  const formatTimeAgo = (timestamp: number): string => {
-    const diff = Date.now() - timestamp
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-
-    if (minutes < 1) return t("sessionHistory.timeAgo.justNow")
-    if (minutes < 60) return t("sessionHistory.timeAgo.minutesAgo", { n: minutes })
-    if (hours < 24) return t("sessionHistory.timeAgo.hoursAgo", { n: hours })
-    if (days < 7) return t("sessionHistory.timeAgo.daysAgo", { n: days })
-    return new Date(timestamp).toLocaleDateString()
-  }
 
   return (
     <motion.div
@@ -89,7 +91,7 @@ export function SessionHistory({ sessions }: SessionHistoryProps) {
                           {session.mode}
                         </Badge>
                         <span className="text-[11px] text-muted-foreground">
-                          {formatTimeAgo(session.timestamp)}
+                          {formatTimeAgo(session.timestamp, t)}
                         </span>
                       </div>
                     </div>

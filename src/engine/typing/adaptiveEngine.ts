@@ -243,7 +243,8 @@ export function getNextKeyToUnlock(
   return null
 }
 
-export function getFocusKey(confidences: KeyConfidence[], _recoverKeys: boolean = false): string | null {
+export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean = false): string | null {
+  void recoverKeys
   const unlockedByKey = new Map(
     confidences.filter((k) => k.unlocked).map((k) => [k.key, k]),
   )
