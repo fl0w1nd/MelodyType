@@ -12,6 +12,7 @@ import {
   Medal,
   Sparkles,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Card } from "@/components/ui/card"
 import {
   Dialog,
@@ -26,7 +27,6 @@ import {
   TIME_GRADE_META,
   TIME_LEVELS,
   TIER_ORDER,
-  TIER_META,
   compareTimeGrades,
   getGradeRequirements,
   getNextGradeRequirement,
@@ -42,6 +42,7 @@ interface TimeLevelSelectProps {
 }
 
 export function TimeLevelSelect({ onSelectLevel }: TimeLevelSelectProps) {
+  const { t } = useTranslation()
   const records = useLiveQuery(
     () => getTimeLevelRecords(),
     [],
@@ -71,17 +72,17 @@ export function TimeLevelSelect({ onSelectLevel }: TimeLevelSelectProps) {
       <div className="mb-6 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
         <HeaderStat
           icon={<History className="h-4 w-4 text-primary" />}
-          label="Played"
+          label={t("timeLevelSelect.stats.played")}
           value={`${playedLevels}/${TIME_LEVELS.length}`}
         />
         <HeaderStat
           icon={<Medal className="h-4 w-4 text-emerald-500" />}
-          label="A or Better"
+          label={t("timeLevelSelect.stats.aOrBetter")}
           value={String(strongClears)}
         />
         <HeaderStat
           icon={<Crown className="h-4 w-4 text-amber-500" />}
-          label="S Clears"
+          label={t("timeLevelSelect.stats.sClears")}
           value={String(perfectClears)}
         />
       </div>
@@ -146,7 +147,14 @@ function TierSection({
   onInspect: (level: TimeLevel) => void
   delay: number
 }) {
-  const meta = TIER_META[tier]
+  const { t } = useTranslation()
+  const tierColor = {
+    beginner: "text-emerald-600 dark:text-emerald-400",
+    intermediate: "text-blue-600 dark:text-blue-400",
+    advanced: "text-amber-600 dark:text-amber-400",
+    expert: "text-rose-600 dark:text-rose-400",
+  }[tier]
+
   const clearedCount = levels.filter((level) => records[level.id] != null).length
 
   return (
@@ -156,13 +164,13 @@ function TierSection({
       transition={{ delay, duration: 0.3 }}
     >
       <div className="mb-3 flex items-center gap-3">
-        <h3 className={`text-sm font-semibold uppercase tracking-wider ${meta.color}`}>
-          {meta.label}
+        <h3 className={`text-sm font-semibold uppercase tracking-wider ${tierColor}`}>
+          {t(`tierMeta.${tier}`)}
         </h3>
         <div className="h-px flex-1 bg-border/40" />
         <div className="text-xs text-muted-foreground">
           <span className="font-mono text-foreground">{clearedCount}</span>
-          <span>/ {levels.length} played</span>
+          <span>{t("timeLevelSelect.tierCount", { n: levels.length })}</span>
         </div>
       </div>
 
@@ -195,10 +203,20 @@ function LevelCard({
   onInspect: (level: TimeLevel) => void
   delay: number
 }) {
-  const meta = TIER_META[level.tier]
+  const { t } = useTranslation()
+  const tierGradient = {
+    beginner: "from-emerald-500/10 to-emerald-500/5",
+    intermediate: "from-blue-500/10 to-blue-500/5",
+    advanced: "from-amber-500/10 to-amber-500/5",
+    expert: "from-rose-500/10 to-rose-500/5",
+  }[level.tier]
+
   const badgeClass = record
     ? TIME_GRADE_META[record.bestGrade].badge
     : "border-border/60 bg-secondary/60 text-muted-foreground"
+
+  const levelName = t(`timeLevels.${level.id}.name`)
+  const levelDesc = t(`timeLevels.${level.id}.description`)
 
   return (
     <motion.div
@@ -208,31 +226,41 @@ function LevelCard({
       className="h-full"
     >
       <Card
-        className={`group relative h-full cursor-pointer overflow-hidden border-border/50 bg-gradient-to-br ${meta.gradient} transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md`}
+        className={`group relative h-full cursor-pointer overflow-hidden border-border/50 bg-gradient-to-br ${tierGradient} transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md`}
         onClick={() => onSelect(level)}
       >
         <div className="flex h-full flex-col p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h4 className="text-sm font-semibold leading-tight text-foreground">
-                {level.name}
+                {levelName}
               </h4>
               <div className="min-h-[2.5rem]">
                 <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                  {level.description}
+                  {levelDesc}
                 </p>
               </div>
             </div>
             <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass}`}>
-              {record ? `${record.bestGrade} Best` : "New"}
+              {record
+                ? t("timeLevelSelect.gradeBest", { grade: record.bestGrade })
+                : t("timeLevelSelect.newBadge")}
             </span>
           </div>
 
           <div className="mb-4 flex flex-wrap items-center gap-1.5">
             <MetaTag icon={<Clock className="h-2.5 w-2.5" />}>{level.timeLimit}s</MetaTag>
             <MetaTag>{level.difficulty}</MetaTag>
-            {level.punctuation && <MetaTag icon={<AtSign className="h-2.5 w-2.5" />}>Punc</MetaTag>}
-            {level.numbers && <MetaTag icon={<Hash className="h-2.5 w-2.5" />}>Num</MetaTag>}
+            {level.punctuation && (
+              <MetaTag icon={<AtSign className="h-2.5 w-2.5" />}>
+                {t("timeLevelSelect.punc")}
+              </MetaTag>
+            )}
+            {level.numbers && (
+              <MetaTag icon={<Hash className="h-2.5 w-2.5" />}>
+                {t("timeLevelSelect.num")}
+              </MetaTag>
+            )}
           </div>
 
           <div className="mt-auto flex items-center justify-between">
@@ -242,7 +270,9 @@ function LevelCard({
                 <span className="text-muted-foreground">{record.bestAccuracy}%</span>
               </div>
             ) : (
-              <span className="text-xs text-muted-foreground">Not played</span>
+              <span className="text-xs text-muted-foreground">
+                {t("timeLevelSelect.notPlayed")}
+              </span>
             )}
             <div className="flex items-center gap-1">
               <button
@@ -297,58 +327,92 @@ function LevelRecordDialog({
   onClose: () => void
   onStart: (level: TimeLevel) => void
 }) {
+  const { t } = useTranslation()
   if (!level) return null
 
-  const meta = TIER_META[level.tier]
+  const tierColor = {
+    beginner: "text-emerald-600 dark:text-emerald-400",
+    intermediate: "text-blue-600 dark:text-blue-400",
+    advanced: "text-amber-600 dark:text-amber-400",
+    expert: "text-rose-600 dark:text-rose-400",
+  }[level.tier]
+
   const gradeReqs = getGradeRequirements(level)
   const nextReq = record
     ? getNextGradeRequirement(level, record.bestWpm, record.bestAccuracy)
     : null
+
+  const levelName = t(`timeLevels.${level.id}.name`)
+  const levelDesc = t(`timeLevels.${level.id}.description`)
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className={`text-xs font-semibold uppercase ${meta.color}`}>
-              {meta.label}
+            <span className={`text-xs font-semibold uppercase ${tierColor}`}>
+              {t(`tierMeta.${level.tier}`)}
             </span>
-            <span className="text-base">{level.name}</span>
+            <span className="text-base">{levelName}</span>
           </DialogTitle>
-          <DialogDescription>{level.description}</DialogDescription>
+          <DialogDescription>{levelDesc}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Level specs */}
           <div className="flex flex-wrap gap-1.5">
             <MetaTag icon={<Clock className="h-2.5 w-2.5" />}>{level.timeLimit}s</MetaTag>
             <MetaTag>{level.difficulty}</MetaTag>
-            {level.punctuation && <MetaTag icon={<AtSign className="h-2.5 w-2.5" />}>Punc</MetaTag>}
-            {level.numbers && <MetaTag icon={<Hash className="h-2.5 w-2.5" />}>Num</MetaTag>}
+            {level.punctuation && (
+              <MetaTag icon={<AtSign className="h-2.5 w-2.5" />}>
+                {t("timeLevelSelect.punc")}
+              </MetaTag>
+            )}
+            {level.numbers && (
+              <MetaTag icon={<Hash className="h-2.5 w-2.5" />}>
+                {t("timeLevelSelect.num")}
+              </MetaTag>
+            )}
           </div>
 
-          {/* Record */}
           {record ? (
             <div className="rounded-lg border border-border/50 bg-secondary/20 p-3">
-              <div className="mb-2 text-xs font-medium text-foreground">Record</div>
+              <div className="mb-2 text-xs font-medium text-foreground">
+                {t("timeLevelSelect.dialog.record")}
+              </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <StatRow label="Best" value={`${record.bestWpm.toFixed(1)} WPM`} sub={`${record.bestAccuracy.toFixed(1)}%`} accent={TIME_GRADE_META[record.bestGrade].color} badge={record.bestGrade} />
-                <StatRow label="Last" value={`${record.lastWpm.toFixed(1)} WPM`} sub={`${record.lastAccuracy.toFixed(1)}%`} badge={record.lastGrade} />
-                <StatRow label="Attempts" value={String(record.attempts)} />
-                <StatRow label="Last played" value={formatShortDate(record.lastPlayedAt)} />
+                <StatRow
+                  label={t("timeLevelSelect.dialog.record_labels.best")}
+                  value={`${record.bestWpm.toFixed(1)} WPM`}
+                  sub={`${record.bestAccuracy.toFixed(1)}%`}
+                  accent={TIME_GRADE_META[record.bestGrade].color}
+                  badge={record.bestGrade}
+                />
+                <StatRow
+                  label={t("timeLevelSelect.dialog.record_labels.last")}
+                  value={`${record.lastWpm.toFixed(1)} WPM`}
+                  sub={`${record.lastAccuracy.toFixed(1)}%`}
+                  badge={record.lastGrade}
+                />
+                <StatRow
+                  label={t("timeLevelSelect.dialog.record_labels.attempts")}
+                  value={String(record.attempts)}
+                />
+                <StatRow
+                  label={t("timeLevelSelect.dialog.record_labels.lastPlayed")}
+                  value={formatShortDate(record.lastPlayedAt)}
+                />
               </div>
             </div>
           ) : (
             <div className="rounded-lg border border-border/50 bg-secondary/20 p-3 text-sm text-muted-foreground">
-              No runs logged yet.
+              {t("timeLevelSelect.dialog.noRuns")}
             </div>
           )}
 
-          {/* Grade targets */}
           <div className="rounded-lg border border-border/50 bg-secondary/20 p-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              Grade Thresholds
+              {t("timeLevelSelect.dialog.gradeThresholds")}
             </div>
             <div className="grid grid-cols-3 gap-2">
               {(["B", "A", "S"] as const).map((g) => (
@@ -361,7 +425,9 @@ function LevelRecordDialog({
             </div>
             {nextReq && (
               <div className="mt-2 text-xs text-muted-foreground">
-                Next: <span className="font-semibold text-foreground">{nextReq.grade}</span>
+                {t("timeLevelSelect.dialog.next")}
+                {" "}
+                <span className="font-semibold text-foreground">{nextReq.grade}</span>
                 {nextReq.wpmGap > 0 && ` · +${nextReq.wpmGap.toFixed(1)} WPM`}
                 {nextReq.accuracyGap > 0 && ` · +${nextReq.accuracyGap.toFixed(1)}%`}
               </div>
@@ -370,8 +436,12 @@ function LevelRecordDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={() => onStart(level)}>Start Level</Button>
+          <Button variant="outline" onClick={onClose}>
+            {t("timeLevelSelect.dialog.close")}
+          </Button>
+          <Button onClick={() => onStart(level)}>
+            {t("timeLevelSelect.dialog.startLevel")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

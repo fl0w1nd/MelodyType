@@ -1,4 +1,5 @@
 import { Clock, Quote, Brain } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import type { PracticeMode, PracticeModeConfig } from "@/engine/typing/types"
@@ -14,13 +15,21 @@ const modeIcons: Record<PracticeMode, React.ReactNode> = {
   quote: <Quote className="h-3.5 w-3.5" />,
 }
 
-const modeDescriptions: Record<PracticeMode, string> = {
-  adaptive: "Learns your weak keys and generates practice text that focuses on them. Keys unlock progressively as you improve.",
-  time: "Race against the clock with structured difficulty levels. Earn grades from F to S based on speed and accuracy.",
-  quote: "Practice typing famous quotes and passages for a more natural typing experience.",
-}
-
 export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
+  const { t } = useTranslation()
+
+  const modeLabels: Record<PracticeMode, string> = {
+    adaptive: t("modeSelector.adaptive"),
+    time: t("modeSelector.time"),
+    quote: t("modeSelector.quote"),
+  }
+
+  const modeDescriptions: Record<PracticeMode, string> = {
+    adaptive: t("modeSelector.adaptiveDesc"),
+    time: t("modeSelector.timeDesc"),
+    quote: t("modeSelector.quoteDesc"),
+  }
+
   const handleModeChange = (newMode: string) => {
     const nextMode = newMode as PracticeMode
 
@@ -47,12 +56,12 @@ export function ModeSelector({ onSelect, currentConfig }: ModeSelectorProps) {
                 render={
                   <TabsTrigger
                     value={practiceMode}
-                    className="gap-1.5 text-xs sm:text-sm capitalize transition-all duration-200"
+                    className="gap-1.5 text-xs sm:text-sm transition-all duration-200"
                   />
                 }
               >
                 {modeIcons[practiceMode]}
-                {practiceMode === "adaptive" ? "Adaptive" : practiceMode}
+                {modeLabels[practiceMode]}
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] text-center">
                 {modeDescriptions[practiceMode]}

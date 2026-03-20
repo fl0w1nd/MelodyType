@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
 import { FlowMeter } from "@/components/practice/FlowMeter"
@@ -17,6 +18,7 @@ import { usePracticeSessionController } from "@/engine/practice/usePracticeSessi
 import { setAppSetting, useAppSetting } from "@/lib/settings"
 
 export default function PracticePage() {
+  const { t } = useTranslation()
   const { particles, emit } = useNoteParticles()
   const showKeyboard = useAppSetting("showKeyboard")
   const {
@@ -79,7 +81,7 @@ export default function PracticePage() {
             transition={{ type: "spring", damping: 20 }}
             className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg dark:text-emerald-400"
           >
-            🔓 New key unlocked:{" "}
+            {t("practice.newKeyUnlocked")}{" "}
             <span className="font-mono text-base font-bold">
               {newlyUnlocked.toUpperCase()}
             </span>
@@ -157,7 +159,7 @@ export default function PracticePage() {
                   onClick={actions.handleRestart}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Restart
+                  {t("practice.restart")}
                   <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
                     Tab
                   </kbd>
@@ -169,7 +171,7 @@ export default function PracticePage() {
                     className="gap-1.5 text-xs text-muted-foreground"
                     onClick={actions.handleBackToLevels}
                   >
-                    All Levels
+                    {t("practice.allLevels")}
                     <kbd className="ml-1 rounded border border-border/60 bg-secondary/60 px-1 py-0.5 text-[10px] font-mono">
                       Esc
                     </kbd>
@@ -181,13 +183,14 @@ export default function PracticePage() {
                   className="gap-1.5 text-xs text-muted-foreground"
                   onClick={() => void setAppSetting("showKeyboard", !showKeyboard)}
                 >
-                  {showKeyboard ? "Hide" : "Show"} Keyboard
+                  {showKeyboard ? t("practice.hideKeyboard") : t("practice.showKeyboard")}{" "}
+                  {t("practice.keyboard")}
                 </Button>
               </div>
 
               {isAdaptive && roundCount > 0 && (
                 <div className="text-center font-mono text-[10px] text-muted-foreground/60">
-                  Round {roundCount + 1} · current session · Esc resets
+                  {t("practice.roundSession", { round: roundCount + 1 })}
                 </div>
               )}
 

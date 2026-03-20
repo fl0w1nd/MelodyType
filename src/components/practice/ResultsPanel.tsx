@@ -28,6 +28,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type {
@@ -69,6 +70,7 @@ export function ResultsPanel({
   levelRecord = null,
   wordsCompleted,
 }: ResultsPanelProps) {
+  const { t } = useTranslation()
   const isTimeMode = modeConfig?.mode === "time"
   const level = modeConfig?.levelId ? getLevelById(modeConfig.levelId) : null
   const timeGrade = level ? getTimeGrade(level, metrics.wpm, metrics.accuracy) : null
@@ -76,9 +78,9 @@ export function ResultsPanel({
     ? {
         label: timeGrade,
         color: TIME_GRADE_META[timeGrade].color,
-        message: TIME_GRADE_META[timeGrade].message,
+        message: t(`gradeMessages.${timeGrade}`),
       }
-    : getPerformanceGrade(metrics.wpm, metrics.accuracy)
+    : getPerformanceGrade(metrics.wpm, metrics.accuracy, t)
   const nextRequirement =
     level && isTimeMode
       ? getNextGradeRequirement(level, metrics.wpm, metrics.accuracy)
@@ -97,9 +99,9 @@ export function ResultsPanel({
     const intervalMs = Math.max(1000, totalDuration / 20)
     const points: { time: number; wpm: number }[] = []
 
-    for (let t = intervalMs; t <= totalDuration + intervalMs / 2; t += intervalMs) {
-      const windowStart = firstTs + t - intervalMs
-      const windowEnd = firstTs + t
+    for (let ts = intervalMs; ts <= totalDuration + intervalMs / 2; ts += intervalMs) {
+      const windowStart = firstTs + ts - intervalMs
+      const windowEnd = firstTs + ts
       const correctInWindow = keystrokeLog.filter(
         (entry) =>
           entry.timestamp >= windowStart &&
@@ -109,14 +111,17 @@ export function ResultsPanel({
       const windowMinutes = intervalMs / 60000
       const wpm =
         windowMinutes > 0 ? Math.round(correctInWindow / 5 / windowMinutes) : 0
-      points.push({ time: Math.round(t / 1000), wpm })
+      points.push({ time: Math.round(ts / 1000), wpm })
     }
 
     return points
   }, [keystrokeLog])
 
+  const levelName = level ? t(`timeLevels.${level.id}.name`) : null
+  const tierLabel = level ? t(`tierMeta.${level.tier}`) : null
+
   const subtitle = level
-    ? `${level.name} · ${level.timeLimit}s · ${TIER_META[level.tier].label}`
+    ? `${levelName} · ${level.timeLimit}s · ${tierLabel}`
     : isTimeMode
       ? `${modeConfig?.timeLimit}s · ${modeConfig?.difficulty ?? "easy"}`
       : undefined
@@ -139,7 +144,7 @@ export function ResultsPanel({
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-serif text-xl font-medium">
-                  {level ? level.name : "Practice Complete"}
+                  {levelName ?? t("resultsPanel.title")}
                 </h3>
                 {subtitle && (
                   <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
@@ -158,7 +163,7 @@ export function ResultsPanel({
                   className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-sm font-medium text-amber-600 dark:text-amber-400"
                 >
                   <Crown className="h-4 w-4" />
-                  New PB!
+                  {t("resultsPanel.newPb")}
                 </motion.div>
               )}
             </div>
@@ -183,7 +188,10 @@ export function ResultsPanel({
                 </p>
                 {isTimeMode && level && (
                   <div className="mt-3 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-xs text-muted-foreground">
-                    Target clear: {level.targetWpm} WPM at {level.targetAccuracy}%
+                    {t("resultsPanel.targetClear", {
+                      wpm: level.targetWpm,
+                      acc: level.targetAccuracy,
+                    })}
                   </div>
                 )}
               </motion.div>
@@ -196,38 +204,38 @@ export function ResultsPanel({
             >
               <StatCard
                 icon={<Gauge className="h-4 w-4" />}
-                label="WPM"
+                label={t("resultsPanel.stats.wpm")}
                 value={metrics.wpm.toFixed(0)}
                 delay={0.1}
               />
               <StatCard
                 icon={<Target className="h-4 w-4" />}
-                label="Accuracy"
+                label={t("resultsPanel.stats.accuracy")}
                 value={`${metrics.accuracy.toFixed(1)}%`}
                 delay={0.15}
               />
               <StatCard
                 icon={<Clock className="h-4 w-4" />}
-                label="Time"
+                label={t("resultsPanel.stats.time")}
                 value={`${metrics.elapsedTime}s`}
                 delay={0.2}
               />
               <StatCard
                 icon={<Zap className="h-4 w-4" />}
-                label="Consistency"
+                label={t("resultsPanel.stats.consistency")}
                 value={`${metrics.consistency}%`}
                 delay={0.25}
               />
               <StatCard
                 icon={<Music className="h-4 w-4" />}
-                label="Melody Integrity"
+                label={t("resultsPanel.stats.melodyIntegrity")}
                 value={`${metrics.melodyIntegrity.toFixed(0)}%`}
                 delay={0.3}
               />
               {isTimeMode && (
                 <StatCard
                   icon={<Keyboard className="h-4 w-4" />}
-                  label="CPM"
+                  label={t("resultsPanel.stats.cpm")}
                   value={String(cpm)}
                   delay={0.35}
                 />
@@ -240,25 +248,25 @@ export function ResultsPanel({
               }`}
             >
               <DetailStat
-                label="Correct"
+                label={t("resultsPanel.detailStats.correct")}
                 value={String(metrics.correctChars)}
               />
               <DetailStat
-                label="Errors"
+                label={t("resultsPanel.detailStats.errors")}
                 value={String(metrics.incorrectChars)}
                 valueClassName="text-destructive"
               />
               <DetailStat
-                label="Raw WPM"
+                label={t("resultsPanel.detailStats.rawWpm")}
                 value={metrics.rawWpm.toFixed(0)}
               />
               <DetailStat
-                label="Melody Integrity"
+                label={t("resultsPanel.detailStats.melodyIntegrity")}
                 value={`${metrics.melodyIntegrity.toFixed(0)}%`}
               />
               {isTimeMode && wordsCompleted != null && (
                 <DetailStat
-                  label="Words"
+                  label={t("resultsPanel.detailStats.words")}
                   value={String(wordsCompleted)}
                   icon={<Type className="h-3.5 w-3.5 text-muted-foreground" />}
                 />
@@ -274,24 +282,42 @@ export function ResultsPanel({
               >
                 <div className="mb-4 flex items-center gap-2">
                   <History className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Level Progress</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {t("resultsPanel.levelProgress")}
+                  </span>
                 </div>
 
                 {levelRecord ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <CompactStat label="Best WPM" value={levelRecord.bestWpm.toFixed(1)} />
-                      <CompactStat label="Best Accuracy" value={`${levelRecord.bestAccuracy.toFixed(1)}%`} />
-                      <CompactStat label="Best Grade" value={levelRecord.bestGrade} valueClassName={TIME_GRADE_META[levelRecord.bestGrade].color} />
-                      <CompactStat label="Attempts" value={String(levelRecord.attempts)} />
+                      <CompactStat
+                        label={t("resultsPanel.compactStats.bestWpm")}
+                        value={levelRecord.bestWpm.toFixed(1)}
+                      />
+                      <CompactStat
+                        label={t("resultsPanel.compactStats.bestAccuracy")}
+                        value={`${levelRecord.bestAccuracy.toFixed(1)}%`}
+                      />
+                      <CompactStat
+                        label={t("resultsPanel.compactStats.bestGrade")}
+                        value={levelRecord.bestGrade}
+                        valueClassName={TIME_GRADE_META[levelRecord.bestGrade].color}
+                      />
+                      <CompactStat
+                        label={t("resultsPanel.compactStats.attempts")}
+                        value={String(levelRecord.attempts)}
+                      />
                     </div>
 
                     {nextRequirement ? (
                       <div className="flex items-center gap-3 rounded-lg bg-secondary/40 px-4 py-2.5 text-sm">
                         <Medal className="h-4 w-4 shrink-0 text-amber-500" />
                         <span className="text-muted-foreground">
-                          Next: grade <span className="font-semibold text-foreground">{nextRequirement.grade}</span>
-                          {" · "}{nextRequirement.wpm} WPM at {nextRequirement.accuracy}%
+                          {t("resultsPanel.nextRequirement", {
+                            grade: nextRequirement.grade,
+                            wpm: nextRequirement.wpm,
+                            acc: nextRequirement.accuracy,
+                          })}
                           {nextRequirement.wpmGap > 0 && (
                             <span className="ml-2 font-mono text-xs text-muted-foreground/70">
                               (+{nextRequirement.wpmGap.toFixed(1)} WPM, +{nextRequirement.accuracyGap.toFixed(1)}% needed)
@@ -302,20 +328,22 @@ export function ResultsPanel({
                     ) : (
                       <div className="flex items-center gap-3 rounded-lg bg-amber-500/8 px-4 py-2.5 text-sm">
                         <Crown className="h-4 w-4 shrink-0 text-amber-500" />
-                        <span className="text-muted-foreground">S-grade achieved — no higher rank on this level</span>
+                        <span className="text-muted-foreground">
+                          {t("resultsPanel.sGradeAchieved")}
+                        </span>
                       </div>
                     )}
 
                     {isNewPersonalBest && (
                       <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
                         <Sparkles className="h-4 w-4" />
-                        <span className="font-medium">New personal best!</span>
+                        <span className="font-medium">{t("resultsPanel.newPersonalBest")}</span>
                       </div>
                     )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    First attempt on this level — your record will appear here after this run is saved.
+                    {t("resultsPanel.firstAttempt")}
                   </p>
                 )}
               </motion.div>
@@ -331,7 +359,7 @@ export function ResultsPanel({
                 <div className="mb-3 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">
-                    WPM Over Time
+                    {t("resultsPanel.wpmOverTime")}
                   </span>
                 </div>
                 <div className="rounded-lg border border-border/50 bg-secondary/20 p-4">
@@ -378,7 +406,10 @@ export function ResultsPanel({
                           backgroundColor: "var(--card)",
                           fontSize: "12px",
                         }}
-                        formatter={(value) => [`${value} WPM`, "Speed"]}
+                        formatter={(value) => [
+                          t("resultsPanel.chart.wpmUnit", { n: value }),
+                          t("resultsPanel.chart.speed"),
+                        ]}
                         labelFormatter={(label) => `${label}s`}
                       />
                       {levelRecord?.bestWpm != null && (
@@ -406,23 +437,23 @@ export function ResultsPanel({
               {onBackToLevels && (
                 <Button onClick={onBackToLevels} variant="ghost" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
-                  All Levels
+                  {t("resultsPanel.buttons.allLevels")}
                 </Button>
               )}
               <Button onClick={onRestart} variant="outline" className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Try Again
+                {t("resultsPanel.buttons.tryAgain")}
               </Button>
               {onNextLevel && (
                 <Button onClick={onNextLevel} className="gap-2">
-                  Next Level
+                  {t("resultsPanel.buttons.nextLevel")}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               )}
               {onNext && (
                 <Button onClick={onNext} className="gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Next Lesson
+                  {t("resultsPanel.buttons.nextLesson")}
                 </Button>
               )}
             </div>
@@ -506,49 +537,52 @@ function CompactStat({
   )
 }
 
+type TFunction = (key: string) => string
+
 function getPerformanceGrade(
   wpm: number,
   accuracy: number,
+  t: TFunction,
 ): { label: string; color: string; message: string } {
   const score = wpm * (accuracy / 100)
   if (score >= 80) {
     return {
       label: "S",
       color: "text-amber-500",
-      message: "Outstanding performance!",
+      message: t("resultsPanel.grades.outstanding"),
     }
   }
   if (score >= 60) {
     return {
       label: "A",
       color: "text-primary",
-      message: "Excellent typing skills!",
+      message: t("resultsPanel.grades.excellent"),
     }
   }
   if (score >= 40) {
     return {
       label: "B",
       color: "text-emerald-600",
-      message: "Great work, keep improving!",
+      message: t("resultsPanel.grades.great"),
     }
   }
   if (score >= 25) {
     return {
       label: "C",
       color: "text-blue-500",
-      message: "Good effort, practice more!",
+      message: t("resultsPanel.grades.good"),
     }
   }
   if (score >= 15) {
     return {
       label: "D",
       color: "text-orange-500",
-      message: "Keep practicing!",
+      message: t("resultsPanel.grades.keepPracticing"),
     }
   }
   return {
     label: "F",
     color: "text-muted-foreground",
-    message: "Every master was once a beginner.",
+    message: t("resultsPanel.grades.beginner"),
   }
 }

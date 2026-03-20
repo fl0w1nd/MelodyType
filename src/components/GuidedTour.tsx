@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ChevronRight, ChevronLeft, Sparkles, HelpCircle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { startTour, subscribeTour } from "@/lib/tourEmitter"
@@ -10,8 +11,8 @@ import { startTour, subscribeTour } from "@/lib/tourEmitter"
 
 interface TourStep {
   target: string
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   placement?: "top" | "bottom" | "left" | "right"
   /** Allow clicks to pass through to the spotlighted element */
   interactive?: boolean
@@ -27,76 +28,65 @@ function clickTourTarget(target: string) {
 const tourSteps: TourStep[] = [
   {
     target: "logo",
-    title: "欢迎来到 MelodyType 🎵",
-    description:
-      "这是一款将打字练习与音乐旋律融合的应用。你的每一次击键都会驱动旋律流动，让练习不再枯燥。",
+    titleKey: "tour.steps.logo.title",
+    descriptionKey: "tour.steps.logo.description",
     placement: "bottom",
   },
   {
     target: "mode-selector",
-    title: "选择练习模式",
-    description:
-      "三种模式任你选择：Adaptive（智能适应你的薄弱按键）、Time（限时挑战，获取 S 级评分）、Quote（名言名句打字练习）。",
+    titleKey: "tour.steps.modeSelector.title",
+    descriptionKey: "tour.steps.modeSelector.description",
     placement: "bottom",
   },
   {
     target: "options-button",
-    title: "⚙️ 这个按钮很重要！",
-    description:
-      "这是 Adaptive 模式的隐藏选项入口。点击它可以设定你的目标打字速度（CPM），系统会据此调整练习难度和按键解锁节奏。接下来我们帮你打开它。",
+    titleKey: "tour.steps.optionsButton.title",
+    descriptionKey: "tour.steps.optionsButton.description",
     placement: "bottom",
   },
   {
     target: "options-panel",
-    title: "设定你的目标速度 🎯",
-    description:
-      "在这里选择适合你的目标 CPM（每分钟字符数）。可以用预设快速选择，也可以拖动滑块精确调节。目标越高，解锁新按键的门槛越高。试试点击选择一个吧！",
+    titleKey: "tour.steps.optionsPanel.title",
+    descriptionKey: "tour.steps.optionsPanel.description",
     placement: "left",
     interactive: true,
     onEnter: () => {
-      // Open the options panel
       const panel = document.querySelector('[data-tour="options-panel"]')
       if (!panel) clickTourTarget("options-button")
     },
     onLeave: () => {
-      // Close the panel
       const panel = document.querySelector('[data-tour="options-panel"]')
       if (panel) clickTourTarget("options-button")
     },
   },
   {
     target: "metrics-bar",
-    title: "实时数据面板",
-    description:
-      "这里实时显示你的 WPM（每分钟字数）、准确率、用时、原始速度以及旋律完整度。帮你全方位了解打字状态。",
+    titleKey: "tour.steps.metricsBar.title",
+    descriptionKey: "tour.steps.metricsBar.description",
     placement: "bottom",
   },
   {
     target: "flow-meter",
-    title: "旋律流量计",
-    description:
-      "保持稳定的打字节奏，旋律就会持续流动。暂停或频繁出错会消耗旋律能量——这是 MelodyType 的独特机制。",
+    titleKey: "tour.steps.flowMeter.title",
+    descriptionKey: "tour.steps.flowMeter.description",
     placement: "bottom",
   },
   {
     target: "text-area",
-    title: "开始打字",
-    description:
-      "直接在键盘上打字即可开始练习，不需要点击任何地方。光标会自动跟随你的输入，打错的字符会标红。",
+    titleKey: "tour.steps.textArea.title",
+    descriptionKey: "tour.steps.textArea.description",
     placement: "top",
   },
   {
     target: "practice-actions",
-    title: "快捷操作",
-    description:
-      "按 Tab 可快速重新开始，也可以切换虚拟键盘的显示。这些小按钮虽然不起眼，但非常实用。",
+    titleKey: "tour.steps.practiceActions.title",
+    descriptionKey: "tour.steps.practiceActions.description",
     placement: "top",
   },
   {
     target: "nav-bar",
-    title: "探索更多功能",
-    description:
-      "Dashboard 查看历史统计，MIDI 管理背景音乐，Docs 阅读使用文档，Settings 管理数据与偏好。慢慢探索吧！",
+    titleKey: "tour.steps.navBar.title",
+    descriptionKey: "tour.steps.navBar.description",
     placement: "bottom",
   },
 ]
@@ -191,6 +181,7 @@ function WelcomeScreen({
   onStart: () => void
   onSkip: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -212,27 +203,25 @@ function WelcomeScreen({
 
           <div className="space-y-2">
             <h2 className="text-2xl font-serif font-bold tracking-tight text-foreground">
-              欢迎使用 MelodyType
+              {t("tour.welcome.title")}
             </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              让打字练习与音乐旋律相伴。
-              <br />
-              只需不到一分钟，快速了解核心功能。
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+              {t("tour.welcome.description")}
             </p>
           </div>
 
           <div className="flex w-full flex-col gap-2.5 pt-1">
             <Button onClick={onStart} className="w-full gap-2">
               <Sparkles className="h-4 w-4" />
-              开始引导
-              <span className="text-xs opacity-70">（约 30 秒）</span>
+              {t("tour.welcome.start")}
+              <span className="text-xs opacity-70">{t("tour.welcome.duration")}</span>
             </Button>
             <Button
               variant="ghost"
               onClick={onSkip}
               className="w-full text-muted-foreground"
             >
-              跳过，我自己探索
+              {t("tour.welcome.skip")}
             </Button>
           </div>
         </div>
@@ -244,6 +233,7 @@ function WelcomeScreen({
 // ── Main GuidedTour component ──────────────────────────
 
 export function GuidedTour() {
+  const { t } = useTranslation()
   const [showWelcome, setShowWelcome] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [positionTick, setPositionTick] = useState(0)
@@ -252,13 +242,11 @@ export function GuidedTour() {
 
   const isActive = currentStep >= 0 && currentStep < tourSteps.length
 
-  // Derive spotlight & tooltip position from tick + step
   const step = isActive ? tourSteps[currentStep] : null
   const spotlight = step ? getTargetRect(step.target) : null
   const tooltipPos = spotlight && step ? getTooltipPosition(spotlight, step.placement) : null
   void positionTick
 
-  // Check first visit on mount
   useEffect(() => {
     if (!isTourCompleted()) {
       const timer = setTimeout(() => setShowWelcome(true), 800)
@@ -266,7 +254,6 @@ export function GuidedTour() {
     }
   }, [])
 
-  // Register global replay listener
   useEffect(() => {
     return subscribeTour(() => {
       setShowWelcome(false)
@@ -275,13 +262,11 @@ export function GuidedTour() {
     })
   }, [])
 
-  // Fire onEnter / onLeave when step changes; manage interactive z-index
   useEffect(() => {
     if (prevStepRef.current === currentStep) return
     const oldIdx = prevStepRef.current
     prevStepRef.current = currentStep
 
-    // Restore z-index for previous interactive step's target
     if (oldIdx >= 0 && oldIdx < tourSteps.length) {
       const oldStep = tourSteps[oldIdx]
       if (oldStep.interactive) {
@@ -294,15 +279,12 @@ export function GuidedTour() {
       oldStep.onLeave?.()
     }
 
-    // onEnter for the new step (with a small delay so DOM updates first)
     if (currentStep >= 0 && currentStep < tourSteps.length) {
       const timer = setTimeout(() => {
         const newStep = tourSteps[currentStep]
         newStep.onEnter?.()
 
-        // Boost z-index for interactive step's target above overlay
         if (newStep.interactive) {
-          // Wait a frame for onEnter DOM changes to apply
           requestAnimationFrame(() => {
             const el = document.querySelector(`[data-tour="${newStep.target}"]`)
             if (el instanceof HTMLElement) {
@@ -311,17 +293,16 @@ export function GuidedTour() {
                 el.style.position = "relative"
               }
             }
-            setPositionTick((t) => t + 1)
+            setPositionTick((tick) => tick + 1)
           })
         } else {
-          setPositionTick((t) => t + 1)
+          setPositionTick((tick) => tick + 1)
         }
       }, 80)
       return () => clearTimeout(timer)
     }
   }, [currentStep])
 
-  // Cleanup interactive z-index on unmount / finish
   const cleanupInteractive = useCallback(() => {
     for (const s of tourSteps) {
       if (!s.interactive) continue
@@ -333,7 +314,6 @@ export function GuidedTour() {
     }
   }, [])
 
-  // Scroll target into view when step changes
   useEffect(() => {
     if (!isActive || !step) return
     const el = document.querySelector(`[data-tour="${step.target}"]`)
@@ -345,12 +325,11 @@ export function GuidedTour() {
     }
   }, [currentStep, isActive, step])
 
-  // Re-measure on resize / scroll
   useEffect(() => {
     if (!isActive) return
     const onResize = () => {
       cancelAnimationFrame(rafRef.current)
-      rafRef.current = requestAnimationFrame(() => setPositionTick((t) => t + 1))
+      rafRef.current = requestAnimationFrame(() => setPositionTick((tick) => tick + 1))
     }
     window.addEventListener("resize", onResize)
     window.addEventListener("scroll", onResize, true)
@@ -362,7 +341,6 @@ export function GuidedTour() {
   }, [isActive])
 
   const finish = useCallback(() => {
-    // Fire onLeave for the current step before finishing
     if (currentStep >= 0 && currentStep < tourSteps.length) {
       tourSteps[currentStep].onLeave?.()
     }
@@ -396,7 +374,6 @@ export function GuidedTour() {
     if (currentStep > 0) setCurrentStep((s) => s - 1)
   }, [currentStep])
 
-  // Keyboard navigation
   useEffect(() => {
     if (!isActive) return
     const onKey = (e: KeyboardEvent) => {
@@ -490,17 +467,17 @@ export function GuidedTour() {
                 <button
                   onClick={(e) => { e.stopPropagation(); finish() }}
                   className="absolute top-3 right-3 rounded-lg p-1 text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors"
-                  aria-label="关闭引导"
+                  aria-label={t("tour.close")}
                 >
                   <X className="h-4 w-4" />
                 </button>
 
                 <div className="pr-6">
                   <h3 className="text-base font-semibold text-foreground">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {step.description}
+                    {t(step.descriptionKey)}
                   </p>
                 </div>
 
@@ -529,7 +506,7 @@ export function GuidedTour() {
                         className="gap-1 text-xs"
                       >
                         <ChevronLeft className="h-3.5 w-3.5" />
-                        上一步
+                        {t("tour.prev")}
                       </Button>
                     )}
                     <Button
@@ -539,11 +516,11 @@ export function GuidedTour() {
                     >
                       {currentStep < tourSteps.length - 1 ? (
                         <>
-                          下一步
+                          {t("tour.next")}
                           <ChevronRight className="h-3.5 w-3.5" />
                         </>
                       ) : (
-                        "开始练习 🎹"
+                        t("tour.finish")
                       )}
                     </Button>
                   </div>
@@ -560,13 +537,13 @@ export function GuidedTour() {
 // ── Replay button for header ───────────────────────────
 
 export function TourReplayButton() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
 
   const handleReplay = useCallback(() => {
     if (location.pathname !== "/") {
       navigate("/")
-      // Wait for page transition to render before starting tour
       setTimeout(startTour, 300)
     } else {
       startTour()
@@ -586,7 +563,7 @@ export function TourReplayButton() {
       >
         <HelpCircle className="h-4 w-4" />
       </TooltipTrigger>
-      <TooltipContent side="bottom">重新查看引导教程</TooltipContent>
+      <TooltipContent side="bottom">{t("tour.replay")}</TooltipContent>
     </Tooltip>
   )
 }

@@ -5,18 +5,20 @@ import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
 import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
 import { GuidedTour, TourReplayButton } from "@/components/GuidedTour"
-
-const navItems = [
-  { to: "/", icon: Keyboard, label: "Practice" },
-  { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
-  { to: "/midi", icon: Music, label: "MIDI" },
-  { to: "/docs", icon: BookOpen, label: "Docs" },
-  { to: "/settings", icon: Settings, label: "Settings" },
-]
+import { useTranslation } from "react-i18next"
 
 export function AppLayout() {
+  const { t } = useTranslation()
   const location = useLocation()
   const showFloatingPlayer = location.pathname !== "/midi"
+
+  const navItems = [
+    { to: "/", icon: Keyboard, label: t("nav.practice") },
+    { to: "/dashboard", icon: BarChart3, label: t("nav.dashboard") },
+    { to: "/midi", icon: Music, label: t("nav.midi") },
+    { to: "/docs", icon: BookOpen, label: t("nav.docs") },
+    { to: "/settings", icon: Settings, label: t("nav.settings") },
+  ]
 
   return (
     <TooltipProvider>
@@ -87,7 +89,7 @@ export function AppLayout() {
                 >
                   <Github className="h-4 w-4" />
                 </TooltipTrigger>
-                <TooltipContent side="bottom">GitHub Repository</TooltipContent>
+                <TooltipContent side="bottom">{t("nav.githubRepository")}</TooltipContent>
               </Tooltip>
             </nav>
           </div>
@@ -115,7 +117,7 @@ export function AppLayout() {
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">
             <div className="h-px flex-1 max-w-16 bg-gradient-to-r from-transparent to-border/40" />
             <p className="text-xs text-muted-foreground/50 font-medium tracking-wider">
-              MelodyType &middot; Where typing meets music
+              {t("nav.footer")}
             </p>
             <div className="h-px flex-1 max-w-16 bg-gradient-to-l from-transparent to-border/40" />
           </div>
