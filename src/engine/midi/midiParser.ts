@@ -5,7 +5,14 @@ export function parseMidiToFrames(
   arrayBuffer: ArrayBuffer,
   quantizeMs = 50,
 ): MidiFrame[] {
-  const midi = new Midi(arrayBuffer)
+  let midi: Midi
+  try {
+    midi = new Midi(arrayBuffer)
+  } catch (err) {
+    throw new Error(
+      `MIDI 文件解析失败: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
   const allNotes: Array<{ time: number; note: MidiNote }> = []
 
   for (const track of midi.tracks) {
@@ -56,7 +63,14 @@ export function parseMidiToFrames(
 }
 
 export function getMidiInfo(arrayBuffer: ArrayBuffer) {
-  const midi = new Midi(arrayBuffer)
+  let midi: Midi
+  try {
+    midi = new Midi(arrayBuffer)
+  } catch (err) {
+    throw new Error(
+      `MIDI 文件解析失败: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
   let totalNotes = 0
   for (const track of midi.tracks) {
     totalNotes += track.notes.length

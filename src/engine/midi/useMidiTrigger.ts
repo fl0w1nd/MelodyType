@@ -552,7 +552,9 @@ export function useMidiTrigger() {
           }
           playFrame(frame)
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.error("[MidiTrigger] Audio initialization failed:", err)
+        })
       commitFrameAdvance()
       return
     }
@@ -601,9 +603,13 @@ export function useMidiTrigger() {
           }
           resumePendingMelodyStart()
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.error("[MidiTrigger] Synth initialization failed:", err)
+        })
     } else {
-      void ensureAudioStarted().catch(() => {})
+      void ensureAudioStarted().catch((err) => {
+        console.error("[MidiTrigger] Audio context start failed:", err)
+      })
     }
   }, [ensureSynthReady, resumePendingMelodyStart, startScheduler])
 
