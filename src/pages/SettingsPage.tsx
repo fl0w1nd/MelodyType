@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
+import { useTranslation } from "react-i18next"
 import {
   Settings,
   Download,
@@ -10,6 +11,7 @@ import {
   Info,
   Check,
   AlertTriangle,
+  Globe,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,8 +31,11 @@ import {
   INITIAL_UNLOCK_COUNT,
   LETTER_FREQUENCY_ORDER,
 } from "@/engine/typing/adaptiveEngine"
+import type { SupportedLanguage } from "@/i18n"
+import { SUPPORTED_LANGUAGES } from "@/i18n"
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation()
   const [exportStatus, setExportStatus] = useState<"idle" | "success" | "error">("idle")
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle")
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
@@ -104,6 +109,28 @@ export default function SettingsPage() {
     setResetSettingsDialogOpen(false)
   }, [midi])
 
+  const handleLanguageChange = useCallback(
+    (lang: SupportedLanguage | "auto") => {
+      if (lang === "auto") {
+        localStorage.removeItem("melodytype-language")
+        void i18n.changeLanguage(navigator.language)
+      } else {
+        void i18n.changeLanguage(lang)
+      }
+    },
+    [i18n],
+  )
+
+  const currentLang = SUPPORTED_LANGUAGES.includes(i18n.language as SupportedLanguage)
+    ? (i18n.language as SupportedLanguage)
+    : "auto"
+
+  const langOptions: Array<{ value: SupportedLanguage | "auto"; label: string }> = [
+    { value: "auto", label: t("settingsPage.language.auto") },
+    { value: "en", label: t("settingsPage.language.en") },
+    { value: "zh", label: t("settingsPage.language.zh") },
+  ]
+
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
       {/* Data Management */}
@@ -111,18 +138,18 @@ export default function SettingsPage() {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base">
             <Database className="h-4 w-4 text-primary" />
-            Data Management
+            {t("settingsPage.dataManagement.title")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span>{sessionCount} sessions</span>
+            <span>{t("settingsPage.dataManagement.sessions", { count: sessionCount })}</span>
             <span>&middot;</span>
-            <span>{keyStatCount} key records</span>
+            <span>{t("settingsPage.dataManagement.keyRecords", { count: keyStatCount })}</span>
             <span>&middot;</span>
-            <span>{bigramStatCount} transition records</span>
+            <span>{t("settingsPage.dataManagement.transitionRecords", { count: bigramStatCount })}</span>
             <span>&middot;</span>
-            <span>{midiFileCount} MIDI files</span>
+            <span>{t("settingsPage.dataManagement.midiFiles", { count: midiFileCount })}</span>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -136,7 +163,9 @@ export default function SettingsPage() {
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              {exportStatus === "success" ? "Exported!" : "Export Backup"}
+              {exportStatus === "success"
+                ? t("settingsPage.dataManagement.exported")
+                : t("settingsPage.dataManagement.exportBackup")}
             </Button>
 
             <Button
@@ -152,10 +181,10 @@ export default function SettingsPage() {
                 <Upload className="h-4 w-4" />
               )}
               {importStatus === "success"
-                ? "Imported!"
+                ? t("settingsPage.dataManagement.imported")
                 : importStatus === "error"
-                  ? "Invalid File"
-                  : "Import Backup"}
+                  ? t("settingsPage.dataManagement.invalidFile")
+                  : t("settingsPage.dataManagement.importBackup")}
             </Button>
             <input
               ref={fileInputRef}
@@ -172,16 +201,13 @@ export default function SettingsPage() {
                 onClick={() => setClearDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
-                Clear Statistics
+                {t("settingsPage.dataManagement.clearStatistics")}
               </Button>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Clear All Statistics?</DialogTitle>
+                  <DialogTitle>{t("settingsPage.dataManagement.clearDialog.title")}</DialogTitle>
                   <DialogDescription>
-                    This will permanently delete all your typing sessions, key
-                    statistics, transition statistics, and daily goals. MIDI
-                    files and settings will be preserved. This action cannot be
-                    undone.
+                    {t("settingsPage.dataManagement.clearDialog.description")}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -189,10 +215,10 @@ export default function SettingsPage() {
                     variant="outline"
                     onClick={() => setClearDialogOpen(false)}
                   >
-                    Cancel
+                    {t("settingsPage.dataManagement.clearDialog.cancel")}
                   </Button>
                   <Button variant="destructive" onClick={handleClearAll}>
-                    Delete Statistics
+                    {t("settingsPage.dataManagement.clearDialog.confirm")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -208,15 +234,13 @@ export default function SettingsPage() {
                 onClick={() => setResetSettingsDialogOpen(true)}
               >
                 <RotateCcw className="h-4 w-4" />
-                Reset Settings
+                {t("settingsPage.dataManagement.resetSettings")}
               </Button>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Reset All Settings?</DialogTitle>
+                  <DialogTitle>{t("settingsPage.dataManagement.resetDialog.title")}</DialogTitle>
                   <DialogDescription>
-                    This restores MelodyType to its default configuration,
-                    including adaptive practice, display, and MIDI preferences.
-                    Your practice statistics and MIDI files will be preserved.
+                    {t("settingsPage.dataManagement.resetDialog.description")}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -224,14 +248,44 @@ export default function SettingsPage() {
                     variant="outline"
                     onClick={() => setResetSettingsDialogOpen(false)}
                   >
-                    Cancel
+                    {t("settingsPage.dataManagement.resetDialog.cancel")}
                   </Button>
                   <Button variant="destructive" onClick={handleResetSettings}>
-                    Reset Settings
+                    {t("settingsPage.dataManagement.resetDialog.confirm")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Language */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Globe className="h-4 w-4 text-primary" />
+            {t("settingsPage.language.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            {t("settingsPage.language.label")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {langOptions.map((opt) => {
+              const isActive = opt.value === currentLang
+              return (
+                <Button
+                  key={opt.value}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLanguageChange(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
@@ -241,7 +295,7 @@ export default function SettingsPage() {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4 text-primary" />
-            About
+            {t("settingsPage.about.title")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -252,15 +306,12 @@ export default function SettingsPage() {
             <div>
               <div className="font-serif text-lg">MelodyType</div>
               <div className="text-xs text-muted-foreground">
-                Where typing meets music
+                {t("settingsPage.about.tagline")}
               </div>
             </div>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            MelodyType is a typing practice application that combines keyboard
-            training with musical enjoyment. Each keystroke triggers MIDI notes,
-            turning your practice sessions into melodies. All your data is stored
-            locally in your browser — no accounts, no cloud, complete privacy.
+            {t("settingsPage.about.description")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {[
@@ -281,8 +332,15 @@ export default function SettingsPage() {
             ))}
           </div>
           <div className="mt-4 rounded-xl border border-border/50 bg-secondary/20 p-3 flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">For keyboard shortcuts, metrics glossary, and usage guide</p>
-            <a href="/docs" className="text-xs font-medium text-primary hover:underline whitespace-nowrap ml-3">View Docs →</a>
+            <p className="text-xs text-muted-foreground">
+              {t("settingsPage.about.docsHint")}
+            </p>
+            <a
+              href="/docs"
+              className="text-xs font-medium text-primary hover:underline whitespace-nowrap ml-3"
+            >
+              {t("settingsPage.about.viewDocs")}
+            </a>
           </div>
         </CardContent>
       </Card>

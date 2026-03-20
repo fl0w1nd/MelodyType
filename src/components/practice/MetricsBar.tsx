@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"
 import { Gauge, Target, Clock, Zap, Music } from "lucide-react"
 import { motion } from "framer-motion"
+import { useTranslation } from "react-i18next"
 import type { TypingMetrics } from "@/engine/typing/types"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 
@@ -11,6 +12,8 @@ interface MetricsBarProps {
 }
 
 function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
+  const { t } = useTranslation()
+
   const remaining =
     timeLimit != null ? Math.max(0, timeLimit - metrics.elapsedTime) : null
 
@@ -34,40 +37,40 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
       <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 py-3 px-5 rounded-xl bg-secondary/40 border border-border/50">
         <MetricItem
           icon={<Gauge className="h-4 w-4" />}
-          label="WPM"
+          label={t("metricsBar.wpm")}
           value={isStarted ? metrics.wpm.toFixed(0) : "—"}
-          tooltip="Words Per Minute — your net typing speed after accounting for errors"
+          tooltip={t("metricsBar.tooltips.wpm")}
           accent
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Target className="h-4 w-4" />}
-          label="Accuracy"
+          label={t("metricsBar.accuracy")}
           value={isStarted ? `${metrics.accuracy.toFixed(1)}%` : "—"}
-          tooltip="Percentage of characters typed correctly without errors"
+          tooltip={t("metricsBar.tooltips.accuracy")}
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Clock className="h-4 w-4" />}
-          label={remaining != null ? "Remaining" : "Time"}
+          label={remaining != null ? t("metricsBar.remaining") : t("metricsBar.time")}
           value={timeValue}
-          tooltip={remaining != null ? "Time left before the session ends" : "Elapsed time since you started typing"}
+          tooltip={remaining != null ? t("metricsBar.tooltips.time") : t("metricsBar.tooltips.time")}
           urgent={isUrgent}
           critical={isCritical}
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Zap className="h-4 w-4" />}
-          label="Raw"
+          label={t("metricsBar.raw")}
           value={isStarted ? metrics.rawWpm.toFixed(0) : "—"}
-          tooltip="Raw WPM — total typing speed including errors, before accuracy penalty is applied"
+          tooltip={t("metricsBar.tooltips.raw")}
         />
         <div className="hidden sm:block w-px h-8 bg-border/60" />
         <MetricItem
           icon={<Music className="h-4 w-4" />}
-          label="Integrity"
+          label={t("metricsBar.integrity")}
           value={isStarted ? `${metrics.melodyIntegrity.toFixed(0)}%` : "—"}
-          tooltip="Melody Integrity — how well your typing rhythm maintains the musical flow. Higher means smoother melody."
+          tooltip={t("metricsBar.tooltips.integrity")}
         />
       </div>
 
@@ -77,6 +80,7 @@ function MetricsBarInner({ metrics, isStarted, timeLimit }: MetricsBarProps) {
           isStarted={isStarted}
           isUrgent={isUrgent}
           isCritical={isCritical}
+          ariaLabel={t("metricsBar.timeRemaining")}
         />
       )}
     </div>
@@ -88,11 +92,13 @@ function TimeProgressBar({
   isStarted,
   isUrgent,
   isCritical,
+  ariaLabel,
 }: {
   progress: number | null
   isStarted: boolean
   isUrgent: boolean
   isCritical: boolean
+  ariaLabel: string
 }) {
   const width = progress != null ? progress * 100 : 100
 
@@ -103,7 +109,14 @@ function TimeProgressBar({
       : "bg-primary"
 
   return (
-    <div className="w-full h-1 bg-secondary/60 rounded-b-xl overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(width)} aria-label="Time remaining">
+    <div
+      className="w-full h-1 bg-secondary/60 rounded-b-xl overflow-hidden"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(width)}
+      aria-label={ariaLabel}
+    >
       <motion.div
         className={`h-full rounded-b-xl transition-colors duration-300 ${barColor}`}
         initial={{ width: "100%" }}

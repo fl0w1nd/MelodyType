@@ -1,6 +1,7 @@
 import { memo } from "react"
 import { Music } from "lucide-react"
 import { motion } from "framer-motion"
+import { useTranslation } from "react-i18next"
 import type { MelodyState } from "@/engine/midi/types"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 
@@ -9,16 +10,19 @@ interface FlowMeterProps {
   isStarted: boolean
 }
 
-const flowLabels: Record<MelodyState["flowState"], string> = {
-  idle: "Ready",
-  flowing: "On Pace",
-  fading: "Falling Behind…",
-  stalled: "Paused",
-}
+type FlowStateKey = MelodyState["flowState"]
 
 function FlowMeterInner({ melodyState, isStarted }: FlowMeterProps) {
+  const { t } = useTranslation()
   const { fuel, maxFuel, flowState } = melodyState
   const ratio = maxFuel > 0 ? Math.min(1, fuel / maxFuel) : 0
+
+  const flowLabels: Record<FlowStateKey, string> = {
+    idle: t("flowMeter.ready"),
+    flowing: t("flowMeter.onPace"),
+    fading: t("flowMeter.fallingBehind"),
+    stalled: t("flowMeter.paused"),
+  }
 
   const barColor =
     flowState === "flowing"
@@ -45,9 +49,16 @@ function FlowMeterInner({ melodyState, isStarted }: FlowMeterProps) {
       <TooltipTrigger render={<div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border/40" role="status" />}>
         <Music className={`h-3.5 w-3.5 shrink-0 transition-colors duration-300 ${labelColor}`} />
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium whitespace-nowrap">
-          Melody Flow
+          {t("flowMeter.label")}
         </span>
-        <div className="flex-1 h-1.5 min-w-20 bg-secondary/60 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} aria-label="Melody flow">
+        <div
+          className="flex-1 h-1.5 min-w-20 bg-secondary/60 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(ratio * 100)}
+          aria-label={t("flowMeter.label")}
+        >
           <motion.div
             className={`h-full rounded-full ${barColor}`}
             animate={{
@@ -68,7 +79,7 @@ function FlowMeterInner({ melodyState, isStarted }: FlowMeterProps) {
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="max-w-[260px] text-center">
-        Tracks your typing rhythm. Type steadily to keep the melody flowing — pausing or making errors drains the flow meter.
+        {t("flowMeter.tooltip")}
       </TooltipContent>
     </Tooltip>
   )
