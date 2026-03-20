@@ -463,52 +463,45 @@ describe("getFocusKey", () => {
     expect(getFocusKey(confs)).toBeNull()
   })
 
-  it("returns null when all unlocked keys are ready", () => {
+  it("returns null when all unlocked keys are mastered (current confidence)", () => {
     const confs = [
-      makeKC({ key: "e", bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
-      makeKC({ key: "n", bestConfidence: 1.2, samples: 12, accuracy: 93, lifetimeAccuracy: 88 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "n", confidence: 1.2, bestConfidence: 1.2, samples: 12, accuracy: 93, lifetimeAccuracy: 88 }),
     ]
     expect(getFocusKey(confs)).toBeNull()
   })
 
   it("returns the only blocked key", () => {
     const confs = [
-      makeKC({ key: "e", bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
-      makeKC({ key: "n", bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
     ]
     expect(getFocusKey(confs)).toBe("n")
   })
 
-  it("returns key with fewest passed checks", () => {
-    // "n" passes 2 checks (hits + lifetimeAccuracy), "i" passes 1 check (hits)
+  it("returns first unmastered key in frequency order", () => {
+    // Both "n" and "i" are unmastered; "n" comes first in frequency order
     const confs = [
-      makeKC({ key: "n", bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 90 }),
-      makeKC({ key: "i", bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 80 }),
+      makeKC({ key: "e", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 90 }),
+      makeKC({ key: "i", confidence: 0.3, bestConfidence: 0.5, samples: 10, accuracy: 80, lifetimeAccuracy: 80 }),
     ]
-    expect(getFocusKey(confs)).toBe("i")
+    expect(getFocusKey(confs)).toBe("n")
   })
 
-  it("breaks ties by lowest confidence (recoverKeys=false → bestConfidence)", () => {
-    // Both have same number of passed checks (0), use bestConfidence for tie-break
+  it("retreats focus when CPM raised (bestConfidence high but confidence low)", () => {
+    // "e" has high bestConfidence but current confidence dropped below 1.0
     const confs = [
-      makeKC({ key: "n", confidence: 0.3, bestConfidence: 0.2, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
-      makeKC({ key: "i", confidence: 0.1, bestConfidence: 0.3, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
+      makeKC({ key: "e", confidence: 0.8, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "n", confidence: 0.5, bestConfidence: 0.5, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
     ]
-    expect(getFocusKey(confs, false)).toBe("n")
-  })
-
-  it("breaks ties by lowest confidence (recoverKeys=true → confidence)", () => {
-    const confs = [
-      makeKC({ key: "n", confidence: 0.3, bestConfidence: 0.2, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
-      makeKC({ key: "i", confidence: 0.1, bestConfidence: 0.3, samples: 3, accuracy: 80, lifetimeAccuracy: 70 }),
-    ]
-    expect(getFocusKey(confs, true)).toBe("i")
+    expect(getFocusKey(confs)).toBe("e")
   })
 
   it("does not consider locked keys", () => {
     const confs = [
-      makeKC({ key: "e", unlocked: false, bestConfidence: 0.0, samples: 0 }),
-      makeKC({ key: "n", bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
+      makeKC({ key: "e", unlocked: false, confidence: 0.0, bestConfidence: 0.0, samples: 0 }),
+      makeKC({ key: "n", confidence: 1.5, bestConfidence: 1.5, samples: 15, accuracy: 95, lifetimeAccuracy: 90 }),
     ]
     expect(getFocusKey(confs)).toBeNull()
   })

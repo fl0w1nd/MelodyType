@@ -243,23 +243,23 @@ export function getNextKeyToUnlock(
   return null
 }
 
-export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean = false): string | null {
-  const unlocked = confidences.filter((k) => k.unlocked)
-  if (unlocked.length === 0) return null
+export function getFocusKey(confidences: KeyConfidence[], _recoverKeys: boolean = false): string | null {
+  const unlockedByKey = new Map(
+    confidences.filter((k) => k.unlocked).map((k) => [k.key, k]),
+  )
 
-  const gatedConfidenceOf = (k: KeyConfidence) => recoverKeys ? k.confidence : k.bestConfidence
-  const blocked = unlocked.filter((k) => !isKeyReadyToUnlock(k, recoverKeys))
-  if (blocked.length === 0) return null
+  // Scan in frequency order and return the first unlocked key that is not
+  // mastered at the current target CPM.  Always use current confidence so
+  // that raising the target properly retreats focus to earlier keys.
+  for (const key of LETTER_FREQUENCY_ORDER) {
+    const kc = unlockedByKey.get(key)
+    if (!kc) continue
+    if (!isKeyReadyToUnlock(kc, true)) {
+      return key
+    }
+  }
 
-  const sorted = [...blocked].sort((a, b) => {
-    const aChecks = getKeyUnlockChecks(a, recoverKeys)
-    const bChecks = getKeyUnlockChecks(b, recoverKeys)
-    const aPassed = Object.values(aChecks).filter(Boolean).length
-    const bPassed = Object.values(bChecks).filter(Boolean).length
-    if (aPassed !== bPassed) return aPassed - bPassed
-    return gatedConfidenceOf(a) - gatedConfidenceOf(b)
-  })
-  return sorted[0].key
+  return null
 }
 
 export function getKeyUnlockChecks(

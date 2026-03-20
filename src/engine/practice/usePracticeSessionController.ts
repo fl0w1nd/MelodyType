@@ -129,7 +129,6 @@ export function usePracticeSessionController({
     resetMelodySession,
     melodyState,
     melodyIntegrity,
-    updateTargetCPM,
   } = useMidi()
 
   const onSuccessfulKeystroke = useCallback(() => {
@@ -368,14 +367,13 @@ export function usePracticeSessionController({
         setAppSetting("adaptiveRecoverKeys", nextRecover),
       ])
 
-      if (updates.targetCpm != null) {
-        updateTargetCPM(updates.targetCpm)
-      }
-
+      reset()
+      adaptiveContinuingRef.current = false
       const nextState = await loadAdaptiveState()
       setAdaptiveState(nextState)
+      await startPractice(config, nextState)
     },
-    [adaptiveState, updateTargetCPM],
+    [adaptiveState, config, reset, startPractice],
   )
 
   const handleManualUnlock = useCallback(
