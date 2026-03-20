@@ -222,6 +222,7 @@ function KeyProgressPanelInner({
             <button
               ref={settingsButtonRef}
               type="button"
+              data-tour="options-button"
               onClick={() => setSettingsOpen((open) => !open)}
               className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -250,6 +251,7 @@ function KeyProgressPanelInner({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
+            data-tour="options-panel"
             className="absolute right-0 top-full z-30 mt-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur"
           >
             <div className="space-y-4">

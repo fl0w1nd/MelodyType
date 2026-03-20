@@ -4,6 +4,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
 import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
+import { GuidedTour, TourReplayButton } from "@/components/GuidedTour"
 
 const navItems = [
   { to: "/", icon: Keyboard, label: "Practice" },
@@ -24,7 +25,7 @@ export function AppLayout() {
 
         <header role="banner" className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-            <NavLink to="/" className="flex items-center gap-2.5 group">
+            <NavLink to="/" className="flex items-center gap-2.5 group" data-tour="logo">
               <img
                 src="/favicon.png"
                 alt="MelodyType"
@@ -35,7 +36,7 @@ export function AppLayout() {
               </span>
             </NavLink>
 
-            <nav aria-label="Main navigation" className="flex items-center gap-1">
+            <nav aria-label="Main navigation" className="flex items-center gap-1" data-tour="nav-bar">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -70,6 +71,8 @@ export function AppLayout() {
               ))}
 
               <div className="w-px h-6 bg-border/40 mx-1" />
+
+              <TourReplayButton />
 
               <Tooltip>
                 <TooltipTrigger
@@ -106,6 +109,7 @@ export function AppLayout() {
         </main>
 
         {showFloatingPlayer && <MidiFloatingPlayer />}
+        <GuidedTour />
 
         <footer role="contentinfo" className="border-t border-border/40 py-4">
           <div className="mx-auto max-w-6xl px-6 flex items-center justify-center gap-2">

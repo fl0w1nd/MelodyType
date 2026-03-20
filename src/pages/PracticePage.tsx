@@ -44,10 +44,12 @@ export default function PracticePage() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <ModeSelector
-        onSelect={actions.handleConfigChange}
-        currentConfig={config}
-      />
+      <div data-tour="mode-selector">
+        <ModeSelector
+          onSelect={actions.handleConfigChange}
+          currentConfig={config}
+        />
+      </div>
 
       {isAdaptive && adaptiveState && (
         <KeyProgressPanel
@@ -115,19 +117,23 @@ export default function PracticePage() {
               exit={{ opacity: 0 }}
               className="flex w-full flex-col gap-4"
             >
-              <MetricsBar
-                metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
-                isStarted={
-                  isAdaptive
-                    ? state.isStarted && !state.isFinished
-                    : state.isStarted
-                }
-                timeLimit={config.mode === "time" ? config.timeLimit : undefined}
-              />
+              <div data-tour="metrics-bar">
+                <MetricsBar
+                  metrics={isAdaptive ? adaptiveDisplayMetrics : metrics}
+                  isStarted={
+                    isAdaptive
+                      ? state.isStarted && !state.isFinished
+                      : state.isStarted
+                  }
+                  timeLimit={config.mode === "time" ? config.timeLimit : undefined}
+                />
+              </div>
 
-              <FlowMeter melodyState={melodyState} isStarted={state.isStarted} />
+              <div data-tour="flow-meter">
+                <FlowMeter melodyState={melodyState} isStarted={state.isStarted} />
+              </div>
 
-              <div className="relative">
+              <div className="relative" data-tour="text-area">
                 <TextDisplay
                   words={state.words}
                   currentWordIndex={state.currentWordIndex}
@@ -143,7 +149,7 @@ export default function PracticePage() {
                 </div>
               )}
 
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center gap-2" data-tour="practice-actions">
                 <Button
                   variant="ghost"
                   size="sm"
