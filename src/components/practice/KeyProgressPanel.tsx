@@ -862,57 +862,123 @@ function FocusThresholds({
   }
 
   const unlockChecks = getKeyUnlockChecks(focus, recoverKeys)
-  const checks = [
+  const ewmaCpm = Math.round(focus.speed * 5)
+
+  const gates = [
     {
-      label: t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm }),
+      tooltipLabel: t("keyProgressPanel.focusTooltip.speed"),
+      badgeLabel: t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm }),
       met: unlockChecks.speed,
+      current: `${ewmaCpm} cpm`,
+      target: `${targetCpm} cpm`,
     },
     {
-      label: t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY }),
+      tooltipLabel: t("keyProgressPanel.focusTooltip.hits"),
+      badgeLabel: t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY }),
       met: unlockChecks.hits,
+      current: `${focus.samples}`,
+      target: `${MIN_HITS_FOR_MASTERY}+`,
     },
     {
-      label: t("keyProgressPanel.gates.recentRate", {
+      tooltipLabel: t("keyProgressPanel.focusTooltip.recentAcc"),
+      badgeLabel: t("keyProgressPanel.gates.recentRate", {
         n: Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100),
       }),
       met: unlockChecks.recentAccuracy,
+      current: `${focus.accuracy.toFixed(1)}%`,
+      target: `${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}%`,
     },
     {
-      label: t("keyProgressPanel.gates.lifetimeRate", {
+      tooltipLabel: t("keyProgressPanel.focusTooltip.lifetimeAcc"),
+      badgeLabel: t("keyProgressPanel.gates.lifetimeRate", {
         n: Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100),
       }),
       met: unlockChecks.lifetimeAccuracy,
+      current: `${focus.lifetimeAccuracy.toFixed(1)}%`,
+      target: `${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}%`,
     },
   ]
+
+  const metCount = gates.filter((g) => g.met).length
+
+  if (inline) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={<div className={cn("flex items-center gap-1.5 cursor-default", className)} />}
+        >
+          <div className="flex items-center gap-[3px]">
+            {gates.map((gate, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "inline-block size-[6px] rounded-full",
+                  gate.met
+                    ? "bg-emerald-500"
+                    : "bg-muted-foreground/25",
+                )}
+              />
+            ))}
+          </div>
+          <span className="text-[10px] font-medium text-muted-foreground">
+            {t("keyProgressPanel.gatesMet", { met: metCount, total: gates.length })}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="!block max-w-[300px] px-3.5 py-3">
+          <div className="space-y-2.5">
+            <div className="text-[11px] font-semibold">
+              {t("keyProgressPanel.focusTooltip.title", { key: focus.key.toUpperCase() })}
+            </div>
+            <div className="space-y-1.5">
+              {gates.map((gate) => (
+                <div key={gate.tooltipLabel} className="flex items-center gap-2 text-[11px]">
+                  <span className={cn(
+                    "text-[10px]",
+                    gate.met ? "text-emerald-400" : "text-amber-400",
+                  )}>
+                    {gate.met ? "✓" : "✗"}
+                  </span>
+                  <span className="flex-1 opacity-60">{gate.tooltipLabel}</span>
+                  <span className="font-mono tabular-nums">
+                    {gate.current}
+                  </span>
+                  <span className="opacity-30">/</span>
+                  <span className="font-mono tabular-nums opacity-60">
+                    {gate.target}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
 
   return (
     <div
       className={cn(
-        inline
-          ? "flex flex-wrap items-center gap-2"
-          : "rounded-xl border border-border/50 bg-secondary/20 p-3",
+        "rounded-xl border border-border/50 bg-secondary/20 p-3",
         className,
       )}
     >
-      {!inline && (
-        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Crosshair className="h-3.5 w-3.5 text-primary" />
-          {t("keyProgressPanel.focusKeyThresholds")}
-          <span className="font-mono text-primary">{focus.key.toUpperCase()}</span>
-        </div>
-      )}
-      <div className={cn("flex flex-wrap gap-2", inline && "contents")}>
-        {checks.map((check) => (
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Crosshair className="h-3.5 w-3.5 text-primary" />
+        {t("keyProgressPanel.focusKeyThresholds")}
+        <span className="font-mono text-primary">{focus.key.toUpperCase()}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {gates.map((gate) => (
           <span
-            key={check.label}
+            key={gate.badgeLabel}
             className={cn(
               "rounded-full border px-2.5 py-1 text-[10px] font-medium",
-              check.met
+              gate.met
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
             )}
           >
-            {check.label}
+            {gate.badgeLabel}
           </span>
         ))}
       </div>
