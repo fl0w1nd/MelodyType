@@ -12,7 +12,6 @@ import {
   computeStoredSessionAccuracyMetrics,
   isLetterAccuracyKey,
 } from "./accuracyMetrics"
-import { computeLearningRate, type LearningRateResult } from "./learningRate.ts"
 
 export {
   DEFAULT_RECOVER_KEYS,
@@ -87,11 +86,11 @@ export interface KeyConfidence {
   speed: number
   accuracy: number
   lifetimeAccuracy: number
+  falsePresses: number
   samples: number
   unlocked: boolean
   focused: boolean
   forced: boolean
-  learningRate: LearningRateResult | null
 }
 
 export interface KeyUnlockChecks {
@@ -642,11 +641,6 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     const lifetimeAccuracy = computeAccuracyPercent(correctHits, errorHits, 0)
     const speed = ewmaCpm ? (ewmaCpm / 5) : 0
 
-    const keySamples = stat?.adaptiveSamples ?? []
-    const lr = keySamples.length >= 5
-      ? computeLearningRate(keySamples, adaptSettings.targetCpm)
-      : null
-
     return {
       key: letter,
       confidence,
@@ -655,11 +649,11 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
       speed,
       accuracy,
       lifetimeAccuracy,
+      falsePresses: errorHits,
       samples: correctHits + errorHits,
       unlocked: isUnlocked || isForced,
       focused: false,
       forced: isForced,
-      learningRate: lr,
     }
   })
 

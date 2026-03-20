@@ -222,16 +222,97 @@ function KeyProgressPanelInner({
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <button
-              ref={settingsButtonRef}
-              type="button"
-              data-tour="options-button"
-              onClick={() => setSettingsOpen((open) => !open)}
-              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <SlidersHorizontal className="h-3 w-3" />
-              {t("keyProgressPanel.options")}
-            </button>
+            <div className="relative">
+              <button
+                ref={settingsButtonRef}
+                type="button"
+                data-tour="options-button"
+                onClick={() => setSettingsOpen((open) => !open)}
+                className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                {t("keyProgressPanel.options")}
+              </button>
+
+              <AnimatePresence>
+                {settingsOpen && (
+                  <motion.div
+                    ref={settingsPanelRef}
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    data-tour="options-panel"
+                    className="absolute right-0 top-full z-30 mt-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-foreground">
+                            {t("keyProgressPanel.title")}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {t("keyProgressPanel.subtitle")}
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {targetCpm} CPM ({Math.round(targetCpm / 5)} WPM)
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {ADAPTIVE_TARGET_PRESETS.map((preset) => {
+                          const isActive = targetCpm === preset.cpm
+                          return (
+                            <Button
+                              key={preset.cpm}
+                              variant={isActive ? "default" : "outline"}
+                              size="sm"
+                              className="h-auto min-w-[102px] flex-col items-start gap-0.5 px-3 py-2 text-left"
+                              onClick={() => onTargetChange?.(preset.cpm)}
+                            >
+                              <span className="text-xs font-medium">
+                                {preset.label}
+                                {preset.cpm === DEFAULT_TARGET_CPM && ` ${t("keyProgressPanel.defaultSuffix")}`}
+                              </span>
+                              <span className="font-mono text-[11px]">{preset.cpm} CPM</span>
+                              <span className="text-[10px] opacity-70">{preset.description}</span>
+                            </Button>
+                          )
+                        })}
+                      </div>
+
+                      <Slider
+                        value={[targetCpm]}
+                        onValueChange={(value) =>
+                          onTargetChange?.(Array.isArray(value) ? value[0] : value)
+                        }
+                        min={MIN_TARGET_CPM}
+                        max={MAX_TARGET_CPM}
+                        step={5}
+                      />
+
+                      <div className="rounded-xl border border-border/50 bg-secondary/30 px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-foreground">
+                              {t("keyProgressPanel.requireCurrentMastery")}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {t("keyProgressPanel.requireCurrentMasteryDesc")}
+                            </div>
+                          </div>
+                          <Switch
+                            checked={recoverKeys}
+                            onCheckedChange={(checked) => onRecoverChange?.(checked)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <span className="rounded-full border border-border/50 bg-background/70 px-2 py-1 text-[10px] font-mono text-muted-foreground">
               {t("keyProgressPanel.round", { n: roundNumber })}
             </span>
@@ -245,85 +326,6 @@ function KeyProgressPanelInner({
           </div>
         </div>
       </div>
-
-      <AnimatePresence>
-        {settingsOpen && (
-          <motion.div
-            ref={settingsPanelRef}
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            data-tour="options-panel"
-            className="absolute right-0 top-full z-30 mt-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur"
-          >
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {t("keyProgressPanel.title")}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t("keyProgressPanel.subtitle")}
-                  </div>
-                </div>
-                <Badge variant="secondary" className="font-mono text-xs">
-                  {targetCpm} CPM ({Math.round(targetCpm / 5)} WPM)
-                </Badge>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {ADAPTIVE_TARGET_PRESETS.map((preset) => {
-                  const isActive = targetCpm === preset.cpm
-                  return (
-                    <Button
-                      key={preset.cpm}
-                      variant={isActive ? "default" : "outline"}
-                      size="sm"
-                      className="h-auto min-w-[102px] flex-col items-start gap-0.5 px-3 py-2 text-left"
-                      onClick={() => onTargetChange?.(preset.cpm)}
-                    >
-                      <span className="text-xs font-medium">
-                        {preset.label}
-                        {preset.cpm === DEFAULT_TARGET_CPM && ` ${t("keyProgressPanel.defaultSuffix")}`}
-                      </span>
-                      <span className="font-mono text-[11px]">{preset.cpm} CPM</span>
-                      <span className="text-[10px] opacity-70">{preset.description}</span>
-                    </Button>
-                  )
-                })}
-              </div>
-
-              <Slider
-                value={[targetCpm]}
-                onValueChange={(value) =>
-                  onTargetChange?.(Array.isArray(value) ? value[0] : value)
-                }
-                min={MIN_TARGET_CPM}
-                max={MAX_TARGET_CPM}
-                step={5}
-              />
-
-              <div className="rounded-xl border border-border/50 bg-secondary/30 px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {t("keyProgressPanel.requireCurrentMastery")}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("keyProgressPanel.requireCurrentMasteryDesc")}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={recoverKeys}
-                    onCheckedChange={(checked) => onRecoverChange?.(checked)}
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5">
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4 xl:grid-cols-7">
@@ -601,8 +603,8 @@ function KeyStatCard({
   const { t } = useTranslation()
   const ewmaCpm = Math.round(keyConf.speed * 5)
   const bestCpm = Math.round(keyConf.bestConfidence * targetCpm)
-  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
-  const readiness = Object.values(checks).filter(Boolean).length
+  const gates = getMasteryComparisonRows(keyConf, targetCpm, recoverKeys, t)
+  const readiness = gates.filter((gate) => gate.met).length
   return (
     <div
       className={cn(
@@ -653,37 +655,24 @@ function KeyStatCard({
         <StatChip label={t("keyProgressPanel.keyStats.recent")} value={`${keyConf.accuracy.toFixed(0)}%`} />
         <StatChip label={t("keyProgressPanel.keyStats.lifetime")} value={`${keyConf.lifetimeAccuracy.toFixed(0)}%`} />
         <StatChip label={t("keyProgressPanel.keyStats.hits")} value={`${keyConf.samples}`} />
-        <StatChip
-          label={t("keyProgressPanel.keyStats.forecast")}
-          value={
-            keyConf.learningRate?.remainingLessons != null
-              ? `~${keyConf.learningRate.remainingLessons}`
-              : "—"
-          }
-        />
+        <StatChip label={t("keyProgressPanel.keyStats.falseCount")} value={`${keyConf.falsePresses}`} />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <GateChip
-          label={t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm })}
-          met={checks.speed}
-        />
-        <GateChip
-          label={t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY })}
-          met={checks.hits}
-        />
-        <GateChip
-          label={t("keyProgressPanel.gates.recentRate", {
-            n: Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100),
-          })}
-          met={checks.recentAccuracy}
-        />
-        <GateChip
-          label={t("keyProgressPanel.gates.lifetimeRate", {
-            n: Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100),
-          })}
-          met={checks.lifetimeAccuracy}
-        />
+      <div className="mt-3 rounded-lg border border-border/30 bg-secondary/20 px-3 py-2.5">
+        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+          {t("keyProgressPanel.summary.unlockReadiness")}
+        </div>
+        <div className="space-y-1.5">
+          {gates.map((gate) => (
+            <ThresholdCompareRow
+              key={gate.label}
+              label={gate.label}
+              current={gate.current}
+              target={gate.target}
+              met={gate.met}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -712,6 +701,43 @@ function UnlockBlockerBadge({
   )
 }
 
+function getMasteryComparisonRows(
+  keyConf: KeyConfidence,
+  targetCpm: number,
+  recoverKeys: boolean,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
+  const ewmaCpm = Math.round(keyConf.speed * 5)
+
+  return [
+    {
+      label: t("keyProgressPanel.focusTooltip.speed"),
+      met: checks.speed,
+      current: `${ewmaCpm} cpm`,
+      target: `${targetCpm} cpm`,
+    },
+    {
+      label: t("keyProgressPanel.focusTooltip.hits"),
+      met: checks.hits,
+      current: `${keyConf.samples}`,
+      target: `${MIN_HITS_FOR_MASTERY}+`,
+    },
+    {
+      label: t("keyProgressPanel.focusTooltip.recentAcc"),
+      met: checks.recentAccuracy,
+      current: `${keyConf.accuracy.toFixed(1)}%`,
+      target: `${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}%`,
+    },
+    {
+      label: t("keyProgressPanel.focusTooltip.lifetimeAcc"),
+      met: checks.lifetimeAccuracy,
+      current: `${keyConf.lifetimeAccuracy.toFixed(1)}%`,
+      target: `${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}%`,
+    },
+  ]
+}
+
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/30 bg-secondary/20 px-2.5 py-2">
@@ -723,18 +749,32 @@ function StatChip({ label, value }: { label: string; value: string }) {
   )
 }
 
-function GateChip({ label, met }: { label: string; met: boolean }) {
+function ThresholdCompareRow({
+  label,
+  current,
+  target,
+  met,
+}: {
+  label: string
+  current: string
+  target: string
+  met: boolean
+}) {
   return (
-    <span
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-[10px] font-medium",
-        met
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-          : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-      )}
-    >
-      {label}
-    </span>
+    <div className="flex items-center gap-2 text-[11px]">
+      <span
+        className={cn(
+          "text-[10px]",
+          met ? "text-emerald-400" : "text-amber-400",
+        )}
+      >
+        {met ? "✓" : "✗"}
+      </span>
+      <span className="flex-1 opacity-60">{label}</span>
+      <span className="font-mono tabular-nums">{current}</span>
+      <span className="opacity-30">/</span>
+      <span className="font-mono tabular-nums opacity-60">{target}</span>
+    </div>
   )
 }
 
@@ -861,44 +901,7 @@ function FocusThresholds({
     )
   }
 
-  const unlockChecks = getKeyUnlockChecks(focus, recoverKeys)
-  const ewmaCpm = Math.round(focus.speed * 5)
-
-  const gates = [
-    {
-      tooltipLabel: t("keyProgressPanel.focusTooltip.speed"),
-      badgeLabel: t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm }),
-      met: unlockChecks.speed,
-      current: `${ewmaCpm} cpm`,
-      target: `${targetCpm} cpm`,
-    },
-    {
-      tooltipLabel: t("keyProgressPanel.focusTooltip.hits"),
-      badgeLabel: t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY }),
-      met: unlockChecks.hits,
-      current: `${focus.samples}`,
-      target: `${MIN_HITS_FOR_MASTERY}+`,
-    },
-    {
-      tooltipLabel: t("keyProgressPanel.focusTooltip.recentAcc"),
-      badgeLabel: t("keyProgressPanel.gates.recentRate", {
-        n: Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100),
-      }),
-      met: unlockChecks.recentAccuracy,
-      current: `${focus.accuracy.toFixed(1)}%`,
-      target: `${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}%`,
-    },
-    {
-      tooltipLabel: t("keyProgressPanel.focusTooltip.lifetimeAcc"),
-      badgeLabel: t("keyProgressPanel.gates.lifetimeRate", {
-        n: Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100),
-      }),
-      met: unlockChecks.lifetimeAccuracy,
-      current: `${focus.lifetimeAccuracy.toFixed(1)}%`,
-      target: `${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}%`,
-    },
-  ]
-
+  const gates = getMasteryComparisonRows(focus, targetCpm, recoverKeys, t)
   const metCount = gates.filter((g) => g.met).length
 
   if (inline) {
@@ -931,22 +934,13 @@ function FocusThresholds({
             </div>
             <div className="space-y-1.5">
               {gates.map((gate) => (
-                <div key={gate.tooltipLabel} className="flex items-center gap-2 text-[11px]">
-                  <span className={cn(
-                    "text-[10px]",
-                    gate.met ? "text-emerald-400" : "text-amber-400",
-                  )}>
-                    {gate.met ? "✓" : "✗"}
-                  </span>
-                  <span className="flex-1 opacity-60">{gate.tooltipLabel}</span>
-                  <span className="font-mono tabular-nums">
-                    {gate.current}
-                  </span>
-                  <span className="opacity-30">/</span>
-                  <span className="font-mono tabular-nums opacity-60">
-                    {gate.target}
-                  </span>
-                </div>
+                <ThresholdCompareRow
+                  key={gate.label}
+                  label={gate.label}
+                  current={gate.current}
+                  target={gate.target}
+                  met={gate.met}
+                />
               ))}
             </div>
           </div>
@@ -967,19 +961,15 @@ function FocusThresholds({
         {t("keyProgressPanel.focusKeyThresholds")}
         <span className="font-mono text-primary">{focus.key.toUpperCase()}</span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-1.5">
         {gates.map((gate) => (
-          <span
-            key={gate.badgeLabel}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[10px] font-medium",
-              gate.met
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-            )}
-          >
-            {gate.badgeLabel}
-          </span>
+          <ThresholdCompareRow
+            key={gate.label}
+            label={gate.label}
+            current={gate.current}
+            target={gate.target}
+            met={gate.met}
+          />
         ))}
       </div>
     </div>

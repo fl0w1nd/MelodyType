@@ -184,7 +184,7 @@ const zhTW = {
       recent: "近期",
       lifetime: "總計",
       hits: "擊鍵",
-      forecast: "預測",
+      falseCount: "失敗",
     },
     gates: {
       targetCpm: "目標 {{cpm}} cpm",
@@ -788,9 +788,9 @@ const zhTW = {
           label: "置信度",
           desc: "某鍵真正被掌握的統計確定性。需要足夠多的一致性表現才能達到高置信度。",
         },
-        forecast: {
-          label: "預測",
-          desc: "基於當前軌跡預測某鍵的未來表現。用於預判按鍵何時達到掌握狀態。",
+        falseCount: {
+          label: "失敗",
+          desc: "目標為該鍵時按下錯誤鍵的次數。同一目標位置重複按錯只計一次。",
         },
       },
       dashboard: {

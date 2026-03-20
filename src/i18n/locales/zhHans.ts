@@ -184,7 +184,7 @@ const zhCN = {
       recent: "近期",
       lifetime: "总计",
       hits: "击键",
-      forecast: "预测",
+      falseCount: "失败",
     },
     gates: {
       targetCpm: "目标 {{cpm}} cpm",
@@ -788,9 +788,9 @@ const zhCN = {
           label: "置信度",
           desc: "某键真正被掌握的统计确定性。需要足够多的一致性表现才能达到高置信度。",
         },
-        forecast: {
-          label: "预测",
-          desc: "基于当前轨迹预测某键的未来表现。用于预判按键何时达到掌握状态。",
+        falseCount: {
+          label: "失败",
+          desc: "目标为该键时按下错误键的次数。同一目标位置重复按错只计一次。",
         },
       },
       dashboard: {

@@ -194,7 +194,7 @@ const en = {
       recent: "Recent",
       lifetime: "Lifetime",
       hits: "Hits",
-      forecast: "Forecast",
+      falseCount: "False",
     },
     gates: {
       targetCpm: "Target {{cpm}} cpm",
@@ -808,9 +808,9 @@ const en = {
           label: "Confidence",
           desc: "Statistical certainty that a key has been truly mastered. Requires enough hits at consistent performance to reach high confidence.",
         },
-        forecast: {
-          label: "Forecast",
-          desc: "Predicted future performance for a key based on current trajectory. Used to anticipate when a key will reach mastery.",
+        falseCount: {
+          label: "False",
+          desc: "Times you pressed the wrong key when this key was the target. Repeated wrong presses against the same target count once.",
         },
       },
       dashboard: {

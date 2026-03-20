@@ -29,11 +29,11 @@ function makeKC(overrides: Partial<KeyConfidence> & { key: string }): KeyConfide
     speed: 0,
     accuracy: 0,
     lifetimeAccuracy: 0,
+    falsePresses: 0,
     samples: 0,
     unlocked: true,
     focused: false,
     forced: false,
-    learningRate: null,
     ...overrides,
   }
 }

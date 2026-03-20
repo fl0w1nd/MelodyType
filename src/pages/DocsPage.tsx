@@ -392,7 +392,7 @@ function MetricsSection() {
         <MetricRow icon={<Gauge className="h-4 w-4" />} label={t("docsPage.metrics.adaptive.keyAccuracy.label")} description={t("docsPage.metrics.adaptive.keyAccuracy.desc")} />
         <MetricRow icon={<TrendingUp className="h-4 w-4" />} label={t("docsPage.metrics.adaptive.keyScore.label")} description={t("docsPage.metrics.adaptive.keyScore.desc")} />
         <MetricRow icon={<Activity className="h-4 w-4" />} label={t("docsPage.metrics.adaptive.confidence.label")} description={t("docsPage.metrics.adaptive.confidence.desc")} />
-        <MetricRow icon={<Zap className="h-4 w-4" />} label={t("docsPage.metrics.adaptive.forecast.label")} description={t("docsPage.metrics.adaptive.forecast.desc")} />
+        <MetricRow icon={<Zap className="h-4 w-4" />} label={t("docsPage.metrics.adaptive.falseCount.label")} description={t("docsPage.metrics.adaptive.falseCount.desc")} />
       </div>
 
       <DocSubheading>{t("docsPage.metrics.dashboard.title")}</DocSubheading>
