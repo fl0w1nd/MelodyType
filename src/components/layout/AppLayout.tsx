@@ -121,29 +121,31 @@ export function AppLayout() {
               </Tooltip>
 
               <Tooltip>
-                <TooltipTrigger>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <Globe className="h-4 w-4" />
-                      <span className="hidden sm:inline">{langOptions.find((opt) => opt.value === currentLang)?.label}</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-32">
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-border mb-1">
-                        {t("settingsPage.language.title")}
-                      </div>
-                      {langOptions.map((opt) => (
-                        <DropdownMenuItem
-                          key={opt.value}
-                          onClick={() => handleLanguageChange(opt.value)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <span>{opt.flag}</span>
-                          <span>{opt.label}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TooltipTrigger>
+                <DropdownMenu>
+                  <TooltipTrigger
+                    render={
+                      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    }
+                  >
+                    <Globe className="h-4 w-4" />
+                    <span className="hidden sm:inline">{langOptions.find((opt) => opt.value === currentLang)?.label}</span>
+                  </TooltipTrigger>
+                  <DropdownMenuContent align="end" className="min-w-32">
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-border mb-1">
+                      {t("settingsPage.language.title")}
+                    </div>
+                    {langOptions.map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleLanguageChange(opt.value)}
+                        className="gap-2 cursor-pointer"
+                      >
+                        <span>{opt.flag}</span>
+                        <span>{opt.label}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <TooltipContent side="bottom">{t("settingsPage.language.title")}</TooltipContent>
               </Tooltip>
             </nav>
