@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { motion } from "framer-motion"
 import { Activity } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +17,8 @@ interface ActivityHeatmapProps {
 }
 
 export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) {
+  const { t } = useTranslation()
+
   const { grid, maxCount, totalDays } = useMemo(() => {
     const dayMap = new Map<string, { count: number; wpm: number }>()
     for (const s of sessions) {
@@ -80,7 +83,15 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
     return "bg-emerald-300/50 dark:bg-emerald-400/25"
   }
 
-  const dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""]
+  const dayLabels = [
+    "",
+    t("activityHeatmap.dayLabels.mon"),
+    "",
+    t("activityHeatmap.dayLabels.wed"),
+    "",
+    t("activityHeatmap.dayLabels.fri"),
+    "",
+  ]
 
   return (
     <motion.div
@@ -94,10 +105,14 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10">
             <Activity className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">Activity</h3>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight">
+            {t("activityHeatmap.title")}
+          </h3>
         </div>
         <span className="text-xs text-muted-foreground">
-          <span className="font-mono font-semibold text-foreground">{activeDays}</span> active days
+          <span className="font-mono font-semibold text-foreground">{activeDays}</span>
+          {" "}
+          {t("activityHeatmap.activeDays", { count: activeDays })}
         </span>
       </div>
 
@@ -114,7 +129,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
           className="grid flex-1 gap-[5px]"
           style={{ gridTemplateColumns: `repeat(${grid.length}, 1fr)` }}
           role="img"
-          aria-label="Activity heatmap showing practice sessions over time"
+          aria-label={t("activityHeatmap.ariaLabel")}
         >
           {grid.map((week, wi) => (
             <div key={wi} className="grid gap-[5px]" style={{ gridTemplateRows: "repeat(7, 1fr)" }}>
@@ -139,10 +154,15 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
                     </div>
                     {day.count > 0 ? (
                       <div className="text-muted-foreground">
-                        {day.count} session{day.count !== 1 ? "s" : ""} · best {day.wpm} wpm
+                        {t("activityHeatmap.tooltip.sessions", {
+                          n: day.count,
+                          wpm: day.wpm,
+                        })}
                       </div>
                     ) : (
-                      <div className="text-muted-foreground">No sessions</div>
+                      <div className="text-muted-foreground">
+                        {t("activityHeatmap.tooltip.noSessions")}
+                      </div>
                     )}
                   </TooltipContent>
                 </Tooltip>
@@ -153,13 +173,17 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-auto pt-3">
-        <span className="text-[10px] text-muted-foreground mr-0.5">Less</span>
+        <span className="text-[10px] text-muted-foreground mr-0.5">
+          {t("activityHeatmap.legend.less")}
+        </span>
         <div className="h-3.5 w-3.5 rounded bg-secondary/40 dark:bg-secondary/30" />
         <div className="h-3.5 w-3.5 rounded bg-emerald-300/50 dark:bg-emerald-400/25" />
         <div className="h-3.5 w-3.5 rounded bg-emerald-400/50 dark:bg-emerald-400/40" />
         <div className="h-3.5 w-3.5 rounded bg-emerald-400/80 dark:bg-emerald-400/70" />
         <div className="h-3.5 w-3.5 rounded bg-emerald-500 dark:bg-emerald-500" />
-        <span className="text-[10px] text-muted-foreground ml-0.5">More</span>
+        <span className="text-[10px] text-muted-foreground ml-0.5">
+          {t("activityHeatmap.legend.more")}
+        </span>
       </div>
     </motion.div>
   )

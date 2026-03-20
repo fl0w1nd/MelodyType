@@ -14,6 +14,7 @@ import {
   Zap,
   Music,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import type { KeyConfidence } from "@/engine/typing/adaptiveEngine"
 import {
@@ -26,6 +27,8 @@ import {
 } from "@/engine/typing/adaptiveEngine"
 
 export function AdaptiveProgressCard() {
+  const { t } = useTranslation()
+
   useEffect(() => {
     void ensureAdaptiveAccuracyStatsBackfilled()
   }, [])
@@ -37,7 +40,6 @@ export function AdaptiveProgressCard() {
 
     const unlocked = adaptiveState.keyConfidences.filter((k) => k.unlocked)
     const mastered = unlocked.filter((k) => isKeyStrictlyMastered(k))
-    const learning = unlocked.filter((k) => k.confidence > 0 && k.bestConfidence < 1.0)
     const avgConfidence =
       unlocked.length > 0
         ? unlocked.reduce((sum, k) => sum + k.confidence, 0) / unlocked.length
@@ -54,7 +56,6 @@ export function AdaptiveProgressCard() {
     return {
       unlocked,
       mastered,
-      learning,
       avgConfidence,
       averageSpeed: adaptiveState.globalSummary.speed.avg,
       averageAccuracy: adaptiveState.globalSummary.accuracy.avg,
@@ -84,7 +85,7 @@ export function AdaptiveProgressCard() {
               <Brain className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
             </div>
             <h3 className="text-sm font-semibold text-foreground tracking-tight">
-              Adaptive Progress
+              {t("adaptiveProgressCard.title")}
             </h3>
           </div>
         </div>
@@ -92,8 +93,12 @@ export function AdaptiveProgressCard() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10 mb-4">
             <Brain className="h-6 w-6 text-purple-500/60" />
           </div>
-          <p className="text-sm font-medium text-foreground/80">Adaptive mode tracks your progress</p>
-          <p className="text-xs text-muted-foreground mt-1.5 max-w-[240px]">Switch to Adaptive mode on the Practice page — the system will learn your strengths and focus on keys you need to improve</p>
+          <p className="text-sm font-medium text-foreground/80">
+            {t("adaptiveProgressCard.empty")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-[240px]">
+            {t("adaptiveProgressCard.emptyDesc")}
+          </p>
         </div>
       </motion.div>
     )
@@ -112,12 +117,12 @@ export function AdaptiveProgressCard() {
             <Brain className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
           </div>
           <h3 className="text-sm font-semibold text-foreground tracking-tight">
-            Adaptive Progress
+            {t("adaptiveProgressCard.title")}
           </h3>
         </div>
         <span className="text-xs text-muted-foreground">
           <span className="font-mono font-semibold text-foreground">{stats.totalSessions}</span>{" "}
-          sessions
+          {t("adaptiveProgressCard.sessions", { count: stats.totalSessions })}
         </span>
       </div>
 
@@ -133,48 +138,48 @@ export function AdaptiveProgressCard() {
                 </span>
               </>
             }
-            label="Unlocked"
+            label={t("adaptiveProgressCard.pills.unlocked")}
           />
           <StatPill
             icon={<Star className="h-3.5 w-3.5 text-amber-500" />}
             value={stats.mastered.length}
-            label="Mastered"
+            label={t("adaptiveProgressCard.pills.mastered")}
           />
           <StatPill
             icon={<TrendingUp className="h-3.5 w-3.5 text-blue-500" />}
             value={`${Math.round(stats.avgConfidence * 100)}%`}
-            label="Confidence"
+            label={t("adaptiveProgressCard.pills.confidence")}
           />
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           <MetricPill
-            label="Speed"
+            label={t("adaptiveProgressCard.metrics.speed")}
             value={`${stats.totalSessions > 0 ? stats.averageSpeed.toFixed(1) : "—"} wpm`}
             icon={<Gauge className="h-3.5 w-3.5 text-amber-500" />}
           />
           <MetricPill
-            label="Accuracy"
+            label={t("adaptiveProgressCard.metrics.accuracy")}
             value={stats.totalSessions > 0 ? `${stats.averageAccuracy.toFixed(1)}%` : "—"}
             icon={<Target className="h-3.5 w-3.5 text-emerald-500" />}
           />
           <MetricPill
-            label="Score"
+            label={t("adaptiveProgressCard.metrics.score")}
             value={stats.totalSessions > 0 ? stats.averageScore.toFixed(0) : "—"}
             icon={<TrendingUp className="h-3.5 w-3.5 text-blue-500" />}
           />
           <MetricPill
-            label="Integrity"
+            label={t("adaptiveProgressCard.metrics.integrity")}
             value={stats.integritySamples > 0 ? `${stats.averageIntegrity.toFixed(0)}%` : "—"}
             icon={<Music className="h-3.5 w-3.5 text-sky-500" />}
           />
           <MetricPill
-            label="Clicks"
+            label={t("adaptiveProgressCard.metrics.clicks")}
             value={stats.totalSessions > 0 ? stats.totalClicks.toFixed(0) : "—"}
             icon={<Keyboard className="h-3.5 w-3.5 text-violet-500" />}
           />
           <MetricPill
-            label="CPS"
+            label={t("adaptiveProgressCard.metrics.cps")}
             value={stats.totalSessions > 0 ? `${stats.averageCps.toFixed(1)}` : "—"}
             icon={<Zap className="h-3.5 w-3.5 text-rose-500" />}
           />
@@ -182,7 +187,9 @@ export function AdaptiveProgressCard() {
 
         <div>
           <div className="flex items-center justify-between text-xs mb-2.5">
-            <span className="text-muted-foreground font-medium">Key Confidence Map</span>
+            <span className="text-muted-foreground font-medium">
+              {t("adaptiveProgressCard.keyConfidenceMap")}
+            </span>
             {stats.focusKey && (
               <div className="flex items-center gap-1 text-primary">
                 <Crosshair className="h-3 w-3" />
@@ -228,7 +235,7 @@ export function AdaptiveProgressCard() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 block">
-                Weakest Keys
+                {t("adaptiveProgressCard.weakestKeys")}
               </span>
               <div className="space-y-1.5">
                 {stats.weakest.map((kc) => (
@@ -238,7 +245,7 @@ export function AdaptiveProgressCard() {
             </div>
             <div>
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 block">
-                Strongest Keys
+                {t("adaptiveProgressCard.strongestKeys")}
               </span>
               <div className="space-y-1.5">
                 {stats.strongest.map((kc) => (
@@ -250,11 +257,11 @@ export function AdaptiveProgressCard() {
         )}
 
         <div className="flex items-center justify-center gap-3 pt-2 border-t border-border/30">
-          <LegendDot color="bg-red-500/60" label="Weak" />
-          <LegendDot color="bg-amber-500/60" label="Learning" />
-          <LegendDot color="bg-blue-500/60" label="Good" />
-          <LegendDot color="bg-emerald-500/60" label="Mastered" />
-          <LegendDot color="bg-muted/40" label="Locked" />
+          <LegendDot color="bg-red-500/60" label={t("adaptiveProgressCard.legend.weak")} />
+          <LegendDot color="bg-amber-500/60" label={t("adaptiveProgressCard.legend.learning")} />
+          <LegendDot color="bg-blue-500/60" label={t("adaptiveProgressCard.legend.good")} />
+          <LegendDot color="bg-emerald-500/60" label={t("adaptiveProgressCard.legend.mastered")} />
+          <LegendDot color="bg-muted/40" label={t("adaptiveProgressCard.legend.locked")} />
         </div>
       </div>
     </motion.div>

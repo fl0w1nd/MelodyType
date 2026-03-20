@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { motion } from "framer-motion"
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { History, Gauge, Target, Clock } from "lucide-react"
@@ -8,14 +9,27 @@ import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMet
 
 interface SessionHistoryProps {
   sessions: TypingSession[]
-  title?: string
 }
 
-export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionHistoryProps) {
+export function SessionHistory({ sessions }: SessionHistoryProps) {
+  const { t } = useTranslation()
   const recent = useMemo(
     () => [...sessions].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20),
     [sessions],
   )
+
+  const formatTimeAgo = (timestamp: number): string => {
+    const diff = Date.now() - timestamp
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+
+    if (minutes < 1) return t("sessionHistory.timeAgo.justNow")
+    if (minutes < 60) return t("sessionHistory.timeAgo.minutesAgo", { n: minutes })
+    if (hours < 24) return t("sessionHistory.timeAgo.hoursAgo", { n: hours })
+    if (days < 7) return t("sessionHistory.timeAgo.daysAgo", { n: days })
+    return new Date(timestamp).toLocaleDateString()
+  }
 
   return (
     <motion.div
@@ -29,10 +43,12 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10">
             <History className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight">
+            {t("sessionHistory.title")}
+          </h3>
         </div>
         <span className="text-xs text-muted-foreground">
-          Last <span className="font-mono font-semibold text-foreground">{recent.length}</span>
+          {t("sessionHistory.last", { n: recent.length })}
         </span>
       </div>
 
@@ -42,8 +58,10 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 mb-4">
               <History className="h-6 w-6 text-violet-500/60" />
             </div>
-            <p className="text-sm font-medium text-foreground/80">No sessions yet</p>
-            <p className="text-xs text-muted-foreground mt-1.5 max-w-[200px]">Complete a typing session on the Practice page to see your history here</p>
+            <p className="text-sm font-medium text-foreground/80">{t("sessionHistory.empty")}</p>
+            <p className="text-xs text-muted-foreground mt-1.5 max-w-[200px]">
+              {t("sessionHistory.emptyDesc")}
+            </p>
           </div>
         ) : (
           <ScrollArea className="h-80">
@@ -51,49 +69,49 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
               {recent.map((session, i) => {
                 const accuracy = computeStoredSessionAccuracyMetrics(session).accuracy
                 return (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    delay: 0.15 + i * 0.03,
-                    duration: 0.3,
-                    ease: [0.25, 1, 0.5, 1],
-                  }}
-                  className="flex items-center gap-3 rounded-xl border border-border/30 bg-background/40 p-3 transition-all duration-250 ease-out hover:bg-secondary/40 hover:border-border/50 hover:shadow-sm hover:shadow-black/[0.02]"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        className="text-[9px] capitalize font-medium px-2 py-0.5 rounded-md"
-                      >
-                        {session.mode}
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        {formatTimeAgo(session.timestamp)}
-                      </span>
+                  <motion.div
+                    key={session.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: 0.15 + i * 0.03,
+                      duration: 0.3,
+                      ease: [0.25, 1, 0.5, 1],
+                    }}
+                    className="flex items-center gap-3 rounded-xl border border-border/30 bg-background/40 p-3 transition-all duration-250 ease-out hover:bg-secondary/40 hover:border-border/50 hover:shadow-sm hover:shadow-black/[0.02]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="text-[9px] capitalize font-medium px-2 py-0.5 rounded-md"
+                        >
+                          {session.mode}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatTimeAgo(session.timestamp)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3.5 text-xs">
-                    <div className="flex items-center gap-1">
-                      <Gauge className="h-3 w-3 text-amber-500" />
-                      <span className="font-mono font-semibold tabular-nums">
-                        {Math.round(session.wpm)}
-                      </span>
+                    <div className="flex items-center gap-3.5 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Gauge className="h-3 w-3 text-amber-500" />
+                        <span className="font-mono font-semibold tabular-nums">
+                          {Math.round(session.wpm)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Target className="h-3 w-3 text-emerald-500" />
+                        <span className="font-mono font-semibold tabular-nums">
+                          {accuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span className="font-mono tabular-nums">{session.duration}s</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Target className="h-3 w-3 text-emerald-500" />
-                      <span className="font-mono font-semibold tabular-nums">
-                        {accuracy.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span className="font-mono tabular-nums">{session.duration}s</span>
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
                 )
               })}
             </div>
@@ -102,17 +120,4 @@ export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionH
       </div>
     </motion.div>
   )
-}
-
-function formatTimeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 1) return "Just now"
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days < 7) return `${days}d ago`
-  return new Date(timestamp).toLocaleDateString()
 }

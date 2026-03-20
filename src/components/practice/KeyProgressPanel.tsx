@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -80,6 +81,7 @@ function KeyProgressPanelInner({
   onTargetChange,
   onRecoverChange,
 }: KeyProgressPanelProps) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [unlockPromptKey, setUnlockPromptKey] = useState<string | null>(null)
@@ -190,7 +192,7 @@ function KeyProgressPanelInner({
               <Star className="h-3.5 w-3.5 text-amber-500" />
               <span className="text-xs font-medium">
                 <span className="text-foreground">{masteredCount}</span>
-                <span className="text-muted-foreground"> mastered</span>
+                <span className="text-muted-foreground"> {t("keyProgressPanel.mastered")}</span>
               </span>
             </div>
             <div className="w-px h-5 bg-border/60" />
@@ -199,7 +201,8 @@ function KeyProgressPanelInner({
                 <div className="flex items-center gap-1.5">
                   <Crosshair className="h-3.5 w-3.5 text-primary" />
                   <span className="text-xs font-medium">
-                    Focus: <span className="font-mono text-primary">{focusKey.toUpperCase()}</span>
+                    {t("keyProgressPanel.focus")}{" "}
+                    <span className="font-mono text-primary">{focusKey.toUpperCase()}</span>
                   </span>
                 </div>
                 <FocusThresholds
@@ -213,7 +216,7 @@ function KeyProgressPanelInner({
             ) : (
               <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                 <CircleCheck className="h-3.5 w-3.5" />
-                Ready for next unlock
+                {t("keyProgressPanel.readyForUnlock")}
               </div>
             )}
           </div>
@@ -227,16 +230,16 @@ function KeyProgressPanelInner({
               className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <SlidersHorizontal className="h-3 w-3" />
-              Options
+              {t("keyProgressPanel.options")}
             </button>
             <span className="rounded-full border border-border/50 bg-background/70 px-2 py-1 text-[10px] font-mono text-muted-foreground">
-              Round {roundNumber}
+              {t("keyProgressPanel.round", { n: roundNumber })}
             </span>
             <button
               onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {expanded ? "Collapse" : "Details"}
+              {expanded ? t("keyProgressPanel.collapse") : t("keyProgressPanel.details")}
               {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           </div>
@@ -257,9 +260,11 @@ function KeyProgressPanelInner({
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium text-foreground">Adaptive Practice</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {t("keyProgressPanel.title")}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Fine-tune mastery targets without leaving practice.
+                    {t("keyProgressPanel.subtitle")}
                   </div>
                 </div>
                 <Badge variant="secondary" className="font-mono text-xs">
@@ -280,7 +285,7 @@ function KeyProgressPanelInner({
                     >
                       <span className="text-xs font-medium">
                         {preset.label}
-                        {preset.cpm === DEFAULT_TARGET_CPM && " · Default"}
+                        {preset.cpm === DEFAULT_TARGET_CPM && ` ${t("keyProgressPanel.defaultSuffix")}`}
                       </span>
                       <span className="font-mono text-[11px]">{preset.cpm} CPM</span>
                       <span className="text-[10px] opacity-70">{preset.description}</span>
@@ -302,9 +307,11 @@ function KeyProgressPanelInner({
               <div className="rounded-xl border border-border/50 bg-secondary/30 px-3 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium text-foreground">Require Current Mastery</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {t("keyProgressPanel.requireCurrentMastery")}
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      New keys unlock only if your currently unlocked keys still meet the target, not just their historical best.
+                      {t("keyProgressPanel.requireCurrentMasteryDesc")}
                     </div>
                   </div>
                   <Switch
@@ -321,7 +328,7 @@ function KeyProgressPanelInner({
       <div className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5">
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4 xl:grid-cols-7">
           <InlineMetric
-            label="Speed"
+            label={t("keyProgressPanel.stats.speed")}
             value={formatSummaryValue(hasSummaryData, globalSummary.speed.last, "wpm", 1)}
             icon={<Gauge className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.speed.delta, "wpm", 1) : undefined}
@@ -329,42 +336,42 @@ function KeyProgressPanelInner({
             accent
           />
           <InlineMetric
-            label="Accuracy"
+            label={t("keyProgressPanel.stats.accuracy")}
             value={formatSummaryValue(hasSummaryData, globalSummary.accuracy.last, "%", 1)}
             icon={<Target className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.accuracy.delta, "%", 1) : undefined}
             deltaValue={globalSummary.accuracy.delta}
           />
           <InlineMetric
-            label="Score"
+            label={t("keyProgressPanel.stats.score")}
             value={formatSummaryValue(hasSummaryData, globalSummary.score.last, "", 0)}
             icon={<TrendingUp className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.score.delta, "", 0) : undefined}
             deltaValue={globalSummary.score.delta}
-            tooltip="Combined performance score factoring both speed and accuracy"
+            tooltip={t("keyProgressPanel.scoreTooltip")}
           />
           <InlineMetric
-            label="Integrity"
+            label={t("keyProgressPanel.stats.integrity")}
             value={formatSummaryValue(hasIntegrityData, globalSummary.integrity.last, "%", 0)}
             icon={<Music className="h-3 w-3" />}
             delta={showIntegrityDelta ? formatDelta(globalSummary.integrity.delta, "%", 0) : undefined}
             deltaValue={globalSummary.integrity.delta}
-            tooltip="Melody integrity — how well your typing rhythm maintains the musical flow"
+            tooltip={t("keyProgressPanel.integrityTooltip")}
           />
           <InlineMetric
-            label="Target"
+            label={t("keyProgressPanel.stats.target")}
             value={`${targetCpm} cpm`}
             icon={<Activity className="h-3 w-3" />}
           />
           <InlineMetric
-            label="Clicks"
+            label={t("keyProgressPanel.stats.clicks")}
             value={formatSummaryValue(hasSummaryData, globalSummary.clicks.last, "", 0)}
             icon={<Keyboard className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.clicks.delta, "", 0) : undefined}
             deltaValue={globalSummary.clicks.delta}
           />
           <InlineMetric
-            label="CPS"
+            label={t("keyProgressPanel.stats.cps")}
             value={formatSummaryValue(hasSummaryData, globalSummary.cps.last, "cps", 1)}
             icon={<Zap className="h-3 w-3" />}
             delta={showDelta ? formatDelta(globalSummary.cps.delta, "cps", 1) : undefined}
@@ -398,7 +405,7 @@ function KeyProgressPanelInner({
             title={
               kc.unlocked
                 ? `${kc.key.toUpperCase()}: ${Math.round(kc.speed * 5)} CPM (target ${targetCpm}), ${Math.round(kc.confidence * 100)}% of target`
-                : `${kc.key.toUpperCase()}: Locked · click to unlock manually`
+                : t("keyProgressPanel.lockedTitle", { key: kc.key.toUpperCase() })
             }
           >
             {kc.unlocked ? kc.key.toUpperCase() : <Lock className="h-2.5 w-2.5" />}
@@ -418,47 +425,47 @@ function KeyProgressPanelInner({
             <div className="mt-3 space-y-4 px-1">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 <SummaryMetricCard
-                  label="Average Speed"
+                  label={t("keyProgressPanel.summary.avgSpeed")}
                   value={formatSummaryValue(hasSummaryData, globalSummary.speed.avg, "wpm", 1)}
                   icon={<Gauge className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Average Accuracy"
+                  label={t("keyProgressPanel.summary.avgAccuracy")}
                   value={formatSummaryValue(hasSummaryData, globalSummary.accuracy.avg, "%", 1)}
                   icon={<Target className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Average Score"
+                  label={t("keyProgressPanel.summary.avgScore")}
                   value={formatSummaryValue(hasSummaryData, globalSummary.score.avg, "", 0)}
                   icon={<TrendingUp className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Average Melody Integrity"
+                  label={t("keyProgressPanel.summary.avgIntegrity")}
                   value={formatSummaryValue(hasIntegrityData, globalSummary.integrity.avg, "%", 0)}
                   icon={<Music className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Adaptive Sessions"
+                  label={t("keyProgressPanel.summary.sessions")}
                   value={String(totalSessions)}
                   icon={<Clock className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Total Clicks"
+                  label={t("keyProgressPanel.summary.totalClicks")}
                   value={formatSummaryValue(hasSummaryData, globalSummary.clicks.total, "", 0)}
                   icon={<Keyboard className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Average CPS"
+                  label={t("keyProgressPanel.summary.avgCps")}
                   value={formatSummaryValue(hasSummaryData, globalSummary.cps.avg, "cps", 1)}
                   icon={<Zap className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Average Confidence"
+                  label={t("keyProgressPanel.summary.avgConfidence")}
                   value={`${Math.round(avgConfidence * 100)}%`}
                   icon={<Activity className="h-3.5 w-3.5" />}
                 />
                 <SummaryMetricCard
-                  label="Unlock Readiness"
+                  label={t("keyProgressPanel.summary.unlockReadiness")}
                   value={`${readyToUnlockCount}/${progressionKeys.length || 0} keys ready`}
                   icon={<CircleCheck className="h-3.5 w-3.5" />}
                 />
@@ -467,11 +474,15 @@ function KeyProgressPanelInner({
               <div className="rounded-xl border border-border/40 bg-background/40 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="text-xs font-medium text-foreground">Unlock Readiness</div>
+                    <div className="text-xs font-medium text-foreground">
+                      {t("keyProgressPanel.summary.unlockReadiness")}
+                    </div>
                     <div className="text-[11px] text-muted-foreground">
                       {readyToUnlockCount === progressionKeys.length
-                        ? "All active keys meet the next unlock requirements."
-                        : `${blockingKeys.length} key${blockingKeys.length === 1 ? "" : "s"} still blocking the next letter.`}
+                        ? t("keyProgressPanel.unlockReadiness.allMet")
+                        : t("keyProgressPanel.unlockReadiness.blocking", {
+                            count: blockingKeys.length,
+                          })}
                     </div>
                   </div>
                   {blockingKeys.length > 0 && (
@@ -485,7 +496,7 @@ function KeyProgressPanelInner({
                       ))}
                       {blockingKeys.length > 4 && (
                         <span className="self-center text-[10px] text-muted-foreground">
-                          +{blockingKeys.length - 4} more
+                          {t("keyProgressPanel.moreBlockers", { n: blockingKeys.length - 4 })}
                         </span>
                       )}
                     </div>
@@ -494,7 +505,9 @@ function KeyProgressPanelInner({
               </div>
 
               <div className="space-y-2">
-                <span className="text-xs text-muted-foreground font-medium">Unlocked Keys</span>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {t("keyProgressPanel.unlockedKeys")}
+                </span>
                 <div className="grid gap-2 lg:grid-cols-2">
                   {unlockedKeys.map((kc) => (
                     <KeyStatCard
@@ -511,10 +524,10 @@ function KeyProgressPanelInner({
               {lockedKeys.length > 0 && (
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground font-medium">
-                    Next to Unlock
+                    {t("keyProgressPanel.nextToUnlock")}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
-                    Locked keys above can be unlocked manually.
+                    {t("keyProgressPanel.lockedManualHint")}
                   </span>
                   <div className="flex gap-1.5 flex-wrap">
                     {lockedKeys.slice(0, 5).map((kc) => (
@@ -530,7 +543,7 @@ function KeyProgressPanelInner({
                     ))}
                     {lockedKeys.length > 5 && (
                       <span className="text-[10px] text-muted-foreground/40 self-center">
-                        +{lockedKeys.length - 5} more
+                        {t("keyProgressPanel.moreBlockers", { n: lockedKeys.length - 5 })}
                       </span>
                     )}
                   </div>
@@ -546,22 +559,26 @@ function KeyProgressPanelInner({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Unlock {unlockPromptKey?.toUpperCase()} early?
+              {t("keyProgressPanel.unlockDialog.title", {
+                key: unlockPromptKey?.toUpperCase() ?? "",
+              })}
             </DialogTitle>
             <DialogDescription>
-              Manual unlocks skip the normal progression gate for this key. It will join practice immediately and the current adaptive round will restart with the updated key set.
+              {t("keyProgressPanel.unlockDialog.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUnlockPromptKey(null)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="default"
               onClick={handleConfirmUnlock}
               disabled={!unlockPromptKey || unlockingKey === unlockPromptKey}
             >
-              {unlockingKey === unlockPromptKey ? "Unlocking..." : "Unlock Key"}
+              {unlockingKey === unlockPromptKey
+                ? t("keyProgressPanel.unlockDialog.unlocking")
+                : t("keyProgressPanel.unlockDialog.unlock")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -581,6 +598,7 @@ function KeyStatCard({
   targetCpm: number
   recoverKeys: boolean
 }) {
+  const { t } = useTranslation()
   const ewmaCpm = Math.round(keyConf.speed * 5)
   const bestCpm = Math.round(keyConf.bestConfidence * targetCpm)
   const checks = getKeyUnlockChecks(keyConf, recoverKeys)
@@ -630,13 +648,13 @@ function KeyStatCard({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-        <StatChip label="Current" value={`${ewmaCpm} cpm`} />
-        <StatChip label="Best" value={`${bestCpm} cpm`} />
-        <StatChip label="Recent" value={`${keyConf.accuracy.toFixed(0)}%`} />
-        <StatChip label="Lifetime" value={`${keyConf.lifetimeAccuracy.toFixed(0)}%`} />
-        <StatChip label="Hits" value={`${keyConf.samples}`} />
+        <StatChip label={t("keyProgressPanel.keyStats.current")} value={`${ewmaCpm} cpm`} />
+        <StatChip label={t("keyProgressPanel.keyStats.best")} value={`${bestCpm} cpm`} />
+        <StatChip label={t("keyProgressPanel.keyStats.recent")} value={`${keyConf.accuracy.toFixed(0)}%`} />
+        <StatChip label={t("keyProgressPanel.keyStats.lifetime")} value={`${keyConf.lifetimeAccuracy.toFixed(0)}%`} />
+        <StatChip label={t("keyProgressPanel.keyStats.hits")} value={`${keyConf.samples}`} />
         <StatChip
-          label="Forecast"
+          label={t("keyProgressPanel.keyStats.forecast")}
           value={
             keyConf.learningRate?.remainingLessons != null
               ? `~${keyConf.learningRate.remainingLessons}`
@@ -646,14 +664,24 @@ function KeyStatCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <GateChip label={`Target ${targetCpm} cpm`} met={checks.speed} />
-        <GateChip label={`${MIN_HITS_FOR_MASTERY}+ hits`} met={checks.hits} />
         <GateChip
-          label={`${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}% recent`}
+          label={t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm })}
+          met={checks.speed}
+        />
+        <GateChip
+          label={t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY })}
+          met={checks.hits}
+        />
+        <GateChip
+          label={t("keyProgressPanel.gates.recentRate", {
+            n: Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100),
+          })}
           met={checks.recentAccuracy}
         />
         <GateChip
-          label={`${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}% lifetime`}
+          label={t("keyProgressPanel.gates.lifetimeRate", {
+            n: Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100),
+          })}
           met={checks.lifetimeAccuracy}
         />
       </div>
@@ -813,6 +841,7 @@ function FocusThresholds({
   inline?: boolean
   className?: string
 }) {
+  const { t } = useTranslation()
   const focus = focusKey
     ? keyConfidences.find((kc) => kc.key === focusKey)
     : null
@@ -827,7 +856,7 @@ function FocusThresholds({
           className,
         )}
       >
-        All currently unlocked keys meet the adaptive unlock thresholds.
+        {t("keyProgressPanel.allKeysReady")}
       </div>
     )
   }
@@ -835,19 +864,23 @@ function FocusThresholds({
   const unlockChecks = getKeyUnlockChecks(focus, recoverKeys)
   const checks = [
     {
-      label: `Target ${targetCpm} CPM`,
+      label: t("keyProgressPanel.gates.targetCpm", { cpm: targetCpm }),
       met: unlockChecks.speed,
     },
     {
-      label: `${MIN_HITS_FOR_MASTERY}+ hits`,
+      label: t("keyProgressPanel.gates.minHits", { n: MIN_HITS_FOR_MASTERY }),
       met: unlockChecks.hits,
     },
     {
-      label: `${Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100)}% recent`,
+      label: t("keyProgressPanel.gates.recentRate", {
+        n: Math.round(MIN_RECENT_ACCURACY_FOR_MASTERY * 100),
+      }),
       met: unlockChecks.recentAccuracy,
     },
     {
-      label: `${Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100)}% lifetime`,
+      label: t("keyProgressPanel.gates.lifetimeRate", {
+        n: Math.round(MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100),
+      }),
       met: unlockChecks.lifetimeAccuracy,
     },
   ]
@@ -864,7 +897,7 @@ function FocusThresholds({
       {!inline && (
         <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Crosshair className="h-3.5 w-3.5 text-primary" />
-          Focus Key Thresholds
+          {t("keyProgressPanel.focusKeyThresholds")}
           <span className="font-mono text-primary">{focus.key.toUpperCase()}</span>
         </div>
       )}
