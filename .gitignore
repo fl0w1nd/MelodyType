@@ -9,3 +9,4 @@ local/
 scripts/
 /worktrees
 .cache/
+.vercel
