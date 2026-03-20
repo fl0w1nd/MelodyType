@@ -15,6 +15,7 @@ import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap"
 import { formatLocalDateKey } from "@/lib/date"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 import { loadAllBigramScores, backfillBigramStatsFromHistory } from "@/engine/typing/adaptiveEngine"
+import { buildDashboardKeyStats } from "@/components/dashboard/dashboardUtils"
 
 type DashboardMode = "adaptive" | "time" | "quote"
 
@@ -37,13 +38,26 @@ export default function DashboardPage() {
 
   const today = formatLocalDateKey()
   const todayGoal = dailyGoals.find((goal) => goal.date === today)
-  const todaySessions = sessions.filter(
-    (session) => formatLocalDateKey(new Date(session.timestamp)) === today,
+  const todaySessions = useMemo(
+    () =>
+      sessions.filter(
+        (session) => formatLocalDateKey(new Date(session.timestamp)) === today,
+      ),
+    [sessions, today],
   )
 
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
   const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null)
   const bigramScores = useLiveQuery(() => loadAllBigramScores(), [], [])
+
+  const sessionsByMode = useMemo(() => {
+    const map: Record<DashboardMode, TypingSession[]> = { adaptive: [], time: [], quote: [] }
+    for (const s of sessions) {
+      const bucket = map[s.mode as DashboardMode]
+      if (bucket) bucket.push(s)
+    }
+    return map
+  }, [sessions])
 
   useEffect(() => {
     void backfillBigramStatsFromHistory()
@@ -93,6 +107,11 @@ export default function DashboardPage() {
     setSelectedKeyOverride(key)
   }, [])
 
+  const keyStatsMap = useMemo(
+    () => buildDashboardKeyStats(sessionsByMode[selectedMode]),
+    [sessionsByMode, selectedMode],
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <StatsOverview sessions={sessions} dailyGoals={dailyGoals} />
@@ -131,23 +150,25 @@ export default function DashboardPage() {
             {mode === "adaptive" && <AdaptiveProgressCard />}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <WpmChart sessions={sessions.filter((s) => s.mode === mode)} />
-              <AccuracyChart sessions={sessions.filter((s) => s.mode === mode)} />
+              <WpmChart sessions={sessionsByMode[mode]} />
+              <AccuracyChart sessions={sessionsByMode[mode]} />
             </div>
 
             <KeyboardHeatmap
-              sessions={sessions.filter((s) => s.mode === mode)}
+              sessions={sessionsByMode[mode]}
               selectedKey={selectedKey}
               onKeySelect={handleKeySelect}
               bigramScores={mode === "adaptive" ? bigramScores : undefined}
+              keyStatsMap={mode === selectedMode ? keyStatsMap : undefined}
             >
               <KeyDetailPanel
-                sessions={sessions.filter((s) => s.mode === mode)}
+                sessions={sessionsByMode[mode]}
                 selectedKey={selectedKey}
+                keyStatsMap={mode === selectedMode ? keyStatsMap : undefined}
               />
             </KeyboardHeatmap>
 
-            <SessionHistory sessions={sessions.filter((s) => s.mode === mode)} />
+            <SessionHistory sessions={sessionsByMode[mode]} />
           </TabsContent>
         ))}
       </Tabs>

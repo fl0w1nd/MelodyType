@@ -15,15 +15,19 @@ import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
-import { buildDashboardKeyStats } from "./dashboardUtils"
+import { buildDashboardKeyStats, type DashboardKeyStats } from "./dashboardUtils"
 
 interface KeyDetailPanelProps {
   sessions: TypingSession[]
   selectedKey: string | null
+  keyStatsMap?: Map<string, DashboardKeyStats>
 }
 
-export function KeyDetailPanel({ sessions, selectedKey }: KeyDetailPanelProps) {
-  const perKeyData = useMemo(() => buildDashboardKeyStats(sessions), [sessions])
+export function KeyDetailPanel({ sessions, selectedKey, keyStatsMap }: KeyDetailPanelProps) {
+  const perKeyData = useMemo(
+    () => keyStatsMap ?? buildDashboardKeyStats(sessions),
+    [keyStatsMap, sessions],
+  )
   const selected = selectedKey ? perKeyData.get(selectedKey) : undefined
 
   if (!selectedKey || !selected) return null

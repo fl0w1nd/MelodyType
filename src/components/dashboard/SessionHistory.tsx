@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -11,7 +12,10 @@ interface SessionHistoryProps {
 }
 
 export function SessionHistory({ sessions, title = "Recent Sessions" }: SessionHistoryProps) {
-  const recent = [...sessions].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20)
+  const recent = useMemo(
+    () => [...sessions].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20),
+    [sessions],
+  )
 
   return (
     <motion.div

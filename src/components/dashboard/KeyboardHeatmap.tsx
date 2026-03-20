@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 import type { BigramScore } from "@/engine/typing/adaptiveEngine"
-import { buildDashboardKeyStats } from "./dashboardUtils"
+import { buildDashboardKeyStats, type DashboardKeyStats } from "./dashboardUtils"
 
 const fullKeyboardLayout = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -50,6 +50,7 @@ interface KeyboardHeatmapProps {
   selectedKey?: string | null
   onKeySelect?: (key: string) => void
   bigramScores?: BigramScore[]
+  keyStatsMap?: Map<string, DashboardKeyStats>
   children?: React.ReactNode
 }
 
@@ -58,6 +59,7 @@ export function KeyboardHeatmap({
   selectedKey = null,
   onKeySelect,
   bigramScores,
+  keyStatsMap: keyStatsMapProp,
   children,
 }: KeyboardHeatmapProps) {
   const [activeTab, setActiveTab] = useState<HeatmapTab>("false")
@@ -117,7 +119,11 @@ export function KeyboardHeatmap({
 
   // ── False / Frequency stats ─────────────────────────────────────────
 
-  const keyStatsMap = useMemo(() => buildDashboardKeyStats(sessions), [sessions])
+  const keyStatsMapLocal = useMemo(
+    () => keyStatsMapProp ?? buildDashboardKeyStats(sessions),
+    [keyStatsMapProp, sessions],
+  )
+  const keyStatsMap = keyStatsMapLocal
 
   const maxFalseRate = useMemo(() => {
     const values = [...keyStatsMap.values()]
