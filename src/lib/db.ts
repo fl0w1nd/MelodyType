@@ -164,7 +164,24 @@ export async function exportAllData(): Promise<string> {
 }
 
 export async function importAllData(jsonStr: string): Promise<void> {
-  const data = JSON.parse(jsonStr)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let data: Record<string, any>
+  try {
+    data = JSON.parse(jsonStr)
+  } catch {
+    throw new Error("备份文件不是有效的 JSON 格式")
+  }
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new Error("备份文件格式不正确")
+  }
+
+  const validKeys = ["sessions", "keyStats", "bigramStats", "midiFiles", "settings", "dailyGoals"]
+  for (const key of validKeys) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) {
+      throw new Error(`备份数据中 "${key}" 字段格式不正确，应为数组`)
+    }
+  }
 
   await db.transaction(
     "rw",
