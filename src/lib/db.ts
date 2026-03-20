@@ -102,20 +102,6 @@ class MelodyTypeDB extends Dexie {
     this.version(1).stores({
       sessions: "++id, timestamp, mode",
       keyStats: "++id, &key, lastUpdated",
-      midiFiles: "++id, name, isPreset",
-      settings: "++id, &key",
-      dailyGoals: "++id, &date",
-    })
-    this.version(2).stores({
-      sessions: "++id, timestamp, mode",
-      keyStats: "++id, &key, lastUpdated",
-      midiFiles: "++id, name, isPreset",
-      settings: "++id, &key",
-      dailyGoals: "++id, &date",
-    })
-    this.version(3).stores({
-      sessions: "++id, timestamp, mode",
-      keyStats: "++id, &key, lastUpdated",
       bigramStats: "++id, &bigram, fromKey, toKey",
       midiFiles: "++id, name, isPreset",
       settings: "++id, &key",
