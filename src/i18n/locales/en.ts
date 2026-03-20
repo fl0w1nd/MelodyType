@@ -152,7 +152,7 @@ const en = {
     defaultSuffix: "· Default",
     requireCurrentMastery: "Require Current Mastery",
     requireCurrentMasteryDesc:
-      "All active keys must pass current thresholds before unlocking the next letter.",
+      "All active keys must reach the current target value at all times to unlock the next letter, and will no longer be based on historical best performance.",
     stats: {
       speed: "Speed",
       accuracy: "Accuracy",
@@ -732,7 +732,7 @@ const en = {
       },
       options: {
         title: "Options",
-        desc: "The Options panel (gear icon) lets you adjust the target CPM, toggle the \"Require Current Mastery\" gate, and manually unlock keys ahead of schedule.",
+        desc: "The Options panel (gear icon) lets you adjust the target CPM, toggle the \"Require Current Mastery\" gate.",
       },
     },
     time: {

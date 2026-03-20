@@ -145,8 +145,8 @@ const zh = {
     title: "自适应练习",
     subtitle: "基于你的表现逐步解锁按键",
     defaultSuffix: "· 默认",
-    requireCurrentMastery: "要求当前掌握",
-    requireCurrentMasteryDesc: "所有活跃按键必须达到当前阈值才能解锁下一个字母。",
+    requireCurrentMastery: "严格要求当前掌握",
+    requireCurrentMasteryDesc: "所有活跃按键必须时刻达到当前目标值才能解锁下一个字母，不再以历史最佳表现为基准。",
     stats: {
       speed: "速度",
       accuracy: "准确率",
@@ -387,7 +387,7 @@ const zh = {
   keyboardHeatmap: {
     title: "键盘热力图",
     tabs: {
-      falseRate: "误触率",
+      falseRate: "失败率",
       frequency: "频率",
       transitions: "过渡",
     },
@@ -452,8 +452,8 @@ const zh = {
   // ── Key Detail Panel ─────────────────────────────────────
   keyDetailPanel: {
     totalPresses: "{{n}} 次总按压",
-    falsePct: "{{pct}} 误触",
-    statsNote: "成功/误触是目标键统计，误按是实际按下此键但目标为其他键的次数。",
+    falsePct: "{{pct}} 失败",
+    statsNote: "成功/失败是目标键统计，误按是实际按下此键但目标为其他键的次数。",
     trend: "趋势：",
     trendUp: "+{{n}}%",
     trendDown: "{{n}}%",
@@ -461,7 +461,7 @@ const zh = {
     stats: {
       success: "成功",
       misPresses: "误按",
-      false: "误触",
+      false: "失败",
       keyAccuracy: "按键准确率",
     },
     tooltips: {
@@ -712,7 +712,7 @@ const zh = {
       },
       options: {
         title: "选项",
-        desc: "选项面板（齿轮图标）允许你调整目标 CPM、切换「要求当前掌握」门控，以及提前手动解锁按键。",
+        desc: "选项面板（齿轮图标）允许你调整目标 CPM、切换「严格要求当前掌握」模式。",
       },
     },
     time: {
