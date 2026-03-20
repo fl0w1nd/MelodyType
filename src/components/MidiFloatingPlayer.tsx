@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
+import { useTranslation } from "react-i18next"
 import {
   Music,
   Volume2,
@@ -41,11 +42,11 @@ const loopModeIcons = {
   random: Shuffle,
 } as const
 
-const loopModeLabels = {
-  loop: "Loop",
-  once: "Once",
-  sequential: "Sequential",
-  random: "Random",
+const loopModeKeys = {
+  loop: "midiFloatingPlayer.loopModes.loop",
+  once: "midiFloatingPlayer.loopModes.once",
+  sequential: "midiFloatingPlayer.loopModes.sequential",
+  random: "midiFloatingPlayer.loopModes.random",
 } as const
 
 const loopModeOrder: Array<"loop" | "once" | "sequential" | "random"> = [
@@ -56,6 +57,7 @@ const loopModeOrder: Array<"loop" | "once" | "sequential" | "random"> = [
 ]
 
 export function MidiFloatingPlayer() {
+  const { t } = useTranslation()
   const {
     config,
     updateConfig,
@@ -72,13 +74,13 @@ export function MidiFloatingPlayer() {
 
   const getSourceName = useCallback(
     (source: SelectedMidiSource | null) => {
-      if (!source) return "No selection"
+      if (!source) return t("midiFloatingPlayer.noSelection")
       if (source.type === "preset") {
         return presetList.find((p) => p.id === source.id)?.name ?? source.id
       }
       return userMidiFiles.find((f) => f.id === source.id)?.name ?? `File #${source.id}`
     },
-    [userMidiFiles],
+    [userMidiFiles, t],
   )
 
   const cycleLoopMode = useCallback(() => {
@@ -179,7 +181,7 @@ export function MidiFloatingPlayer() {
             </div>
             {flowActive && (
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-primary font-medium">♪ Playing</span>
+                <span className="text-[10px] text-primary font-medium">{t("midiFloatingPlayer.playing")}</span>
                 {melodyState.totalFrames > 0 && (
                   <span className="text-[10px] text-primary/60 font-mono tabular-nums">
                     {melodyState.frameIndex + 1}/{melodyState.totalFrames}
@@ -269,7 +271,7 @@ export function MidiFloatingPlayer() {
               <LoopIcon className="h-3 w-3" />
             </TooltipTrigger>
             <TooltipContent side="top">
-              {loopModeLabels[config.loopMode]}
+              {t(loopModeKeys[config.loopMode])}
             </TooltipContent>
           </Tooltip>
 
@@ -287,7 +289,7 @@ export function MidiFloatingPlayer() {
             >
               <SkipForward className="h-3 w-3" />
             </TooltipTrigger>
-            <TooltipContent side="top">Next track</TooltipContent>
+            <TooltipContent side="top">{t("midiFloatingPlayer.nextTrack")}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -305,7 +307,7 @@ export function MidiFloatingPlayer() {
                 <div className="flex items-center gap-1.5 mb-2">
                   <ListMusic className="h-3 w-3 text-muted-foreground" />
                   <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    {playlist.length > 0 ? "Playlist" : "All Tracks"}
+                    {playlist.length > 0 ? t("midiFloatingPlayer.playlist") : t("midiFloatingPlayer.allTracks")}
                   </span>
                   <Badge variant="secondary" className="ml-auto text-[9px] px-1 py-0">
                     {playlistSources.length}

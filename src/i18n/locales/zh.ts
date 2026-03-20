@@ -523,6 +523,12 @@ const zh = {
 
   // ── MIDI Page ────────────────────────────────────────────
   midiPage: {
+    loopModes: {
+      loop: "循环",
+      once: "单次",
+      sequential: "顺序",
+      random: "随机",
+    },
     presets: "预设",
     yourFiles: "我的文件",
     playlist: "播放列表",
@@ -706,7 +712,7 @@ const zh = {
       },
       options: {
         title: "选项",
-        desc: "选项面板（齿轮图标）允许你调整目标 CPM、切换"要求当前掌握"门控，以及提前手动解锁按键。",
+        desc: "选项面板（齿轮图标）允许你调整目标 CPM、切换「要求当前掌握」门控，以及提前手动解锁按键。",
       },
     },
     time: {

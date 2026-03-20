@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Flame } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import {
   Tooltip,
   TooltipContent,
@@ -62,6 +63,7 @@ export function KeyboardHeatmap({
   keyStatsMap: keyStatsMapProp,
   children,
 }: KeyboardHeatmapProps) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<HeatmapTab>("false")
   const hasTransitions = bigramScores != null && bigramScores.length > 0
   const effectiveTab = activeTab === "transitions" && !hasTransitions ? "false" : activeTab
@@ -314,11 +316,11 @@ export function KeyboardHeatmap({
 
   const tabs: { id: HeatmapTab; label: string }[] = useMemo(
     () => [
-      { id: "false", label: "False Rate" },
-      { id: "frequency", label: "Frequency" },
-      ...(hasTransitions ? [{ id: "transitions" as const, label: "Transitions" }] : []),
+      { id: "false", label: t("keyboardHeatmap.tabs.falseRate") },
+      { id: "frequency", label: t("keyboardHeatmap.tabs.frequency") },
+      ...(hasTransitions ? [{ id: "transitions" as const, label: t("keyboardHeatmap.tabs.transitions") }] : []),
     ],
-    [hasTransitions],
+    [hasTransitions, t],
   )
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -335,7 +337,7 @@ export function KeyboardHeatmap({
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10">
             <Flame className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">Keyboard Heatmap</h3>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight">{t("keyboardHeatmap.title")}</h3>
         </div>
         <div className="flex gap-1">
           {tabs.map((tab) => (
@@ -434,10 +436,10 @@ export function KeyboardHeatmap({
               className="mt-4 overflow-hidden"
             >
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
-                Transitions from {selectedKey.toUpperCase()}
+                {t("keyboardHeatmap.transitionsFrom", { key: selectedKey.toUpperCase() })}
               </div>
               <div className="mb-2 text-[10px] text-muted-foreground/70">
-                Arc color reflects hit rate. Score stays secondary so the transition read stays unambiguous.
+                {t("keyboardHeatmap.arcNote")}
               </div>
               <div className="flex flex-wrap gap-2">
                 {arcs
@@ -461,7 +463,7 @@ export function KeyboardHeatmap({
                             {(arc.successRate * 100).toFixed(0)}%
                           </div>
                           <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-                            Hit Rate
+                            {t("keyboardHeatmap.hitRate")}
                           </div>
                         </div>
                       </div>
@@ -471,7 +473,7 @@ export function KeyboardHeatmap({
                         </div>
                         <div className="text-right">
                           <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                            Score
+                            {t("keyboardHeatmap.score")}
                           </div>
                           <div className="text-[11px] font-mono font-semibold text-foreground/80">
                             {(arc.score * 100).toFixed(0)}
@@ -488,25 +490,25 @@ export function KeyboardHeatmap({
         <div className="flex items-center justify-center gap-4 mt-4">
           {effectiveTab === "false" && (
             <>
-              <LegendItem color="bg-emerald-400/30" label="Low" />
-              <LegendItem color="bg-yellow-400/30" label="Some" />
-              <LegendItem color="bg-orange-400/50" label="Many" />
-              <LegendItem color="bg-red-500/60" label="High" />
+              <LegendItem color="bg-emerald-400/30" label={t("keyboardHeatmap.legend.falseRate.low")} />
+              <LegendItem color="bg-yellow-400/30" label={t("keyboardHeatmap.legend.falseRate.some")} />
+              <LegendItem color="bg-orange-400/50" label={t("keyboardHeatmap.legend.falseRate.many")} />
+              <LegendItem color="bg-red-500/60" label={t("keyboardHeatmap.legend.falseRate.high")} />
             </>
           )}
           {effectiveTab === "frequency" && (
             <>
-              <LegendItem color="bg-secondary/40" label="Rare" />
-              <LegendItem color="bg-primary/30" label="Often" />
-              <LegendItem color="bg-primary/50" label="Most" />
+              <LegendItem color="bg-secondary/40" label={t("keyboardHeatmap.legend.frequency.rare")} />
+              <LegendItem color="bg-primary/30" label={t("keyboardHeatmap.legend.frequency.often")} />
+              <LegendItem color="bg-primary/50" label={t("keyboardHeatmap.legend.frequency.most")} />
             </>
           )}
           {effectiveTab === "transitions" && (
             <>
-              <LegendItem color="bg-emerald-400/40" label="Clean" />
-              <LegendItem color="bg-yellow-400/40" label="Minor" />
-              <LegendItem color="bg-orange-400/40" label="Risky" />
-              <LegendItem color="bg-red-400/40" label="Error-prone" />
+              <LegendItem color="bg-emerald-400/40" label={t("keyboardHeatmap.legend.transitions.clean")} />
+              <LegendItem color="bg-yellow-400/40" label={t("keyboardHeatmap.legend.transitions.minor")} />
+              <LegendItem color="bg-orange-400/40" label={t("keyboardHeatmap.legend.transitions.risky")} />
+              <LegendItem color="bg-red-400/40" label={t("keyboardHeatmap.legend.transitions.errorProne")} />
             </>
           )}
         </div>

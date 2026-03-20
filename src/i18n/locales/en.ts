@@ -541,6 +541,12 @@ const en = {
 
   // ── MIDI Page ────────────────────────────────────────────
   midiPage: {
+    loopModes: {
+      loop: "Loop",
+      once: "Once",
+      sequential: "Sequential",
+      random: "Random",
+    },
     presets: "Presets",
     yourFiles: "Your Files",
     playlist: "Playlist",
