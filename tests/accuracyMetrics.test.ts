@@ -1,4 +1,7 @@
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
+import { TextDisplay } from "../src/components/practice/TextDisplay"
 import {
   analyzeTargetAccuracy,
   computeStoredSessionAccuracyMetrics,
@@ -85,6 +88,49 @@ describe("computeWordAccuracyMetrics", () => {
     expect(result.incorrectChars).toBe(1)
     expect(result.totalChars).toBe(1)
     expect(result.accuracy).toBe(0)
+  })
+})
+
+describe("TextDisplay false-key highlighting", () => {
+  it("does not mark an unresolved incorrect target as red", () => {
+    const words: WordState[] = [
+      {
+        completed: false,
+        chars: [{ char: "e", status: "incorrect", hadError: true }],
+      },
+    ]
+
+    const html = renderToStaticMarkup(
+      createElement(TextDisplay, {
+        words,
+        currentWordIndex: 0,
+        currentCharIndex: 0,
+        isFinished: false,
+      }),
+    )
+
+    expect(html).toContain("text-muted-foreground/60")
+    expect(html).not.toContain("text-destructive bg-destructive/10 rounded-sm")
+  })
+
+  it("marks a corrected-after-error target as red", () => {
+    const words: WordState[] = [
+      {
+        completed: true,
+        chars: [{ char: "e", status: "correct", hadError: true }],
+      },
+    ]
+
+    const html = renderToStaticMarkup(
+      createElement(TextDisplay, {
+        words,
+        currentWordIndex: 0,
+        currentCharIndex: 1,
+        isFinished: true,
+      }),
+    )
+
+    expect(html).toContain("text-destructive bg-destructive/10 rounded-sm")
   })
 })
 

@@ -89,13 +89,12 @@ function TextDisplayInner({
                     <span
                       className={cn(
                         char.status === "pending" && "text-muted-foreground/60",
+                        char.status === "incorrect" && "text-muted-foreground/60",
                         char.status === "correct" &&
                           !char.hadError &&
                           "text-foreground",
                         char.status === "correct" &&
                           char.hadError &&
-                          "text-amber-600",
-                        char.status === "incorrect" &&
                           "text-destructive bg-destructive/10 rounded-sm",
                       )}
                     >
