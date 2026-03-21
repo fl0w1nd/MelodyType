@@ -92,6 +92,21 @@ const zhTW = {
     loading: "加載中...",
   },
 
+  practiceWelcome: {
+    eyebrow: "隱私優先的打字訓練器",
+    title: "在即時 MIDI 旋律裡練習打字",
+    description:
+      "MelodyType 會把你的每次擊鍵變成旋律的一部分，同時透過自適應訓練、限時挑戰與瀏覽器本地進度追蹤，幫助你提升速度、準確率與節奏感。",
+    highlights: {
+      adaptive: "針對薄弱按鍵的自適應訓練",
+      rhythm: "限時與名言兩種練習模式",
+      privacy: "本地優先統計，無需帳號",
+    },
+    docsCta: "查看文檔",
+    githubCta: "查看 GitHub",
+    dismiss: "關閉歡迎橫幅",
+  },
+
   // ── Practice Page ────────────────────────────────────────
   practice: {
     newKeyUnlocked: "🔓 新按鍵解鎖：",

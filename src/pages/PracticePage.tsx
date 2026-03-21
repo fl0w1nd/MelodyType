@@ -10,6 +10,7 @@ import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
 import { KeyProgressPanel } from "@/components/practice/KeyProgressPanel"
 import { TimeLevelSelect } from "@/components/practice/TimeLevelSelect"
+import { PracticeWelcomeBanner } from "@/components/practice/PracticeWelcomeBanner"
 import {
   NoteParticles,
   useNoteParticles,
@@ -46,6 +47,8 @@ export default function PracticePage() {
 
   return (
     <div className="flex flex-col items-center gap-6">
+      <PracticeWelcomeBanner />
+
       <div data-tour="mode-selector">
         <ModeSelector
           onSelect={actions.handleConfigChange}
