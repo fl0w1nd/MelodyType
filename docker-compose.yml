@@ -1,7 +1,11 @@
 services:
   melodytype:
-    build: .
     image: ghcr.io/fl0w1nd/melodytype:latest
+    container_name: melodytype
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     ports:
       - "3000:80"
     restart: unless-stopped
