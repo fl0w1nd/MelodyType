@@ -5,6 +5,12 @@ import {
   getAdaptiveKeyColorClass,
   getAdaptiveKeyBarClass,
 } from "@/engine/typing/adaptiveEngine"
+import {
+  SHIFT_PHYSICAL_KEY,
+  getPhysicalKeyDisplay,
+  getRequiredPhysicalKeysForInput,
+  getRequiredPhysicalKeysForLogicalChar,
+} from "@/lib/keyboardLayout"
 
 const rows = [
   [
@@ -58,7 +64,7 @@ function VirtualKeyboardInner({
   adaptiveMode = false,
   recoverKeys = false,
 }: VirtualKeyboardProps) {
-  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set())
+  const [pressedKeys, setPressedKeys] = useState<Record<string, number>>({})
 
   const confidenceMap = useMemo(() => {
     if (!keyConfidences) return new Map<string, KeyConfidence>()
@@ -69,26 +75,60 @@ function VirtualKeyboardInner({
     return m
   }, [keyConfidences])
 
+  const normalizedHighlightKeys = useMemo(() => {
+    if (!highlightKeys) return new Set<string>()
+    const result = new Set<string>()
+    for (const key of highlightKeys) {
+      const normalized = getRequiredPhysicalKeysForLogicalChar(key)
+      if (normalized.length === 0) {
+        result.add(key)
+        continue
+      }
+      for (const physicalKey of normalized) {
+        result.add(physicalKey)
+      }
+    }
+    return result
+  }, [highlightKeys])
+
+  const nextPhysicalKeys = useMemo(
+    () => new Set(getRequiredPhysicalKeysForLogicalChar(nextKey)),
+    [nextKey],
+  )
+
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
+    const updatePressedKeys = (keys: string[], delta: 1 | -1) => {
       setPressedKeys((prev) => {
-        if (prev.has(key)) return prev
-        const next = new Set(prev)
-        next.add(key)
-        return next
+        const next = { ...prev }
+        let changed = false
+
+        for (const key of keys) {
+          const current = next[key] ?? 0
+          const value = current + delta
+          if (value <= 0) {
+            if (current > 0) {
+              delete next[key]
+              changed = true
+            }
+            continue
+          }
+          if (value !== current) {
+            next[key] = value
+            changed = true
+          }
+        }
+
+        return changed ? next : prev
       })
+    }
+
+    const onDown = (e: KeyboardEvent) => {
+      updatePressedKeys(getRequiredPhysicalKeysForInput(e.key), 1)
     }
     const onUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
-      setPressedKeys((prev) => {
-        if (!prev.has(key)) return prev
-        const next = new Set(prev)
-        next.delete(key)
-        return next
-      })
+      updatePressedKeys(getRequiredPhysicalKeysForInput(e.key), -1)
     }
-    const clearAll = () => setPressedKeys(new Set())
+    const clearAll = () => setPressedKeys({})
     const onVisibilityChange = () => { if (document.hidden) clearAll() }
     window.addEventListener("keydown", onDown)
     window.addEventListener("keyup", onUp)
@@ -107,13 +147,21 @@ function VirtualKeyboardInner({
       {rows.map((row, ri) => (
         <div key={ri} className="flex gap-1 justify-center">
           {row.map((keyDef) => {
-            const keyLower = keyDef.key.toLowerCase()
-            const isPressed = pressedKeys.has(keyLower) || (keyLower === " " && pressedKeys.has(" "))
-            const isHighlighted = highlightKeys?.has(keyLower)
-            const isNext = nextKey?.toLowerCase() === keyLower
-            const kc = confidenceMap.get(keyLower)
+            const physicalKey = keyDef.key === "Shift" || keyDef.key === "ShiftRight"
+              ? SHIFT_PHYSICAL_KEY
+              : keyDef.key.toLowerCase()
+            const isPressed = (pressedKeys[physicalKey] ?? 0) > 0
+            const isHighlighted = normalizedHighlightKeys.has(physicalKey)
+            const isNext = nextPhysicalKeys.has(physicalKey)
+            const kc = confidenceMap.get(keyDef.key.toLowerCase())
             const adaptiveColor = adaptiveMode && kc ? getAdaptiveKeyColorClass(kc, recoverKeys) : ""
             const isFocused = adaptiveMode && kc?.focused
+            const display = getPhysicalKeyDisplay(keyDef.key.toLowerCase())
+            const showShiftedDisplay =
+              keyDef.label == null &&
+              display?.shifted != null &&
+              physicalKey !== SHIFT_PHYSICAL_KEY &&
+              display.base.toLowerCase() !== display.shifted.toLowerCase()
 
             return (
               <div
@@ -134,9 +182,26 @@ function VirtualKeyboardInner({
                   isFocused && !isPressed && !isNext && "ring-1 ring-primary/40",
                 )}
               >
-                <span className="relative z-10">
-                  {keyDef.label ?? keyDef.key.toUpperCase()}
-                </span>
+                {keyDef.label != null ? (
+                  <span className="relative z-10">{keyDef.label}</span>
+                ) : showShiftedDisplay && display ? (
+                  <span className="relative z-10 flex flex-col items-center gap-0">
+                    <span className="text-[8px] leading-none opacity-45">{display.shifted}</span>
+                    <span className="text-[10px] leading-none">
+                      {/[a-z]/.test(display.base)
+                        ? display.base.toUpperCase()
+                        : display.base}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="relative z-10">
+                    {display
+                      ? /[a-z]/.test(display.base)
+                        ? display.base.toUpperCase()
+                        : display.base
+                      : keyDef.key.toUpperCase()}
+                  </span>
+                )}
                 {keyDef.home && (
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary/50" />
                 )}
