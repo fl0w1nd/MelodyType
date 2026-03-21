@@ -7,22 +7,30 @@ on:
       - 'assets/**'
       - '**.md'
       - '.agents/**'
+      - '.github/**'
       - '.vscode/**'
       - '.idea/**'
       - 'LICENSE'
       - '.gitignore'
+      - '.dockerignore'
       - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'vercel.json'
   pull_request:
     branches: [main, dev]
     paths-ignore:
       - 'assets/**'
       - '**.md'
       - '.agents/**'
+      - '.github/**'
       - '.vscode/**'
       - '.idea/**'
       - 'LICENSE'
       - '.gitignore'
+      - '.dockerignore'
       - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'vercel.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,6 +39,10 @@ concurrency:
 permissions:
   contents: write
   packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/fl0w1nd/melodytype
 
 jobs:
   ci:
@@ -174,7 +186,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
 
       - uses: docker/build-push-action@v6
         id: build
@@ -182,7 +194,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=release-${{ matrix.platform }}
           cache-to: type=gha,scope=release-${{ matrix.platform }},mode=max
 
@@ -221,7 +233,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=${{ needs.release.outputs.version }}
             type=raw,value=latest
@@ -231,7 +243,7 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
   # ── main branch: deploy to Vercel ────────────────────────
 
@@ -311,7 +323,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
 
       - uses: docker/build-push-action@v6
         id: build
@@ -319,7 +331,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=dev-${{ matrix.platform }}
           cache-to: type=gha,scope=dev-${{ matrix.platform }},mode=max
 
@@ -358,7 +370,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=dev
 
@@ -367,4 +379,4 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
