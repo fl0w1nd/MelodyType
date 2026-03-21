@@ -228,6 +228,19 @@ const en = {
     },
     allKeysReady: "All currently unlocked keys meet the adaptive unlock thresholds.",
     moreBlockers: "+{{n}} more",
+    includeNumbers: "Include numbers",
+    includePunctuation: "Include punctuation",
+    includeSpecialCharacters: "Include special chars",
+    symbolMixEarlyUnlockHint: "Stage 1 will warn before force-enabling {{feature}}.",
+    symbolMixEarlyUnlockSummary:
+      "During Stage 1 you can still force-enable these mix-ins after a warning; Stage 2 switches them directly.",
+    mixUnlockWarning: {
+      title: "Enable {{feature}} early?",
+      description:
+        "This will mix {{feature}} into training before all 26 letters are finished. It changes the original letter-only rhythm, but gives you earlier cross-character transition practice.",
+      enable: "Enable anyway",
+      enabling: "Enabling...",
+    },
   },
 
   // ── Results Panel ────────────────────────────────────────
@@ -441,6 +454,7 @@ const en = {
     },
     hitRate: "Hit Rate",
     score: "Score",
+    pickLogicalKey: "Pick symbol",
   },
 
   // ── Adaptive Progress Card ───────────────────────────────

@@ -1,6 +1,14 @@
-import type { BigramScore, KeyConfidence } from "./adaptiveEngine"
+import type { AdaptiveMixOptions, BigramScore, KeyConfidence } from "./adaptiveEngine"
 import { computeKeyWeights } from "./adaptiveEngine"
-import { commonWords } from "./wordLists"
+import { getLogicalCharCategory } from "@/lib/keyboardLayout"
+import {
+  type BridgeMixPlan,
+  commonWords,
+  injectNumbers,
+  applyPunctuation,
+  injectSpecialCharacters,
+  joinWordsWithMixedBridges,
+} from "./wordLists"
 import { generateMarkovWord } from "./markov/markovModel"
 
 const ALL_REAL_WORDS: string[] = [
@@ -75,6 +83,7 @@ export function generateAdaptiveText(
   focusKey: string | null,
   wordCount: number = 30,
   recoverKeys: boolean = false,
+  options?: AdaptiveMixOptions,
 ): string {
   const availableKeys = new Set(unlockedKeys.filter((k) => /^[a-z]$/.test(k)))
 
@@ -118,7 +127,7 @@ export function generateAdaptiveText(
     if (recentWords.length > 3) recentWords.shift()
   }
 
-  return words.join(" ")
+  return applyAdaptiveMixLayers(words, options)
 }
 
 function scoreBigramWord(
@@ -134,51 +143,107 @@ function scoreBigramWord(
   return score
 }
 
-export function generateReinforcementText(
-  weakBigrams: BigramScore[],
-  wordCount: number = 30,
+function applyAdaptiveMixLayers(
+  words: string[],
+  options?: AdaptiveMixOptions,
+  bridgePlan?: BridgeMixPlan,
 ): string {
-  if (weakBigrams.length === 0) {
-    return ALL_REAL_WORDS.sort(() => Math.random() - 0.5)
-      .slice(0, wordCount)
-      .join(" ")
+  let mixed = [...words]
+  if (options?.numbers) {
+    mixed = injectNumbers(mixed)
   }
-
-  const weakBigramWeights = new Map<string, number>()
-  for (const bg of weakBigrams) {
-    const weakness = Math.max(0, 1 - bg.score) * 5 + 1
-    weakBigramWeights.set(bg.bigram, weakness)
+  if (options?.specialCharacters) {
+    mixed = injectSpecialCharacters(mixed)
   }
-
-  const targetBigramChars = new Set<string>()
-  for (const bg of weakBigrams.slice(0, 10)) {
-    targetBigramChars.add(bg.fromKey)
-    targetBigramChars.add(bg.toKey)
+  if (options?.punctuation) {
+    mixed = applyPunctuation(mixed)
   }
+  return joinWordsWithMixedBridges(mixed, options, bridgePlan)
+}
 
-  const candidateWords = ALL_REAL_WORDS.filter((word) => {
-    for (let i = 0; i < word.length - 1; i++) {
-      const bigram = `${word[i]}:${word[i + 1]}`
-      if (weakBigramWeights.has(bigram)) return true
-    }
-    return false
-  })
+function isWordTargetableBigram(bg: BigramScore): boolean {
+  return (
+    getLogicalCharCategory(bg.fromKey) === "letter" &&
+    getLogicalCharCategory(bg.toKey) === "letter"
+  )
+}
 
-  const fallbackWords = ALL_REAL_WORDS.filter((word) =>
-    word.split("").some((ch) => targetBigramChars.has(ch)),
+const SYMBOL_TOKEN_PREFIXES = [
+  "",
+  "id",
+  "dev",
+  "tag",
+  "tmp",
+  "src",
+  "home",
+  "ref",
+  "meta",
+]
+
+const SYMBOL_TOKEN_SUFFIXES = [
+  "",
+  "app",
+  "log",
+  "file",
+  "box",
+  "lab",
+  "dev",
+  "io",
+]
+
+function pickOne(options: string[]): string {
+  return options[Math.floor(Math.random() * options.length)]
+}
+
+function buildSymbolDrillToken(bg: BigramScore): string {
+  const pair = `${bg.fromKey}${bg.toKey}`
+  const prefix = pickOne(SYMBOL_TOKEN_PREFIXES)
+  const suffix = pickOne(SYMBOL_TOKEN_SUFFIXES)
+  const firstNonLetter = [bg.fromKey, bg.toKey].find(
+    (ch) => getLogicalCharCategory(ch) !== "letter",
   )
 
-  const wordPool = candidateWords.length >= 10 ? candidateWords : fallbackWords
-  if (wordPool.length === 0) {
-    return ALL_REAL_WORDS.sort(() => Math.random() - 0.5)
-      .slice(0, wordCount)
-      .join(" ")
+  switch (firstNonLetter) {
+    case "@":
+      return `${prefix}${pair}${suffix}`
+    case "#":
+      return `#${prefix}${pair}${suffix}`
+    case "$":
+      return `$${prefix}${pair}${suffix}`
+    case "%":
+      return `${prefix}${pair}${suffix}%`
+    case "/":
+      return `${prefix}${pair}${suffix}`
+    case "\\":
+      return `${prefix}${pair}${suffix}`
+    case "[":
+      return `${prefix}${pair}${suffix}]`
+    case "]":
+      return `${prefix}[${pair}${suffix}`
+    case "{":
+      return `${prefix}${pair}${suffix}}`
+    case "}":
+      return `${prefix}{${pair}${suffix}`
+    case "(":
+      return `${prefix}${pair}${suffix})`
+    case ")":
+      return `${prefix}(${pair}${suffix}`
+    case "<":
+      return `${prefix}${pair}${suffix}>`
+    case ">":
+      return `${prefix}<${pair}${suffix}`
+    case "`":
+      return `\`${prefix}${pair}${suffix}\``
+    default:
+      return `${prefix}${pair}${suffix}`
   }
+}
 
-  const wordWeights = new Map(
-    wordPool.map((word) => [word, scoreBigramWord(word, weakBigramWeights)]),
-  )
-
+function generateWeightedWordSequence(
+  wordPool: string[],
+  wordWeights: Map<string, number>,
+  wordCount: number,
+): string[] {
   const words: string[] = []
   const recentWords: string[] = []
 
@@ -200,5 +265,133 @@ export function generateReinforcementText(
     if (recentWords.length > 3) recentWords.shift()
   }
 
-  return words.join(" ")
+  return words
+}
+
+function interleaveWordsAndDrills(words: string[], drills: string[]): string[] {
+  if (drills.length === 0) return words
+  if (words.length === 0) return drills
+
+  const result: string[] = []
+  let drillIndex = 0
+  const spacing = Math.max(2, Math.floor(words.length / drills.length))
+
+  for (let i = 0; i < words.length; i++) {
+    result.push(words[i])
+    if (
+      drillIndex < drills.length &&
+      (i % spacing === spacing - 1 || i === words.length - 1)
+    ) {
+      result.push(drills[drillIndex])
+      drillIndex++
+    }
+  }
+
+  while (drillIndex < drills.length) {
+    result.push(drills[drillIndex])
+    drillIndex++
+  }
+
+  return result
+}
+
+function buildBridgePlanForWeakBigrams(
+  weakBigrams: BigramScore[],
+  symbolTargetBigrams: BigramScore[],
+): BridgeMixPlan {
+  const symbolTargetRatio =
+    weakBigrams.length > 0 ? symbolTargetBigrams.length / weakBigrams.length : 0
+  const categoryWeights: Record<"numbers" | "punctuation" | "specialCharacters", number> = {
+    numbers: 1,
+    punctuation: 1,
+    specialCharacters: 1,
+  }
+
+  for (const bg of symbolTargetBigrams) {
+    const categories = new Set(
+      [bg.fromKey, bg.toKey]
+        .map((key) => getLogicalCharCategory(key))
+        .filter((category) => category === "digit" || category === "punctuation" || category === "special"),
+    )
+    for (const category of categories) {
+      if (category === "digit") {
+        categoryWeights.numbers += 1
+      } else if (category === "punctuation") {
+        categoryWeights.punctuation += 1
+      } else if (category === "special") {
+        categoryWeights.specialCharacters += 1
+      }
+    }
+  }
+
+  return {
+    mode: "reinforcement",
+    symbolTargetRatio,
+    categoryWeights,
+  }
+}
+
+export function generateReinforcementText(
+  weakBigrams: BigramScore[],
+  wordCount: number = 30,
+  options?: AdaptiveMixOptions,
+): string {
+  if (weakBigrams.length === 0) {
+    return applyAdaptiveMixLayers(
+      ALL_REAL_WORDS.sort(() => Math.random() - 0.5).slice(0, wordCount),
+      options,
+      { mode: "reinforcement" },
+    )
+  }
+
+  const wordTargetBigrams = weakBigrams.filter(isWordTargetableBigram)
+  const symbolTargetBigrams = weakBigrams.filter((bg) => !isWordTargetableBigram(bg))
+  const weakBigramWeights = new Map<string, number>()
+  for (const bg of wordTargetBigrams) {
+    const weakness = Math.max(0, 1 - bg.score) * 5 + 1
+    weakBigramWeights.set(bg.bigram, weakness)
+  }
+
+  const targetBigramChars = new Set<string>()
+  for (const bg of wordTargetBigrams.slice(0, 10)) {
+    targetBigramChars.add(bg.fromKey)
+    targetBigramChars.add(bg.toKey)
+  }
+
+  const candidateWords = ALL_REAL_WORDS.filter((word) => {
+    for (let i = 0; i < word.length - 1; i++) {
+      const bigram = `${word[i]}:${word[i + 1]}`
+      if (weakBigramWeights.has(bigram)) return true
+    }
+    return false
+  })
+
+  const fallbackWords = ALL_REAL_WORDS.filter((word) =>
+    word.split("").some((ch) => targetBigramChars.has(ch)),
+  )
+
+  const wordPool = candidateWords.length >= 10 ? candidateWords : fallbackWords
+  const symbolDrillCount = symbolTargetBigrams.length > 0
+    ? Math.min(Math.max(1, Math.ceil(wordCount * 0.2)), Math.max(3, symbolTargetBigrams.length))
+    : 0
+  const fillerWordCount = Math.max(wordCount - symbolDrillCount, 0)
+  const symbolDrills = Array.from({ length: symbolDrillCount }, (_, index) =>
+    buildSymbolDrillToken(symbolTargetBigrams[index % symbolTargetBigrams.length]),
+  )
+
+  let weightedWords: string[] = []
+  if (wordPool.length > 0 && fillerWordCount > 0) {
+    const wordWeights = new Map(
+      wordPool.map((word) => [word, scoreBigramWord(word, weakBigramWeights)]),
+    )
+    weightedWords = generateWeightedWordSequence(wordPool, wordWeights, fillerWordCount)
+  } else if (fillerWordCount > 0) {
+    weightedWords = ALL_REAL_WORDS.sort(() => Math.random() - 0.5).slice(0, fillerWordCount)
+  }
+
+  return applyAdaptiveMixLayers(
+    interleaveWordsAndDrills(weightedWords, symbolDrills).slice(0, wordCount),
+    options,
+    buildBridgePlanForWeakBigrams(weakBigrams, symbolTargetBigrams),
+  )
 }

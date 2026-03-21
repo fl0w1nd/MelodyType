@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   computeMastery,
   computeTransitionScore,
+  computeSessionCpmFromLatencies,
   getKeyUnlockChecks,
   isKeyReadyToUnlock,
   isKeyStrictlyMastered,
@@ -11,6 +12,7 @@ import {
   getFocusKey,
   computeKeyWeights,
   extractBigramMetrics,
+  resolveAdaptiveMixOptions,
   MIN_HITS_FOR_MASTERY,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
@@ -78,6 +80,46 @@ describe("computeMastery", () => {
 
   it("returns 0 for negative ewmaCpm", () => {
     expect(computeMastery(-100, 175)).toBe(0)
+  })
+})
+
+describe("computeSessionCpmFromLatencies", () => {
+  it("accepts a single latency sample instead of requiring three", () => {
+    expect(computeSessionCpmFromLatencies([200])).toBe(300)
+  })
+
+  it("accepts two latency samples and uses the median latency", () => {
+    expect(computeSessionCpmFromLatencies([100, 200])).toBe(400)
+  })
+
+  it("returns 0 when there are no valid latency samples", () => {
+    expect(computeSessionCpmFromLatencies([])).toBe(0)
+  })
+})
+
+describe("resolveAdaptiveMixOptions", () => {
+  it("passes through enabled mix-ins during progressive phase after a force unlock", () => {
+    expect(resolveAdaptiveMixOptions("progressive", {
+      includeNumbers: true,
+      includePunctuation: true,
+      includeSpecialCharacters: true,
+    })).toEqual({
+      numbers: true,
+      punctuation: true,
+      specialCharacters: true,
+    })
+  })
+
+  it("passes through enabled mix-ins during reinforcement phase", () => {
+    expect(resolveAdaptiveMixOptions("reinforcement", {
+      includeNumbers: true,
+      includePunctuation: false,
+      includeSpecialCharacters: true,
+    })).toEqual({
+      numbers: true,
+      punctuation: false,
+      specialCharacters: true,
+    })
   })
 })
 

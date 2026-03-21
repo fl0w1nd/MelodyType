@@ -18,9 +18,11 @@ import {
   Music,
   AlertTriangle,
   SlidersHorizontal,
+  Braces,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
+import type { AdaptivePhase } from "@/lib/settings"
 import {
   Dialog,
   DialogContent,
@@ -60,13 +62,22 @@ interface KeyProgressPanelProps {
   globalSummary: AdaptiveGlobalSummary
   targetCpm?: number
   recoverKeys?: boolean
+  phase?: AdaptivePhase
+  includeNumbers?: boolean
+  includePunctuation?: boolean
+  includeSpecialCharacters?: boolean
   totalSessions?: number
   roundNumber?: number
   compact?: boolean
   onUnlockKey?: (key: string) => Promise<void> | void
   onTargetChange?: (targetCpm: number) => void
   onRecoverChange?: (recoverKeys: boolean) => void
+  onIncludeNumbersChange?: (value: boolean) => void
+  onIncludePunctuationChange?: (value: boolean) => void
+  onIncludeSpecialCharactersChange?: (value: boolean) => void
 }
+
+type MixToggleKey = "numbers" | "punctuation" | "specialCharacters"
 
 function KeyProgressPanelInner({
   keyConfidences,
@@ -74,18 +85,27 @@ function KeyProgressPanelInner({
   globalSummary,
   targetCpm = DEFAULT_TARGET_CPM,
   recoverKeys = false,
+  phase = "progressive",
+  includeNumbers = false,
+  includePunctuation = false,
+  includeSpecialCharacters = false,
   totalSessions = 0,
   roundNumber = 1,
   compact = false,
   onUnlockKey,
   onTargetChange,
   onRecoverChange,
+  onIncludeNumbersChange,
+  onIncludePunctuationChange,
+  onIncludeSpecialCharactersChange,
 }: KeyProgressPanelProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [unlockPromptKey, setUnlockPromptKey] = useState<string | null>(null)
   const [unlockingKey, setUnlockingKey] = useState<string | null>(null)
+  const [pendingMixToggle, setPendingMixToggle] = useState<MixToggleKey | null>(null)
+  const [confirmingMixToggle, setConfirmingMixToggle] = useState(false)
   const settingsPanelRef = useRef<HTMLDivElement | null>(null)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -106,6 +126,7 @@ function KeyProgressPanelInner({
   const hasIntegrityData = globalSummary.integrity.count > 0
   const showDelta = globalSummary.count > 1
   const showIntegrityDelta = globalSummary.integrity.count > 1
+  const isProgressivePhase = phase === "progressive"
 
   const handleConfirmUnlock = async () => {
     if (!unlockPromptKey || !onUnlockKey) return
@@ -115,6 +136,47 @@ function KeyProgressPanelInner({
     } finally {
       setUnlockingKey(null)
       setUnlockPromptKey(null)
+    }
+  }
+
+  const mixToggleLabels: Record<MixToggleKey, string> = {
+    numbers: t("keyProgressPanel.includeNumbers"),
+    punctuation: t("keyProgressPanel.includePunctuation"),
+    specialCharacters: t("keyProgressPanel.includeSpecialCharacters"),
+  }
+
+  const handleMixToggle = async (
+    kind: MixToggleKey,
+    enabled: boolean,
+    onChange?: (value: boolean) => Promise<void> | void,
+  ) => {
+    if (!onChange) return
+    if (enabled) {
+      await onChange(false)
+      return
+    }
+    if (isProgressivePhase) {
+      setPendingMixToggle(kind)
+      return
+    }
+    await onChange(true)
+  }
+
+  const handleConfirmMixToggle = async () => {
+    if (!pendingMixToggle) return
+    const onChange =
+      pendingMixToggle === "numbers"
+        ? onIncludeNumbersChange
+        : pendingMixToggle === "punctuation"
+          ? onIncludePunctuationChange
+          : onIncludeSpecialCharactersChange
+    if (!onChange) return
+    setConfirmingMixToggle(true)
+    try {
+      await onChange(true)
+      setPendingMixToggle(null)
+    } finally {
+      setConfirmingMixToggle(false)
     }
   }
 
@@ -416,7 +478,108 @@ function KeyProgressPanelInner({
             {kc.unlocked ? kc.key.toUpperCase() : <Lock className="h-2.5 w-2.5" />}
           </motion.button>
         ))}
+        {(onIncludeNumbersChange || onIncludePunctuationChange || onIncludeSpecialCharactersChange) && (
+          <>
+            <div className="w-px h-5 bg-border/40 mx-0.5 self-center" />
+            {onIncludeNumbersChange && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleMixToggle("numbers", includeNumbers, onIncludeNumbersChange)
+                      }}
+                      className={cn(
+                        "w-6 h-6 flex items-center justify-center rounded border transition-all",
+                        includeNumbers
+                          ? "bg-primary/15 border-primary/40 text-primary"
+                          : "bg-muted/30 border-border/30 text-muted-foreground/40 hover:text-muted-foreground/70 hover:border-border/50",
+                      )}
+                    />
+                  }
+                >
+                  <span className="text-[9px] font-mono font-bold leading-none">12</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {isProgressivePhase
+                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
+                        feature: mixToggleLabels.numbers,
+                      })
+                    : mixToggleLabels.numbers}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {onIncludePunctuationChange && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleMixToggle("punctuation", includePunctuation, onIncludePunctuationChange)
+                      }}
+                      className={cn(
+                        "w-6 h-6 flex items-center justify-center rounded border transition-all",
+                        includePunctuation
+                          ? "bg-primary/15 border-primary/40 text-primary"
+                          : "bg-muted/30 border-border/30 text-muted-foreground/40 hover:text-muted-foreground/70 hover:border-border/50",
+                      )}
+                    />
+                  }
+                >
+                  <Braces className="h-3 w-3" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {isProgressivePhase
+                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
+                        feature: mixToggleLabels.punctuation,
+                      })
+                    : mixToggleLabels.punctuation}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {onIncludeSpecialCharactersChange && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleMixToggle(
+                          "specialCharacters",
+                          includeSpecialCharacters,
+                          onIncludeSpecialCharactersChange,
+                        )
+                      }}
+                      className={cn(
+                        "w-6 h-6 flex items-center justify-center rounded border transition-all",
+                        includeSpecialCharacters
+                          ? "bg-primary/15 border-primary/40 text-primary"
+                          : "bg-muted/30 border-border/30 text-muted-foreground/40 hover:text-muted-foreground/70 hover:border-border/50",
+                      )}
+                    />
+                  }
+                >
+                  <span className="text-[8px] font-mono font-bold leading-none">#*</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {isProgressivePhase
+                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
+                        feature: mixToggleLabels.specialCharacters,
+                      })
+                    : mixToggleLabels.specialCharacters}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </>
+        )}
       </div>
+      {isProgressivePhase && (
+        <div className="mt-2 text-center text-[10px] text-muted-foreground/60">
+          {t("keyProgressPanel.symbolMixEarlyUnlockSummary")}
+        </div>
+      )}
 
       <AnimatePresence>
         {expanded && (
@@ -584,6 +747,45 @@ function KeyProgressPanelInner({
               {unlockingKey === unlockPromptKey
                 ? t("keyProgressPanel.unlockDialog.unlocking")
                 : t("keyProgressPanel.unlockDialog.unlock")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingMixToggle !== null}
+        onOpenChange={(open) => !confirmingMixToggle && !open && setPendingMixToggle(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {t("keyProgressPanel.mixUnlockWarning.title", {
+                feature: pendingMixToggle ? mixToggleLabels[pendingMixToggle] : "",
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("keyProgressPanel.mixUnlockWarning.description", {
+                feature: pendingMixToggle ? mixToggleLabels[pendingMixToggle] : "",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPendingMixToggle(null)}
+              disabled={confirmingMixToggle}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleConfirmMixToggle}
+              disabled={confirmingMixToggle || !pendingMixToggle}
+            >
+              {confirmingMixToggle
+                ? t("keyProgressPanel.mixUnlockWarning.enabling")
+                : t("keyProgressPanel.mixUnlockWarning.enable")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,6 +19,7 @@ import {
   DEFAULT_TARGET_CPM,
   forceUnlockKey,
   loadAdaptiveState,
+  resolveAdaptiveMixOptions,
 } from "@/engine/typing/adaptiveEngine"
 import { setAppSetting } from "@/lib/settings"
 import {
@@ -182,14 +183,16 @@ export function usePracticeSessionController({
     adaptiveLoaded.current = true
     void loadAdaptiveState().then((nextState) => {
       setAdaptiveState(nextState)
+      const mixOpts = resolveAdaptiveMixOptions(nextState.phase, nextState.settings)
       const text = nextState.phase === "reinforcement"
-        ? generateReinforcementText(nextState.weakBigrams, ADAPTIVE_WORD_COUNT)
+        ? generateReinforcementText(nextState.weakBigrams, ADAPTIVE_WORD_COUNT, mixOpts)
         : generateAdaptiveText(
             nextState.keyConfidences,
             nextState.unlockedKeys,
             nextState.focusKey,
             ADAPTIVE_WORD_COUNT,
             nextState.settings.recoverKeys,
+            mixOpts,
           )
       loadText(text)
       void startMelody(getTargetCPM({ mode: "adaptive" }, nextState))
@@ -206,10 +209,15 @@ export function usePracticeSessionController({
         case "adaptive": {
           const resolvedAdaptiveState = nextAdaptiveState ?? adaptiveState
           if (resolvedAdaptiveState) {
+            const mixOpts = resolveAdaptiveMixOptions(
+              resolvedAdaptiveState.phase,
+              resolvedAdaptiveState.settings,
+            )
             if (resolvedAdaptiveState.phase === "reinforcement") {
               return generateReinforcementText(
                 resolvedAdaptiveState.weakBigrams,
                 ADAPTIVE_WORD_COUNT,
+                mixOpts,
               )
             }
             return generateAdaptiveText(
@@ -218,6 +226,7 @@ export function usePracticeSessionController({
               resolvedAdaptiveState.focusKey,
               ADAPTIVE_WORD_COUNT,
               resolvedAdaptiveState.settings.recoverKeys,
+              mixOpts,
             )
           }
           return generateWordText("easy", 25)
@@ -363,10 +372,21 @@ export function usePracticeSessionController({
         updates.targetCpm ?? adaptiveState?.settings.targetCpm ?? DEFAULT_TARGET_CPM
       const nextRecover =
         updates.recoverKeys ?? adaptiveState?.settings.recoverKeys ?? false
+      const nextNumbers =
+        updates.includeNumbers ?? adaptiveState?.settings.includeNumbers ?? false
+      const nextPunctuation =
+        updates.includePunctuation ?? adaptiveState?.settings.includePunctuation ?? false
+      const nextSpecialCharacters =
+        updates.includeSpecialCharacters
+        ?? adaptiveState?.settings.includeSpecialCharacters
+        ?? false
 
       await Promise.all([
         setAppSetting("adaptiveTargetCpm", nextTarget),
         setAppSetting("adaptiveRecoverKeys", nextRecover),
+        setAppSetting("adaptiveIncludeNumbers", nextNumbers),
+        setAppSetting("adaptiveIncludePunctuation", nextPunctuation),
+        setAppSetting("adaptiveIncludeSpecialCharacters", nextSpecialCharacters),
       ])
 
       reset()
@@ -395,14 +415,19 @@ export function usePracticeSessionController({
 
   const startAdaptiveNextRound = useCallback(
     (nextAdaptiveState: AdaptiveState) => {
+      const mixOpts = resolveAdaptiveMixOptions(
+        nextAdaptiveState.phase,
+        nextAdaptiveState.settings,
+      )
       const text = nextAdaptiveState.phase === "reinforcement"
-        ? generateReinforcementText(nextAdaptiveState.weakBigrams, ADAPTIVE_WORD_COUNT)
+        ? generateReinforcementText(nextAdaptiveState.weakBigrams, ADAPTIVE_WORD_COUNT, mixOpts)
         : generateAdaptiveText(
             nextAdaptiveState.keyConfidences,
             nextAdaptiveState.unlockedKeys,
             nextAdaptiveState.focusKey,
             ADAPTIVE_WORD_COUNT,
             nextAdaptiveState.settings.recoverKeys,
+            mixOpts,
           )
       loadText(text)
       setAdaptiveState(nextAdaptiveState)

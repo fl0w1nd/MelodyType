@@ -29,6 +29,9 @@ export interface AppSettingsSnapshot {
   adaptiveForcedKeys: string[]
   adaptiveUnlocked: string[]
   adaptivePhase: AdaptivePhase
+  adaptiveIncludeNumbers: boolean
+  adaptiveIncludePunctuation: boolean
+  adaptiveIncludeSpecialCharacters: boolean
 }
 
 export type SettingKey = keyof AppSettingsSnapshot
@@ -115,6 +118,21 @@ export const appSettingDefinitions: {
     deserialize: (raw) => (raw === "reinforcement" ? "reinforcement" : "progressive"),
     serialize: (value) => value,
   },
+  adaptiveIncludeNumbers: {
+    defaultValue: false,
+    deserialize: (raw) => raw === "true",
+    serialize: (value) => String(value),
+  },
+  adaptiveIncludePunctuation: {
+    defaultValue: false,
+    deserialize: (raw) => raw === "true",
+    serialize: (value) => String(value),
+  },
+  adaptiveIncludeSpecialCharacters: {
+    defaultValue: false,
+    deserialize: (raw) => raw === "true",
+    serialize: (value) => String(value),
+  },
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettingsSnapshot = {
@@ -128,6 +146,10 @@ export const DEFAULT_APP_SETTINGS: AppSettingsSnapshot = {
   adaptiveForcedKeys: appSettingDefinitions.adaptiveForcedKeys.defaultValue,
   adaptiveUnlocked: appSettingDefinitions.adaptiveUnlocked.defaultValue,
   adaptivePhase: appSettingDefinitions.adaptivePhase.defaultValue,
+  adaptiveIncludeNumbers: appSettingDefinitions.adaptiveIncludeNumbers.defaultValue,
+  adaptiveIncludePunctuation: appSettingDefinitions.adaptiveIncludePunctuation.defaultValue,
+  adaptiveIncludeSpecialCharacters:
+    appSettingDefinitions.adaptiveIncludeSpecialCharacters.defaultValue,
 }
 
 // ── Legacy key migration ───────────────────────────────
@@ -212,6 +234,9 @@ export async function getAppSettingsSnapshot(): Promise<AppSettingsSnapshot> {
     adaptiveForcedKeys: resolve("adaptiveForcedKeys"),
     adaptiveUnlocked: resolve("adaptiveUnlocked"),
     adaptivePhase: resolve("adaptivePhase"),
+    adaptiveIncludeNumbers: resolve("adaptiveIncludeNumbers"),
+    adaptiveIncludePunctuation: resolve("adaptiveIncludePunctuation"),
+    adaptiveIncludeSpecialCharacters: resolve("adaptiveIncludeSpecialCharacters"),
   }
 }
 

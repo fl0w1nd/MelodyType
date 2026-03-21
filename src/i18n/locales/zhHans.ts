@@ -217,6 +217,18 @@ const zhCN = {
     },
     allKeysReady: "所有已解锁按键均达到自适应解锁阈值。",
     moreBlockers: "+{{n}} 个",
+    includeNumbers: "包含数字",
+    includePunctuation: "包含标点",
+    includeSpecialCharacters: "包含特殊字符",
+    symbolMixEarlyUnlockHint: "第一阶段点击后会弹出警告，可提前强制开启 {{feature}}。",
+    symbolMixEarlyUnlockSummary: "第一阶段可通过警告提前强制开启这些混合练习；第二阶段则可直接切换。",
+    mixUnlockWarning: {
+      title: "提前开启 {{feature}}？",
+      description:
+        "这会在 26 个字母尚未全部完成前，把 {{feature}} 混入当前训练文本。它会改变原本的字母节奏，但能更早积累跨字符过渡记录。",
+      enable: "仍然开启",
+      enabling: "开启中...",
+    },
   },
 
   // ── Results Panel ────────────────────────────────────────
@@ -427,6 +439,7 @@ const zhCN = {
     },
     hitRate: "命中率",
     score: "得分",
+    pickLogicalKey: "选择字符",
   },
 
   // ── Adaptive Progress Card ───────────────────────────────

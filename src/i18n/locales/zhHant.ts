@@ -217,6 +217,18 @@ const zhTW = {
     },
     allKeysReady: "所有已解鎖按鍵均達到自適應解鎖閾值。",
     moreBlockers: "+{{n}} 個",
+    includeNumbers: "包含數字",
+    includePunctuation: "包含標點",
+    includeSpecialCharacters: "包含特殊字元",
+    symbolMixEarlyUnlockHint: "第一階段點擊後會彈出警告，可提前強制開啟 {{feature}}。",
+    symbolMixEarlyUnlockSummary: "第一階段可透過警告提前強制開啟這些混合練習；第二階段則可直接切換。",
+    mixUnlockWarning: {
+      title: "提前開啟 {{feature}}？",
+      description:
+        "這會在 26 個字母尚未全部完成前，把 {{feature}} 混入目前訓練文本。它會改變原本的字母節奏，但能更早累積跨字元過渡記錄。",
+      enable: "仍要開啟",
+      enabling: "開啟中...",
+    },
   },
 
   // ── Results Panel ────────────────────────────────────────
@@ -427,6 +439,7 @@ const zhTW = {
     },
     hitRate: "命中率",
     score: "得分",
+    pickLogicalKey: "選擇字元",
   },
 
   // ── Adaptive Progress Card ────────────────────────────────

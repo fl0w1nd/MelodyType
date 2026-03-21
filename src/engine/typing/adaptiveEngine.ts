@@ -1,5 +1,6 @@
 import { db, type BigramStat, type KeyStat, type TypingSession } from "@/lib/db"
 import { getAppSetting, setAppSetting, type AdaptivePhase } from "@/lib/settings"
+import { getLogicalCharCategory } from "@/lib/keyboardLayout"
 import {
   DEFAULT_RECOVER_KEYS,
   DEFAULT_TARGET_CPM,
@@ -31,7 +32,6 @@ export const MIN_LATENCY_MS = 50
 export const MAX_LATENCY_MS = 3000
 export const MIN_BIGRAM_SAMPLES = 5
 export const BIGRAM_ACCURACY_EXPONENT = 1.5
-export const MIN_SESSION_LATENCY_SAMPLES = 3
 export const MIN_SAMPLES_FOR_STABLE_SIGNAL = 15
 
 function medianLatency(latencies: number[]): number {
@@ -43,9 +43,23 @@ function medianLatency(latencies: number[]): number {
     : sorted[mid]
 }
 
+export function computeSessionCpmFromLatencies(latencies: number[]): number {
+  const representativeLatency = medianLatency(latencies)
+  return representativeLatency > 0 ? 60000 / representativeLatency : 0
+}
+
 export interface AdaptiveSettings {
   targetCpm: number
   recoverKeys: boolean
+  includeNumbers: boolean
+  includePunctuation: boolean
+  includeSpecialCharacters: boolean
+}
+
+export interface AdaptiveMixOptions {
+  numbers: boolean
+  punctuation: boolean
+  specialCharacters: boolean
 }
 
 export interface AdaptiveMetricSummary {
@@ -68,6 +82,9 @@ export interface AdaptiveGlobalSummary {
 export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
   targetCpm: DEFAULT_TARGET_CPM,
   recoverKeys: DEFAULT_RECOVER_KEYS,
+  includeNumbers: false,
+  includePunctuation: false,
+  includeSpecialCharacters: false,
 }
 
 export const ADAPTIVE_TARGET_PRESETS = [
@@ -332,13 +349,33 @@ export function getAdaptiveKeyTier(keyConfidence: KeyConfidence, recoverKeys: bo
 }
 
 export async function loadAdaptiveSettings(): Promise<AdaptiveSettings> {
-  const [targetCpm, recoverKeys] = await Promise.all([
+  const [targetCpm, recoverKeys, includeNumbers, includePunctuation, includeSpecialCharacters] = await Promise.all([
     getAppSetting("adaptiveTargetCpm"),
     getAppSetting("adaptiveRecoverKeys"),
+    getAppSetting("adaptiveIncludeNumbers"),
+    getAppSetting("adaptiveIncludePunctuation"),
+    getAppSetting("adaptiveIncludeSpecialCharacters"),
   ])
   return {
     targetCpm,
     recoverKeys,
+    includeNumbers,
+    includePunctuation,
+    includeSpecialCharacters,
+  }
+}
+
+export function resolveAdaptiveMixOptions(
+  _phase: AdaptivePhase,
+  settings: Pick<
+    AdaptiveSettings,
+    "includeNumbers" | "includePunctuation" | "includeSpecialCharacters"
+  >,
+): AdaptiveMixOptions {
+  return {
+    numbers: settings.includeNumbers,
+    punctuation: settings.includePunctuation,
+    specialCharacters: settings.includeSpecialCharacters,
   }
 }
 
@@ -498,12 +535,7 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
 
       for (const [key, metrics] of Object.entries(keyMetrics)) {
         const aggregate = ensureAggregate(key)
-        const hasEnoughSamples = metrics.correctLatencies.length >= MIN_SESSION_LATENCY_SAMPLES
-        const avgLatency =
-          hasEnoughSamples
-            ? medianLatency(metrics.correctLatencies)
-            : 0
-        const sessionCpm = avgLatency > 0 ? 60000 / avgLatency : 0
+        const sessionCpm = computeSessionCpmFromLatencies(metrics.correctLatencies)
         const prevEwma = aggregate.adaptiveEwmaCpm
         const newEwma = sessionCpm > 0
           ? (prevEwma ? prevEwma * (1 - EWMA_ALPHA) + sessionCpm * EWMA_ALPHA : sessionCpm)
@@ -663,7 +695,11 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
   }
 
   const weakBigrams = phase === "reinforcement"
-    ? await loadWeakBigrams(adaptSettings.targetCpm)
+    ? await loadWeakBigrams(
+        adaptSettings.targetCpm,
+        20,
+        resolveAdaptiveMixOptions(phase, adaptSettings),
+      )
     : []
 
   return {
@@ -711,12 +747,20 @@ export async function recomputeAndUnlock(): Promise<AdaptiveState> {
         if (allMastered) {
           await setAppSetting("adaptivePhase", "reinforcement")
           state.phase = "reinforcement"
-          state.weakBigrams = await loadWeakBigrams(state.settings.targetCpm)
+          state.weakBigrams = await loadWeakBigrams(
+            state.settings.targetCpm,
+            20,
+            resolveAdaptiveMixOptions(state.phase, state.settings),
+          )
         }
       }
     }
   } else {
-    state.weakBigrams = await loadWeakBigrams(state.settings.targetCpm)
+    state.weakBigrams = await loadWeakBigrams(
+      state.settings.targetCpm,
+      20,
+      resolveAdaptiveMixOptions(state.phase, state.settings),
+    )
   }
 
   return state
@@ -733,12 +777,8 @@ export async function updateKeyStatsFromSession(
 
   await db.transaction("rw", db.keyStats, async () => {
     for (const [key, metrics] of Object.entries(keyMetrics)) {
-      const hasEnoughSamples = metrics.correctLatencies.length >= MIN_SESSION_LATENCY_SAMPLES
-      const avgLatency = hasEnoughSamples
-        ? medianLatency(metrics.correctLatencies)
-        : 0
-
-      const sessionCpm = avgLatency > 0 ? (60000 / avgLatency) : 0
+      const avgLatency = medianLatency(metrics.correctLatencies)
+      const sessionCpm = computeSessionCpmFromLatencies(metrics.correctLatencies)
       const sessionWpm = sessionCpm / 5
 
       const existing = await db.keyStats.where("key").equals(key).first()
@@ -1108,13 +1148,28 @@ export function isBigramMastered(
   )
 }
 
+function isBigramInActiveSet(
+  stat: BigramStat,
+  options?: AdaptiveMixOptions,
+): boolean {
+  for (const ch of [stat.fromKey, stat.toKey]) {
+    const category = getLogicalCharCategory(ch)
+    if (category === "digit" && !options?.numbers) return false
+    if (category === "punctuation" && !options?.punctuation) return false
+    if (category === "special" && !options?.specialCharacters) return false
+  }
+  return true
+}
+
 export async function loadWeakBigrams(
   targetCpm: number = DEFAULT_TARGET_CPM,
   limit: number = 20,
+  options?: AdaptiveMixOptions,
 ): Promise<BigramScore[]> {
   const allStats = await db.bigramStats.toArray()
   const scored = allStats
     .filter((s) => s.totalAttempts >= MIN_BIGRAM_SAMPLES)
+    .filter((s) => isBigramInActiveSet(s, options))
     .map((s) => computeTransitionScore(s, targetCpm))
     .sort((a, b) => a.score - b.score)
   return scored.slice(0, limit)

@@ -58,8 +58,12 @@ export default function PracticePage() {
           keyConfidences={adaptiveState.keyConfidences}
           focusKey={adaptiveState.focusKey}
           globalSummary={adaptiveState.globalSummary}
+          phase={adaptiveState.phase}
           targetCpm={adaptiveState.settings.targetCpm}
           recoverKeys={adaptiveState.settings.recoverKeys}
+          includeNumbers={adaptiveState.settings.includeNumbers}
+          includePunctuation={adaptiveState.settings.includePunctuation}
+          includeSpecialCharacters={adaptiveState.settings.includeSpecialCharacters}
           totalSessions={adaptiveState.totalSessions}
           roundNumber={roundCount + 1}
           onUnlockKey={actions.handleManualUnlock}
@@ -68,6 +72,15 @@ export default function PracticePage() {
           }}
           onRecoverChange={(recoverKeys) => {
             void actions.updateAdaptiveSettings({ recoverKeys })
+          }}
+          onIncludeNumbersChange={(includeNumbers) => {
+            void actions.updateAdaptiveSettings({ includeNumbers })
+          }}
+          onIncludePunctuationChange={(includePunctuation) => {
+            void actions.updateAdaptiveSettings({ includePunctuation })
+          }}
+          onIncludeSpecialCharactersChange={(includeSpecialCharacters) => {
+            void actions.updateAdaptiveSettings({ includeSpecialCharacters })
           }}
         />
       )}
