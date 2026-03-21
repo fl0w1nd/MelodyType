@@ -1,19 +1,40 @@
-# MelodyType
+<p align="center">
+  <img src="assets/cover.png" alt="MelodyType Cover" width="100%" />
+</p>
 
-**Where typing meets music** — A privacy-focused typing practice application that transforms every keystroke into a musical melody.
+<h1 align="center">MelodyType</h1>
 
-MelodyType is a fully client-side web application with MIDI-driven audio feedback and comprehensive progress tracking. All data stays in your browser — no accounts, no cloud, complete privacy.
+<p align="center">
+  <strong>Where typing meets music</strong> — A privacy-focused typing practice app that transforms every keystroke into a musical melody.
+</p>
+
+<p align="center">
+  <a href="./README.zh-CN.md">English | 中文</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite 8" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" />
+  <img src="https://img.shields.io/badge/Tone.js-15-f734a3?logo=data:image/svg+xml;base64,&logoColor=white" alt="Tone.js" />
+  <img src="https://img.shields.io/github/license/fl0w1nd/MelodyType" alt="License" />
+</p>
+
+<p align="center">
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffl0w1nd%2FMelodyType">
+    <img src="https://vercel.com/button" alt="Deploy with Vercel" />
+  </a>
+</p>
 
 ---
+
+MelodyType is a fully client-side web application with MIDI-driven audio feedback and comprehensive progress tracking. All data stays in your browser — no accounts, no cloud, complete privacy.
 
 ## Table of Contents
 
 - [Features](#features)
-  - [Musical Typing](#musical-typing)
-  - [Adaptive Learning](#adaptive-learning)
-  - [Practice Modes](#practice-modes)
-  - [Dashboard](#dashboard)
-  - [Documentation](#documentation)
+- [Preview](#preview)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
@@ -34,46 +55,30 @@ Every keystroke plays a note. Practice becomes performance.
 - **Built-in Presets** — Twinkle Twinkle Little Star, Ode to Joy, Canon in D, Für Elise, C Major Scale, Chromatic Run
 - **Playback Modes** — Loop, once, sequential, or random
 - **Playlist Support** — Build a custom playlist from presets and uploaded files with drag-to-reorder
-- **Melody Flow Meter** — Real-time visual feedback on your typing rhythm; steady typing keeps the melody flowing
-- **Floating Player** — Minimizable floating MIDI player visible on all pages (except MIDI management)
+- **Melody Flow Meter** — Real-time visual feedback on your typing rhythm
+- **Floating Player** — Minimizable floating MIDI player visible on all pages
 
 ### Adaptive Learning
 
 An intelligent practice system that adapts to your skill level, inspired by [keybr.com](https://www.keybr.com).
 
-**Progressive Key Unlocking**
-
-You start with the 6 most common English letters. As you master each key, new letters unlock in frequency order:
+**Progressive Key Unlocking** — You start with the 6 most common English letters. As you master each key, new letters unlock in frequency order:
 
 ```
 e → n → i → t → r → l → s → a → u → o → d → y → c → h → g → m → p → b → k → v → w → f → z → x → q → j
 ```
 
-**Smart Text Generation**
+**Smart Text Generation** — Order-4 Markov chain trained on English phonetic data, producing natural-sounding pseudo-words weighted toward your weakest keys.
 
-The system generates practice text weighted toward your weakest keys. It uses an order-4 Markov chain trained on English phonetic data, producing natural-sounding pseudo-words while prioritizing real common vocabulary. Your trouble spots get more attention without feeling repetitive.
+**Per-Key Progress Tracking** — EWMA speed, accuracy tracking, and polynomial regression to predict sessions until mastery.
 
-**Per-Key Progress Tracking**
-
-Each key has its own learning curve. The system tracks your EWMA speed (exponentially weighted moving average) and accuracy over time, then uses polynomial regression to predict how many sessions until mastery.
-
-**Mastery Criteria**
-
-A key is considered mastered when:
+**Mastery Criteria:**
 - EWMA speed reaches your target CPM (default 175, configurable 75–750)
 - At least 35 correct keystrokes recorded
 - Recent accuracy ≥ 90% (decay-weighted)
 - Lifetime accuracy ≥ 88%
 
-**Continuous Sessions**
-
-In adaptive mode, rounds flow seamlessly. Complete a round and the next text appears instantly. Stats update in the background, and new key unlocks show as floating toasts. Press `Esc` to pause and review your progress.
-
-**Settings**
-
-- **Target Speed** — Adjust your mastery threshold (75–750 CPM) with preset quick-picks
-- **Strict Current Mastery** — Require current speed (not just historical best) to count toward unlock eligibility. Helps revisit skills that have regressed.
-- **Manual Unlock** — Click any locked key pill to unlock it early, skipping the normal progression gate
+**Continuous Sessions** — Rounds flow seamlessly. Press `Esc` to pause and review your progress.
 
 ### Practice Modes
 
@@ -83,68 +88,65 @@ In adaptive mode, rounds flow seamlessly. Complete a round and the next text app
 | **Time** | Structured level system with 4 tiers, letter grades (F–S), and progress tracking |
 | **Quote** | Type famous quotes for variety and natural language practice |
 
-**Time Mode Details**
-
-Time mode features hand-crafted levels across 4 tiers — Beginner, Intermediate, Advanced, and Expert. Each level defines a specific duration, word pool difficulty, and optional punctuation / number challenges.
-
-Earn letter grades per level:
-
-| Grade | Description |
-|-------|-------------|
-| S | Outstanding — exceeds all targets |
-| A | Excellent |
-| B | Good |
-| C | Decent |
-| D | Needs work |
-| F | Keep practicing |
-
-Grades are determined by combined WPM and accuracy thresholds specific to each level. The results screen shows a WPM-over-time chart, detailed stats, and requirements for the next grade.
-
 ### Dashboard
 
-Track your progress over time:
+Track your progress with detailed analytics:
 
-- **Stats Overview** — 7 hero metric cards (Avg WPM, Best WPM, Accuracy, Melody Integrity, Sessions, Practice Time, Streak) with hover tooltips
-- **Activity Heatmap** — GitHub-style heatmap showing daily practice activity
-- **Daily Goal Ring** — Interactive draggable ring to set and track your daily practice time target
-- **WPM & Accuracy Charts** — Aggregated trends with time range selector (Recent / Day / Week / Month)
-- **Keyboard Heatmap** — Three views: False Rate (error distribution), Frequency (key usage), and Transitions (bigram accuracy with arc visualizations)
-- **Key Detail Panel** — Per-key statistics: success count, mis-presses, false count, key accuracy, per-session accuracy chart, and learning trend
-- **Adaptive Progress Card** — Unlock status, per-key confidence map, weakest/strongest keys, session averages
-- **Session History** — Recent sessions with mode, WPM, accuracy, and duration
-- **Mode Tabs** — Filter all dashboard data by practice mode (Adaptive / Time / Quote)
+- **Stats Overview** — 7 hero metric cards with hover tooltips
+- **Activity Heatmap** — GitHub-style daily practice activity
+- **Daily Goal Ring** — Interactive draggable ring for daily practice targets
+- **WPM & Accuracy Charts** — Aggregated trends with time range selector
+- **Keyboard Heatmap** — False Rate, Frequency, and Transitions views
+- **Key Detail Panel** — Per-key statistics and learning trend
+- **Adaptive Progress Card** — Unlock status, confidence map, session averages
+- **Session History** — Recent sessions filtered by mode
 
-### Documentation
+---
 
-The built-in Docs page (`/docs`) provides comprehensive guidance:
+## Preview
 
-- Getting Started guide
-- Detailed explanations of all three practice modes
-- Full Metrics Glossary (every metric explained)
-- Melody & MIDI integration guide
-- Dashboard usage guide
-- MIDI management walkthrough
-- Keyboard shortcuts reference
+<p align="center">
+  <img src="assets/preview1.png" alt="Practice — Adaptive Mode" width="100%" />
+  <br />
+  <em>Adaptive practice with real-time metrics, virtual keyboard, and MIDI playback</em>
+</p>
+
+<p align="center">
+  <img src="assets/preview2.png" alt="Dashboard — Overview" width="100%" />
+  <br />
+  <em>Dashboard with stats overview, activity heatmap, and daily goal tracking</em>
+</p>
+
+<p align="center">
+  <img src="assets/preview3.png" alt="Dashboard — Keyboard Heatmap" width="100%" />
+  <br />
+  <em>Keyboard heatmap with transition arcs and per-key detail analytics</em>
+</p>
+
+<p align="center">
+  <img src="assets/preview4.png" alt="MIDI Management" width="100%" />
+  <br />
+  <em>MIDI management — instruments, presets, uploads, and playlist</em>
+</p>
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Framework | [React](https://react.dev) | 19.x |
-| Language | [TypeScript](https://www.typescriptlang.org) | 5.9.x |
-| Build Tool | [Vite](https://vite.dev) | 8.x |
-| Styling | [Tailwind CSS](https://tailwindcss.com) | 4.x |
-| UI Components | [shadcn/ui](https://ui.shadcn.com) + [Base UI](https://base-ui.com) | — |
-| Local Storage | [Dexie.js](https://dexie.org) (IndexedDB) | 4.x |
-| Audio | [Tone.js](https://tonejs.github.io) | 15.x |
-| MIDI Parsing | [@tonejs/midi](https://github.com/Tonejs/Midi) | 2.x |
-| Charts | [Recharts](https://recharts.org) | 3.x |
-| Animation | [Framer Motion](https://www.framer.com/motion/) | 12.x |
-| Routing | [React Router](https://reactrouter.com) | 7.x |
-| Icons | [Lucide React](https://lucide.dev) | 0.577.x |
-| Testing | [Vitest](https://vitest.dev) | 4.x |
+| Layer | Technology |
+|-------|-----------|
+| Framework | [React](https://react.dev) 19 |
+| Language | [TypeScript](https://www.typescriptlang.org) 5.9 |
+| Build Tool | [Vite](https://vite.dev) 8 |
+| Styling | [Tailwind CSS](https://tailwindcss.com) 4 |
+| UI Components | [shadcn/ui](https://ui.shadcn.com) + [Base UI](https://base-ui.com) |
+| Local Storage | [Dexie.js](https://dexie.org) (IndexedDB) |
+| Audio | [Tone.js](https://tonejs.github.io) |
+| MIDI Parsing | [@tonejs/midi](https://github.com/Tonejs/Midi) |
+| Charts | [Recharts](https://recharts.org) |
+| Animation | [Framer Motion](https://www.framer.com/motion/) |
+| Routing | [React Router](https://reactrouter.com) |
+| Testing | [Vitest](https://vitest.dev) |
 
 ---
 
@@ -153,41 +155,27 @@ The built-in Docs page (`/docs`) provides comprehensive guidance:
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) ≥ 18
-- [pnpm](https://pnpm.io) (recommended)
+- [pnpm](https://pnpm.io)
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/fl0w1nd/MelodyType.git
 cd MelodyType
-
-# Install dependencies
 pnpm install
 ```
 
 ### Development
 
 ```bash
-# Start development server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview production build
-pnpm preview
-
-# Run linting
-pnpm lint
-
-# Run tests
-npx vitest run
+pnpm dev        # Start dev server at http://localhost:5173
+pnpm build      # Production build
+pnpm preview    # Preview production build
+pnpm lint       # Run ESLint
+npx vitest run  # Run tests
 ```
 
-The development server runs at `http://localhost:5173` by default.
-
-> **Note**: No `.env` file or external API keys are required. The application is entirely self-contained.
+> **Note**: No `.env` file or API keys required — the app is entirely self-contained.
 
 ---
 
@@ -196,73 +184,18 @@ The development server runs at `http://localhost:5173` by default.
 ```
 src/
 ├── engine/                         # Core business logic
-│   ├── typing/                     # Typing engine
-│   │   ├── math/                   # Mathematical utilities (vector, polynomial, regression, SLE)
-│   │   ├── markov/                 # Order-4 Markov chain (model + English phonetic data)
-│   │   ├── adaptiveEngine.ts       # Unlock logic, confidence, weights, bigram scoring
-│   │   ├── adaptiveConstants.ts    # Tunable thresholds and presets
-│   │   ├── accuracyMetrics.ts      # Accuracy computation for stored sessions
-│   │   ├── learningRate.ts         # Polynomial regression prediction
-│   │   ├── pseudoWords.ts          # Adaptive text generation
-│   │   ├── useTypingEngine.ts      # Core typing state machine hook
-│   │   ├── wordLists.ts            # Common words by difficulty
-│   │   ├── quoteLoader.ts          # Quote fetching from public/data/
-│   │   ├── timeLevels.ts           # Time mode levels & grade system
-│   │   ├── markovData.ts           # Markov model data loader
-│   │   └── types.ts                # Shared type definitions
-│   ├── midi/                       # MIDI audio system
-│   │   ├── MidiContext.tsx          # React context for MIDI state
-│   │   ├── synthManager.ts         # Tone.js synth lifecycle
-│   │   ├── melodyScheduler.ts      # Frame scheduling & flow state
-│   │   ├── melodyIntegrity.ts      # Integrity score calculation
-│   │   ├── midiParser.ts           # MIDI file → frame conversion
-│   │   ├── useMidiTrigger.ts       # Hook to trigger MIDI frames
-│   │   ├── presets.ts              # Built-in melody presets
-│   │   └── types.ts                # MIDI type definitions
-│   └── practice/                   # Practice session orchestration
-│       ├── usePracticeSessionController.ts  # Main session controller hook
-│       ├── practicePersistence.ts   # Session saving & goal tracking
-│       └── sessionQueries.ts        # Dexie queries for session data
+│   ├── typing/                     # Typing engine (Markov chain, adaptive, math)
+│   ├── midi/                       # MIDI audio system (Tone.js, scheduling)
+│   └── practice/                   # Session orchestration & persistence
 ├── components/                     # React components
 │   ├── practice/                   # Practice interface
-│   │   ├── TextDisplay.tsx         # Text rendering with cursor
-│   │   ├── VirtualKeyboard.tsx     # On-screen keyboard
-│   │   ├── MetricsBar.tsx          # WPM, accuracy, time, raw, integrity
-│   │   ├── FlowMeter.tsx           # Melody flow visualization
-│   │   ├── ResultsPanel.tsx        # Session results with charts
-│   │   ├── ModeSelector.tsx        # Practice mode selection with tooltips
-│   │   ├── TimeLevelSelect.tsx     # Time mode level browser
-│   │   ├── KeyProgressPanel.tsx    # Adaptive key progress & settings
-│   │   └── NoteParticles.tsx       # Musical note particle effects
-│   ├── dashboard/                  # Dashboard components
-│   │   ├── StatsOverview.tsx       # 7 hero metric cards
-│   │   ├── WpmChart.tsx            # Speed & accuracy charts
-│   │   ├── KeyboardHeatmap.tsx     # Interactive keyboard heatmap
-│   │   ├── SessionHistory.tsx      # Recent session list
-│   │   ├── DailyGoalRing.tsx       # Interactive daily goal ring
-│   │   ├── KeyDetailPanel.tsx      # Per-key detail stats
-│   │   ├── AdaptiveProgressCard.tsx # Adaptive mode progress
-│   │   ├── ActivityHeatmap.tsx     # GitHub-style activity heatmap
-│   │   ├── TimeRangeSelector.tsx   # Time range filter
-│   │   └── dashboardUtils.ts      # Filtering & aggregation helpers
-│   ├── layout/                     # App shell
-│   │   ├── AppLayout.tsx           # Header, nav, footer, page transitions
-│   │   └── BackgroundDecor.tsx     # Ambient background effects
-│   ├── MidiFloatingPlayer.tsx      # Floating MIDI player
+│   ├── dashboard/                  # Dashboard & analytics
+│   ├── layout/                     # App shell & background
 │   └── ui/                         # shadcn/ui primitives
 ├── pages/                          # Page components (lazy-loaded)
-│   ├── PracticePage.tsx            # Main practice interface
-│   ├── DashboardPage.tsx           # Statistics & progress
-│   ├── MidiPage.tsx                # MIDI file management
-│   ├── DocsPage.tsx                # Documentation & usage guide
-│   └── SettingsPage.tsx            # Data management & about
-├── lib/                            # Utility libraries
-│   ├── db.ts                       # Dexie.js schema & import/export
-│   ├── settings.ts                 # App settings (IndexedDB-backed)
-│   ├── utils.ts                    # cn() helper
-│   └── date.ts                     # Date formatting utilities
+├── lib/                            # Utilities (DB, settings, helpers)
 ├── App.tsx                         # Router & providers
-├── main.tsx                        # Application entry point
+├── main.tsx                        # Entry point
 └── index.css                       # Global styles (Tailwind v4)
 ```
 
@@ -270,16 +203,16 @@ src/
 
 ## Data & Privacy
 
-- **Local-First** — All data is stored in your browser's IndexedDB
+- **Local-First** — All data stored in browser IndexedDB
 - **No Tracking** — No analytics, no telemetry, no external requests (except Google Fonts)
-- **Portable** — Export a full JSON backup from Settings and import on another device
+- **Portable** — Export/import full JSON backups from Settings
 - **Privacy** — Your typing data never leaves your browser
 
 ---
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) — see the [LICENSE](LICENSE) file for details.
+[AGPL-3.0](LICENSE)
 
 ---
 
