@@ -7,5 +7,6 @@ dist
 .DS_Store
 *.local
 local/
-scripts/
+scripts/*
+!scripts/generate-seo-assets.mjs
 worktrees/
