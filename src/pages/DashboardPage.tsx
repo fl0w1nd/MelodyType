@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { db } from "@/lib/db"
 import { StatsOverview } from "@/components/dashboard/StatsOverview"
 import { WpmChart, AccuracyChart } from "@/components/dashboard/WpmChart"
-import { KeyboardHeatmap } from "@/components/dashboard/KeyboardHeatmap"
+import { KeyboardHeatmap, type HeatmapTab } from "@/components/dashboard/KeyboardHeatmap"
 import { SessionHistory } from "@/components/dashboard/SessionHistory"
 import { DailyGoalRing } from "@/components/dashboard/DailyGoalRing"
 import { KeyDetailPanel } from "@/components/dashboard/KeyDetailPanel"
@@ -17,6 +17,7 @@ import { formatLocalDateKey } from "@/lib/date"
 import type { DailyGoal, TypingSession } from "@/lib/db"
 import { loadAllBigramScores, backfillBigramStatsFromHistory } from "@/engine/typing/adaptiveEngine"
 import { buildDashboardKeyStats } from "@/components/dashboard/dashboardUtils"
+import { getPhysicalKeyForLogicalChar } from "@/lib/keyboardLayout"
 
 type DashboardMode = "adaptive" | "time" | "quote"
 
@@ -40,7 +41,8 @@ export default function DashboardPage() {
   )
 
   const [selectedMode, setSelectedMode] = useState<DashboardMode>("adaptive")
-  const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null)
+  const [activeHeatmapTab, setActiveHeatmapTab] = useState<HeatmapTab>("false")
+  const [selectedLogicalKeyOverride, setSelectedLogicalKeyOverride] = useState<string | null>(null)
   const bigramScores = useLiveQuery(() => loadAllBigramScores(), [], [])
 
   const dashboardModeMeta: Record<DashboardMode, { label: string; icon: React.ReactNode }> = {
@@ -89,21 +91,30 @@ export default function DashboardPage() {
     [sessions],
   )
 
-  const selectedKey = useMemo(
-    () => selectedKeyOverride ?? getDefaultKey(selectedMode),
-    [selectedKeyOverride, getDefaultKey, selectedMode],
+  const selectedLogicalKey = useMemo(
+    () => selectedLogicalKeyOverride ?? getDefaultKey(selectedMode),
+    [selectedLogicalKeyOverride, getDefaultKey, selectedMode],
+  )
+
+  const selectedPhysicalKey = useMemo(
+    () =>
+      selectedLogicalKey
+        ? getPhysicalKeyForLogicalChar(selectedLogicalKey)?.physicalKey ?? selectedLogicalKey
+        : null,
+    [selectedLogicalKey],
   )
 
   const handleModeChange = useCallback(
     (value: string) => {
       setSelectedMode(value as DashboardMode)
-      setSelectedKeyOverride(null)
+      setActiveHeatmapTab("false")
+      setSelectedLogicalKeyOverride(null)
     },
     [],
   )
 
-  const handleKeySelect = useCallback((key: string) => {
-    setSelectedKeyOverride(key)
+  const handleLogicalKeySelect = useCallback((key: string) => {
+    setSelectedLogicalKeyOverride(key)
   }, [])
 
   const keyStatsMap = useMemo(
@@ -155,14 +166,18 @@ export default function DashboardPage() {
 
             <KeyboardHeatmap
               sessions={sessionsByMode[mode]}
-              selectedKey={selectedKey}
-              onKeySelect={handleKeySelect}
+              activeTab={activeHeatmapTab}
+              onActiveTabChange={setActiveHeatmapTab}
+              selectedLogicalKey={selectedLogicalKey}
+              selectedPhysicalKey={selectedPhysicalKey}
+              onLogicalKeySelect={handleLogicalKeySelect}
               bigramScores={mode === "adaptive" ? bigramScores : undefined}
               keyStatsMap={mode === selectedMode ? keyStatsMap : undefined}
             >
               <KeyDetailPanel
                 sessions={sessionsByMode[mode]}
-                selectedKey={selectedKey}
+                activeTab={activeHeatmapTab}
+                selectedLogicalKey={selectedLogicalKey}
                 keyStatsMap={mode === selectedMode ? keyStatsMap : undefined}
               />
             </KeyboardHeatmap>

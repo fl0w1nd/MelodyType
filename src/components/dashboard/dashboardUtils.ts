@@ -1,6 +1,7 @@
 import type { TimeRange } from "./TimeRangeSelector"
 import type { TypingSession } from "@/lib/db"
 import { computeStoredSessionAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
+import { getLogicalCandidatesForPhysicalKey } from "@/lib/keyboardLayout"
 
 export function filterSessionsByRange(sessions: TypingSession[], range: TimeRange): TypingSession[] {
   if (range === "recent") {
@@ -114,8 +115,8 @@ function normalizeStoredKey(key: string): string | null {
   return key.toLowerCase()
 }
 
-function isLetterKey(key: string | null): key is string {
-  return key != null && key.length === 1 && key >= "a" && key <= "z"
+function isTrackableKey(key: string | null): key is string {
+  return key != null && key.length === 1 && key !== " "
 }
 
 interface SessionKeyActualStats {
@@ -142,8 +143,45 @@ export interface DashboardKeyStats {
   occurrences: number
   falseRate: number | null
   keyAccuracy: number | null
-  recentSamples: { session: number; accuracy: number }[]
+  recentSamples: Array<{
+    session: number
+    accuracy: number
+    successPresses: number
+    falsePresses: number
+  }>
   learningRate: number
+}
+
+export interface DashboardPhysicalKeyStats {
+  physicalKey: string
+  logicalKeys: string[]
+  totalPresses: number
+  misPresses: number
+  successPresses: number
+  falsePresses: number
+  occurrences: number
+  falseRate: number | null
+  keyAccuracy: number | null
+  recentSamples: Array<{
+    session: number
+    accuracy: number
+    successPresses: number
+    falsePresses: number
+  }>
+  learningRate: number
+  breakdown: DashboardKeyStats[]
+}
+
+function computeLearningRate(
+  samples: Array<{ session: number; accuracy: number }>,
+): number {
+  if (samples.length < 3) return 0
+
+  const firstHalf = samples.slice(0, Math.floor(samples.length / 2))
+  const secondHalf = samples.slice(Math.floor(samples.length / 2))
+  const avgFirst = firstHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / firstHalf.length
+  const avgSecond = secondHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / secondHalf.length
+  return avgSecond - avgFirst
 }
 
 function analyzeSessionKeys(session: TypingSession): SessionKeyAnalysis {
@@ -178,11 +216,11 @@ function analyzeSessionKeys(session: TypingSession): SessionKeyAnalysis {
     const expectedKey = correctSequence[expectedIndex] ?? null
 
     if (stroke.correct) {
-      if (isLetterKey(actualKey)) {
+      if (isTrackableKey(actualKey)) {
         ensureActual(actualKey).totalPresses++
       }
 
-      if (!positionAlreadyFailed && isLetterKey(expectedKey)) {
+      if (!positionAlreadyFailed && isTrackableKey(expectedKey)) {
         ensureTarget(expectedKey).successPresses++
       }
 
@@ -193,14 +231,14 @@ function analyzeSessionKeys(session: TypingSession): SessionKeyAnalysis {
       continue
     }
 
-    if (isLetterKey(actualKey)) {
+    if (isTrackableKey(actualKey)) {
       const stats = ensureActual(actualKey)
       stats.totalPresses++
       stats.misPresses++
     }
 
     if (!positionAlreadyFailed) {
-      if (isLetterKey(expectedKey)) {
+      if (isTrackableKey(expectedKey)) {
         ensureTarget(expectedKey).falsePresses++
       }
       positionAlreadyFailed = true
@@ -258,6 +296,8 @@ export function buildDashboardKeyStats(sessions: TypingSession[]): Map<string, D
       entry.recentSamples.push({
         session: sessionIndex + 1,
         accuracy: Math.round((stats.successPresses / occurrences) * 100),
+        successPresses: stats.successPresses,
+        falsePresses: stats.falsePresses,
       })
     }
   }
@@ -271,15 +311,63 @@ export function buildDashboardKeyStats(sessions: TypingSession[]): Map<string, D
       ? entry.successPresses / entry.occurrences
       : null
 
-    const samples = entry.recentSamples
-    if (samples.length >= 3) {
-      const firstHalf = samples.slice(0, Math.floor(samples.length / 2))
-      const secondHalf = samples.slice(Math.floor(samples.length / 2))
-      const avgFirst = firstHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / firstHalf.length
-      const avgSecond = secondHalf.reduce((sum, sample) => sum + sample.accuracy, 0) / secondHalf.length
-      entry.learningRate = avgSecond - avgFirst
-    }
+    entry.learningRate = computeLearningRate(entry.recentSamples)
   }
 
   return map
+}
+
+export function aggregateDashboardPhysicalKeyStats(
+  keyStatsMap: Map<string, DashboardKeyStats>,
+  physicalKey: string,
+): DashboardPhysicalKeyStats {
+  const logicalKeys = getLogicalCandidatesForPhysicalKey(physicalKey)
+  const breakdown = logicalKeys
+    .map((key) => keyStatsMap.get(key))
+    .filter((entry): entry is DashboardKeyStats => entry != null)
+
+  const totalPresses = breakdown.reduce((sum, entry) => sum + entry.totalPresses, 0)
+  const misPresses = breakdown.reduce((sum, entry) => sum + entry.misPresses, 0)
+  const successPresses = breakdown.reduce((sum, entry) => sum + entry.successPresses, 0)
+  const falsePresses = breakdown.reduce((sum, entry) => sum + entry.falsePresses, 0)
+  const occurrences = successPresses + falsePresses
+  const recentSampleMap = new Map<number, { successPresses: number; falsePresses: number }>()
+
+  for (const entry of breakdown) {
+    for (const sample of entry.recentSamples) {
+      const current = recentSampleMap.get(sample.session) ?? { successPresses: 0, falsePresses: 0 }
+      current.successPresses += sample.successPresses
+      current.falsePresses += sample.falsePresses
+      recentSampleMap.set(sample.session, current)
+    }
+  }
+
+  const recentSamples = [...recentSampleMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([session, sample]) => {
+      const sampleOccurrences = sample.successPresses + sample.falsePresses
+      return {
+        session,
+        accuracy: sampleOccurrences > 0
+          ? Math.round((sample.successPresses / sampleOccurrences) * 100)
+          : 0,
+        successPresses: sample.successPresses,
+        falsePresses: sample.falsePresses,
+      }
+    })
+
+  return {
+    physicalKey,
+    logicalKeys,
+    totalPresses,
+    misPresses,
+    successPresses,
+    falsePresses,
+    occurrences,
+    falseRate: occurrences > 0 ? falsePresses / occurrences : null,
+    keyAccuracy: occurrences > 0 ? successPresses / occurrences : null,
+    recentSamples,
+    learningRate: computeLearningRate(recentSamples),
+    breakdown,
+  }
 }

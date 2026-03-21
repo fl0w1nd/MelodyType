@@ -16,24 +16,54 @@ import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
-import { buildDashboardKeyStats, type DashboardKeyStats } from "./dashboardUtils"
+import { type HeatmapTab } from "./KeyboardHeatmap"
+import {
+  aggregateDashboardPhysicalKeyStats,
+  buildDashboardKeyStats,
+  type DashboardKeyStats,
+} from "./dashboardUtils"
+import { getPhysicalKeyForLogicalChar } from "@/lib/keyboardLayout"
+
+function formatLogicalKeyLabel(key: string): string {
+  return /^[a-z]$/.test(key) ? key.toUpperCase() : key
+}
 
 interface KeyDetailPanelProps {
   sessions: TypingSession[]
-  selectedKey: string | null
+  activeTab: HeatmapTab
+  selectedLogicalKey: string | null
   keyStatsMap?: Map<string, DashboardKeyStats>
 }
 
-export function KeyDetailPanel({ sessions, selectedKey, keyStatsMap }: KeyDetailPanelProps) {
+export function KeyDetailPanel({
+  sessions,
+  activeTab,
+  selectedLogicalKey,
+  keyStatsMap,
+}: KeyDetailPanelProps) {
   const { t } = useTranslation()
 
   const perKeyData = useMemo(
     () => keyStatsMap ?? buildDashboardKeyStats(sessions),
     [keyStatsMap, sessions],
   )
-  const selected = selectedKey ? perKeyData.get(selectedKey) : undefined
+  const selected = useMemo(
+    () => (selectedLogicalKey ? perKeyData.get(selectedLogicalKey) ?? null : null),
+    [perKeyData, selectedLogicalKey],
+  )
 
-  if (!selectedKey || !selected) return null
+  if (!selected) return null
+
+  const selectedPhysicalKey = selectedLogicalKey
+    ? getPhysicalKeyForLogicalChar(selectedLogicalKey)?.physicalKey ?? selectedLogicalKey
+    : null
+  const sharedPhysicalStats = activeTab !== "transitions" && selectedPhysicalKey
+    ? aggregateDashboardPhysicalKeyStats(perKeyData, selectedPhysicalKey)
+    : null
+  const sharedTotalPresses = sharedPhysicalStats && sharedPhysicalStats.logicalKeys.length > 1
+    ? sharedPhysicalStats.totalPresses
+    : selected.totalPresses
+  const selectedLabel = formatLogicalKeyLabel(selected.key)
 
   const falseRatePct = selected.falseRate == null
     ? "—"
@@ -52,7 +82,7 @@ export function KeyDetailPanel({ sessions, selectedKey, keyStatsMap }: KeyDetail
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={selected.key}
+        key={`${activeTab}:${selected.key}`}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -6 }}
@@ -60,13 +90,13 @@ export function KeyDetailPanel({ sessions, selectedKey, keyStatsMap }: KeyDetail
         className="space-y-4"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 font-mono text-2xl font-bold text-primary">
-            {selected.key.toUpperCase()}
+          <div className="flex min-w-12 h-12 px-2 items-center justify-center rounded-xl bg-primary/10 font-mono text-lg font-bold text-primary">
+            {selectedLabel}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">
-                {t("keyDetailPanel.totalPresses", { n: selected.totalPresses })}
+                {t("keyDetailPanel.totalPresses", { n: sharedTotalPresses })}
               </span>
               <Badge
                 variant="secondary"

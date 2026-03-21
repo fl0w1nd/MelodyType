@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { buildDashboardKeyStats } from "../src/components/dashboard/dashboardUtils"
+import {
+  aggregateDashboardPhysicalKeyStats,
+  buildDashboardKeyStats,
+} from "../src/components/dashboard/dashboardUtils"
 import type { TypingSession } from "../src/lib/db"
 
 function makeSession(keys: Array<{ key: string; correct: boolean }>): TypingSession {
@@ -85,5 +88,42 @@ describe("buildDashboardKeyStats", () => {
       totalPresses: 1,
       misPresses: 1,
     })
+  })
+
+  it("aggregates shifted symbol stats onto the physical key", () => {
+    const stats = buildDashboardKeyStats([
+      makeSession([
+        { key: "!", correct: true },
+        { key: "1", correct: true },
+        { key: "!", correct: false },
+      ]),
+    ])
+
+    const aggregated = aggregateDashboardPhysicalKeyStats(stats, "1")
+
+    expect(aggregated.logicalKeys).toEqual(["1", "!"])
+    expect(aggregated.totalPresses).toBe(3)
+    expect(aggregated.breakdown.map((entry) => entry.key)).toEqual(["1", "!"])
+  })
+
+  it("aggregates recent target accuracy by physical key for ambiguous drilldown", () => {
+    const stats = buildDashboardKeyStats([
+      makeSession([
+        { key: "1", correct: true },
+        { key: "!", correct: true },
+      ]),
+      makeSession([
+        { key: "x", correct: false },
+        { key: "1", correct: true },
+      ]),
+    ])
+
+    const aggregated = aggregateDashboardPhysicalKeyStats(stats, "1")
+
+    expect(aggregated.recentSamples).toEqual([
+      { session: 1, accuracy: 100, successPresses: 2, falsePresses: 0 },
+      { session: 2, accuracy: 0, successPresses: 0, falsePresses: 1 },
+    ])
+    expect(aggregated.falseRate).toBeCloseTo(1 / 3)
   })
 })
