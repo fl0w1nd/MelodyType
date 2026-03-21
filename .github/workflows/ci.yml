@@ -3,8 +3,32 @@ name: CI & Deploy
 on:
   push:
     branches: [main, dev]
+    paths-ignore:
+      - '**.md'
+      - '.agents/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '.idea/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'vercel.json'
   pull_request:
     branches: [main, dev]
+    paths-ignore:
+      - '**.md'
+      - '.agents/**'
+      - '.github/**'
+      - '.vscode/**'
+      - '.idea/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'vercel.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
