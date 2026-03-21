@@ -7,30 +7,22 @@ on:
       - 'assets/**'
       - '**.md'
       - '.agents/**'
-      - '.github/**'
       - '.vscode/**'
       - '.idea/**'
       - 'LICENSE'
       - '.gitignore'
-      - '.dockerignore'
       - 'docker-compose.yml'
-      - 'Dockerfile'
-      - 'vercel.json'
   pull_request:
     branches: [main, dev]
     paths-ignore:
       - 'assets/**'
       - '**.md'
       - '.agents/**'
-      - '.github/**'
       - '.vscode/**'
       - '.idea/**'
       - 'LICENSE'
       - '.gitignore'
-      - '.dockerignore'
       - 'docker-compose.yml'
-      - 'Dockerfile'
-      - 'vercel.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -151,7 +143,7 @@ jobs:
   # ── main branch: docker image (version + latest) ─────────
 
   docker-release-build:
-    name: Docker Release (${{ matrix.platform }})
+    name: ${{ needs.release.outputs.created == 'true' && format('Docker Release ({0})', matrix.platform) || 'Docker Release' }}
     needs: [ci, release]
     if: needs.release.outputs.created == 'true'
     strategy:
@@ -288,7 +280,7 @@ jobs:
   # ── dev branch: docker image (dev only) ───────────────────
 
   docker-dev-build:
-    name: Docker Dev (${{ matrix.platform }})
+    name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && format('Docker Dev ({0})', matrix.platform) || 'Docker Dev' }}
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     strategy:
