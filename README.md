@@ -18,13 +18,7 @@
   <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite 8" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" />
   <img src="https://img.shields.io/badge/Tone.js-15-f734a3?logo=data:image/svg+xml;base64,&logoColor=white" alt="Tone.js" />
-  <img src="https://img.shields.io/github/license/fl0w1nd/MelodyType" alt="License" />
-</p>
-
-<p align="center">
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffl0w1nd%2FMelodyType">
-    <img src="https://vercel.com/button" alt="Deploy with Vercel" />
-  </a>
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License" />
 </p>
 
 ---
@@ -176,6 +170,37 @@ npx vitest run  # Run tests
 ```
 
 > **Note**: No `.env` file or API keys required — the app is entirely self-contained.
+
+### Deploy
+
+#### Vercel
+
+<a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ffl0w1nd%2FMelodyType">
+  <img src="https://vercel.com/button" alt="Deploy with Vercel" />
+</a>
+
+#### Docker Compose
+
+```yaml
+services:
+  melodytype:
+    image: ghcr.io/fl0w1nd/melodytype:latest
+    container_name: melodytype
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+```
+
+#### Docker
+
+```bash
+docker build -t melodytype .
+docker run -d -p 3000:3000 melodytype
+```
 
 ---
 
