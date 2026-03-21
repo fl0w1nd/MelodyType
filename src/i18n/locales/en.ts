@@ -93,6 +93,28 @@ const en = {
     loading: "Loading...",
   },
 
+  landing: {
+    eyebrow: "Privacy-first typing trainer",
+    title: "Practice typing with live MIDI melodies",
+    description:
+      "MelodyType turns each keystroke into part of a melody while helping you improve speed, accuracy, and rhythm with adaptive lessons, time challenges, and browser-local progress tracking.",
+    highlights: {
+      adaptive: "Adaptive weak-key training",
+      rhythm: "Time and quote practice modes",
+      privacy: "Local-first stats, no account needed",
+    },
+    docsCta: "Read Docs",
+    githubCta: "View GitHub",
+  },
+
+  notFound: {
+    title: "Page not found",
+    description:
+      "This route does not exist in MelodyType. Head back to practice or open the docs to keep exploring the app.",
+    backHome: "Back to practice",
+    readDocs: "Open docs",
+  },
+
   // ── Practice Page ────────────────────────────────────────
   practice: {
     newKeyUnlocked: "🔓 New key unlocked:",

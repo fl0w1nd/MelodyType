@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { MidiProvider } from "@/engine/midi/MidiContext"
+import NotFoundPage from "@/pages/NotFoundPage"
 
 const PracticePage = lazy(() => import("@/pages/PracticePage"))
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"))
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/midi" element={<MidiPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
         </Suspense>

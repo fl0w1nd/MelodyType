@@ -72,76 +72,93 @@ export default function DocsPage() {
   }
 
   return (
-    <div className="flex gap-8">
-      {/* Sidebar Navigation */}
-      <nav className="hidden lg:flex w-56 shrink-0 flex-col gap-1 sticky top-24 self-start max-h-[calc(100vh-8rem)] overflow-y-auto">
-        <div className="flex items-center gap-2 mb-4 px-3">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <span className="font-serif text-lg font-medium">{t("nav.docs")}</span>
-        </div>
-        {sections.map((section) => (
-          <button
-            key={section.id}
-            onClick={() => setActiveSection(section.id)}
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 text-left",
-              activeSection === section.id
-                ? "bg-primary/10 text-primary border border-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-            )}
-          >
-            {section.icon}
-            {section.label}
-          </button>
-        ))}
-      </nav>
+    <div className="flex flex-col gap-6">
+      <header className="rounded-[28px] border border-border/60 bg-card/75 p-6 shadow-sm backdrop-blur-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/75">
+          {t("nav.docs")}
+        </p>
+        <h1 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl">
+          {t("docsPage.overview.title")}
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          {t("docsPage.overview.p1")}
+        </p>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {t("docsPage.overview.p2")}
+        </p>
+      </header>
 
-      {/* Mobile nav */}
-      <div className="lg:hidden w-full">
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <span className="font-serif text-lg font-medium">{t("nav.docs")}</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mb-6">
+      <div className="flex gap-8">
+        {/* Sidebar Navigation */}
+        <nav className="hidden lg:flex w-56 shrink-0 flex-col gap-1 sticky top-24 self-start max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="flex items-center gap-2 mb-4 px-3">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="font-serif text-lg font-medium">{t("nav.docs")}</span>
+          </div>
           {sections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-200",
+                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 text-left",
                 activeSection === section.id
                   ? "bg-primary/10 text-primary border border-primary/20"
-                  : "text-muted-foreground hover:text-foreground bg-secondary/40",
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
               )}
             >
               {section.icon}
               {section.label}
             </button>
           ))}
+        </nav>
+
+        {/* Mobile nav */}
+        <div className="lg:hidden w-full">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="font-serif text-lg font-medium">{t("nav.docs")}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-200",
+                  activeSection === section.id
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground hover:text-foreground bg-secondary/40",
+                )}
+              >
+                {section.icon}
+                {section.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Content */}
+        <motion.div
+          key={activeSection}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-1 min-w-0 hidden lg:block"
+        >
+          {renderSection()}
+        </motion.div>
+
+        {/* Mobile content */}
+        <motion.div
+          key={`mobile-${activeSection}`}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-1 min-w-0 lg:hidden -mt-2"
+        >
+          {renderSection()}
+        </motion.div>
       </div>
-
-      {/* Content */}
-      <motion.div
-        key={activeSection}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="flex-1 min-w-0 hidden lg:block"
-      >
-        {renderSection()}
-      </motion.div>
-
-      {/* Mobile content */}
-      <motion.div
-        key={`mobile-${activeSection}`}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="flex-1 min-w-0 lg:hidden -mt-2"
-      >
-        {renderSection()}
-      </motion.div>
     </div>
   )
 }

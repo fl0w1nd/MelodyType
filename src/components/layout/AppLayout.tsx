@@ -6,6 +6,7 @@ import { BackgroundDecor } from "./BackgroundDecor"
 import { MidiFloatingPlayer } from "@/components/MidiFloatingPlayer"
 import { GuidedTour, TourReplayButton } from "@/components/GuidedTour"
 import { useTranslation } from "react-i18next"
+import { RouteSeo } from "@/components/seo/RouteSeo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,7 @@ export function AppLayout() {
   return (
     <TooltipProvider>
       <div className="min-h-screen flex flex-col bg-background relative">
+        <RouteSeo />
         <BackgroundDecor />
 
         <header role="banner" className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">

@@ -1,6 +1,7 @@
 import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
 import { FlowMeter } from "@/components/practice/FlowMeter"
@@ -46,6 +47,54 @@ export default function PracticePage() {
 
   return (
     <div className="flex flex-col items-center gap-6">
+      <section className="w-full rounded-[28px] border border-border/60 bg-card/75 p-6 shadow-sm backdrop-blur-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/75">
+              {t("landing.eyebrow")}
+            </p>
+            <h1 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl">
+              {t("landing.title")}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              {t("landing.description")}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/docs"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {t("landing.docsCta")}
+            </Link>
+            <a
+              href="https://github.com/fl0w1nd/MelodyType"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/70"
+            >
+              {t("landing.githubCta")}
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {[
+            t("landing.highlights.adaptive"),
+            t("landing.highlights.rhythm"),
+            t("landing.highlights.privacy"),
+          ].map((item) => (
+            <span
+              key={item}
+              className="rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-xs font-medium text-foreground/85"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+      </section>
+
       <div data-tour="mode-selector">
         <ModeSelector
           onSelect={actions.handleConfigChange}

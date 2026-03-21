@@ -92,6 +92,28 @@ const zhCN = {
     loading: "加载中...",
   },
 
+  landing: {
+    eyebrow: "隐私优先的打字训练器",
+    title: "在实时 MIDI 旋律里练习打字",
+    description:
+      "MelodyType 会把你的每次击键变成旋律的一部分，同时通过自适应训练、限时挑战和浏览器本地进度追踪，帮助你提升速度、准确率和节奏感。",
+    highlights: {
+      adaptive: "针对薄弱按键的自适应训练",
+      rhythm: "限时与名言两种练习模式",
+      privacy: "本地优先统计，无需账号",
+    },
+    docsCta: "查看文档",
+    githubCta: "查看 GitHub",
+  },
+
+  notFound: {
+    title: "页面不存在",
+    description:
+      "这个地址在 MelodyType 里没有对应页面。你可以回到练习页，或者打开文档继续了解功能。",
+    backHome: "返回练习页",
+    readDocs: "打开文档",
+  },
+
   // ── Practice Page ────────────────────────────────────────
   practice: {
     newKeyUnlocked: "🔓 新按键解锁：",
