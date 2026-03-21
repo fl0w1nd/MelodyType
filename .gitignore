@@ -6,8 +6,7 @@ dist
 .env.*
 !.env.example
 local/
-scripts/*
-!scripts/generate-seo-assets.mjs
+scripts/
 /worktrees
 .cache/
 .vercel
