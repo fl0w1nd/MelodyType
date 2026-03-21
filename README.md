@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.zh-CN.md">English | 中文</a>
+  <a href="./README.zh-CN.md">中文</a>
 </p>
 
 <p align="center">
