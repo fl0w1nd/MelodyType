@@ -60,6 +60,11 @@ const en = {
         description:
           "See your real-time WPM, accuracy, elapsed time, raw speed, and melody integrity — giving you a complete picture of your typing state.",
       },
+      previousRoundSummary: {
+        title: "Adaptive Summary Strip",
+        description:
+          "The large values show your latest Adaptive session. Colored deltas compare that result against your earlier Adaptive-session average, helping you spot whether speed, accuracy, score, integrity, clicks, and CPS are trending up or down.",
+      },
       flowMeter: {
         title: "Melody Flow Meter",
         description:

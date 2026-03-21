@@ -66,6 +66,12 @@ const tourSteps: TourStep[] = [
     placement: "bottom",
   },
   {
+    target: "previous-round-summary",
+    titleKey: "tour.steps.previousRoundSummary.title",
+    descriptionKey: "tour.steps.previousRoundSummary.description",
+    placement: "bottom",
+  },
+  {
     target: "flow-meter",
     titleKey: "tour.steps.flowMeter.title",
     descriptionKey: "tour.steps.flowMeter.description",

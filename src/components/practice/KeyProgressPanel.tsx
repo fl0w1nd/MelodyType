@@ -327,7 +327,10 @@ function KeyProgressPanelInner({
         </div>
       </div>
 
-      <div className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5">
+      <div
+        className="mt-2 rounded-xl border border-border/50 bg-secondary/30 px-3 py-2.5"
+        data-tour="previous-round-summary"
+      >
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4 xl:grid-cols-7">
           <InlineMetric
             label={t("keyProgressPanel.stats.speed")}

@@ -59,6 +59,11 @@ const zhTW = {
         description:
           "這裡即時顯示你的 WPM（每分鐘字數）、準確率、用時、原始速度以及旋律完整度。幫你全方位了解打字狀態。",
       },
+      previousRoundSummary: {
+        title: "自適應統計摘要",
+        description:
+          "這一行的大字數值表示你最新一次 Adaptive 會話的結果；彩色增減值則是它和更早 Adaptive 會話平均表現的對比，方便你觀察速度、準確率、得分、完整度、擊鍵數與 CPS 是在上升還是回落。",
+      },
       flowMeter: {
         title: "旋律流量計",
         description:
