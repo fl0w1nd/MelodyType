@@ -239,19 +239,19 @@ export default function MidiPage() {
   return (
     <div className="flex flex-col gap-5 lg:h-[calc(100vh-10rem)]">
       {/* ── Top Control Bar ── */}
-      <div className="shrink-0 rounded-xl bg-card ring-1 ring-foreground/10 px-5 py-3">
-        <div className="flex items-center gap-x-4">
+      <div className="shrink-0 rounded-xl bg-card ring-1 ring-foreground/10 px-3 sm:px-5 py-3">
+        <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-2">
           {/* Enable toggle */}
           <div className="flex items-center gap-2 shrink-0">
             <Music2 className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">MIDI</span>
+            <span className="text-sm font-medium hidden sm:inline">MIDI</span>
             <Switch
               checked={config.isEnabled}
               onCheckedChange={(v) => updateConfig({ isEnabled: v })}
             />
           </div>
 
-          <div className="h-6 w-px bg-border/60 shrink-0" />
+          <div className="h-6 w-px bg-border/60 shrink-0 hidden sm:block" />
 
           {/* Instrument */}
           <div className="shrink-0">
@@ -259,7 +259,7 @@ export default function MidiPage() {
               value={config.synthType}
               onValueChange={(v) => changeSynth(v as SynthType)}
             >
-              <SelectTrigger className="h-7 w-[120px] text-xs">
+              <SelectTrigger className="h-7 w-[110px] sm:w-[120px] text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -275,12 +275,12 @@ export default function MidiPage() {
             </Select>
           </div>
 
-          <div className="h-6 w-px bg-border/60 shrink-0" />
+          <div className="h-6 w-px bg-border/60 shrink-0 hidden sm:block" />
 
           {/* Volume */}
           <div className="flex items-center gap-2 shrink-0">
             <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div className="w-24 shrink-0">
+            <div className="w-20 sm:w-24 shrink-0">
               <Slider
                 value={[config.volume]}
                 onValueChange={(v) => changeVolume(Array.isArray(v) ? v[0] : v)}
@@ -294,7 +294,7 @@ export default function MidiPage() {
             </span>
           </div>
 
-          <div className="h-6 w-px bg-border/60 shrink-0" />
+          <div className="h-6 w-px bg-border/60 shrink-0 hidden sm:block" />
 
           {/* Loop mode — icon-only with tooltips */}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -349,7 +349,7 @@ export default function MidiPage() {
               disabled={testFrameInfo.total === 0}
             >
               <Play className="h-3 w-3" />
-              {t("midiPage.testButton")}
+              <span className="hidden sm:inline">{t("midiPage.testButton")}</span>
             </Button>
           </div>
         </div>
@@ -358,7 +358,7 @@ export default function MidiPage() {
       {/* ── Main Content: Three-Column Layout ── */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
         {/* Presets Column */}
-        <div className="flex-[3] min-w-0 flex flex-col">
+        <div className="flex-[3] min-w-[280px] flex flex-col">
           <div className="shrink-0 flex items-center gap-2 mb-3">
             <Music className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-sm font-medium">{t("midiPage.presets")}</span>
@@ -440,7 +440,7 @@ export default function MidiPage() {
         </div>
 
         {/* Your Files Column */}
-        <div className="flex-[3] min-w-0 flex flex-col">
+        <div className="flex-[3] min-w-[280px] flex flex-col">
           <div className="shrink-0 flex items-center gap-2 mb-3">
             <FileAudio className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-sm font-medium">{t("midiPage.yourFiles")}</span>
@@ -450,15 +450,6 @@ export default function MidiPage() {
               </Badge>
             )}
             <div className="flex-1" />
-            <Button
-              variant="outline"
-              size="xs"
-              className="gap-1 text-xs shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-3 w-3" />
-              {t("midiPage.upload")}
-            </Button>
             <input
               ref={fileInputRef}
               type="file"
