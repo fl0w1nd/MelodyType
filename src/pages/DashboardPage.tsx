@@ -116,7 +116,7 @@ export default function DashboardPage() {
       <StatsOverview sessions={sessions} dailyGoals={dailyGoals} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-stretch">
-        <ActivityHeatmap sessions={sessions} weeks={12} />
+        <ActivityHeatmap sessions={sessions} />
         <DailyGoalRing todayGoal={todayGoal} todaySessions={todaySessions} />
       </div>
 

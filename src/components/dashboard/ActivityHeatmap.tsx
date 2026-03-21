@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { Activity } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -11,15 +11,39 @@ import { formatLocalDateKey, parseDateKey } from "@/lib/date"
 import { cn } from "@/lib/utils"
 import type { TypingSession } from "@/lib/db"
 
+const CELL_SIZE = 12
+const CELL_GAP = 3
+const DAY_LABEL_WIDTH = 28
+const PADDING = 40 // p-5 = 20px × 2
+
 interface ActivityHeatmapProps {
   sessions: TypingSession[]
-  weeks?: number
 }
 
-export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
   const { t } = useTranslation()
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [weeks, setWeeks] = useState(0)
 
-  const { grid, maxCount, totalDays } = useMemo(() => {
+  useEffect(() => {
+    const el = measureRef.current
+    if (!el) return
+    const compute = () => {
+      // The card has overflow:hidden + the grid content only renders
+      // when weeks > 0, so on first measure el.clientWidth is the
+      // slot width given by the parent layout, not inflated by content.
+      const available = el.clientWidth - DAY_LABEL_WIDTH - PADDING
+      const colWidth = CELL_SIZE + CELL_GAP
+      const w = Math.max(12, Math.floor(available / colWidth))
+      setWeeks((prev) => (prev === w ? prev : w))
+    }
+    compute()
+    const ro = new ResizeObserver(compute)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const { grid, monthLabels, maxCount, totalDays } = useMemo(() => {
     const dayMap = new Map<string, { count: number; wpm: number }>()
     for (const s of sessions) {
       const d = formatLocalDateKey(new Date(s.timestamp))
@@ -34,7 +58,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
 
     const today = new Date()
     const totalDays = weeks * 7
-    const grid: { date: string; count: number; wpm: number; dayOfWeek: number }[][] = []
+    const grid: { date: string; count: number; wpm: number; dayOfWeek: number; month: number }[][] = []
     let currentWeek: typeof grid[0] = []
 
     for (let i = totalDays - 1; i >= 0; i--) {
@@ -47,6 +71,7 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
         count: data?.count ?? 0,
         wpm: data ? Math.round(data.wpm) : 0,
         dayOfWeek: d.getDay(),
+        month: d.getMonth(),
       }
 
       if (entry.dayOfWeek === 0 && currentWeek.length > 0) {
@@ -59,9 +84,20 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
       grid.push(currentWeek)
     }
 
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const monthLabels: { col: number; label: string }[] = []
+    let lastMonth = -1
+    for (let wi = 0; wi < grid.length; wi++) {
+      const firstDay = grid[wi][0]
+      if (firstDay.month !== lastMonth) {
+        monthLabels.push({ col: wi, label: monthNames[firstDay.month] })
+        lastMonth = firstDay.month
+      }
+    }
+
     const visibleCounts = grid.flat().map((d) => d.count)
     const maxCount = Math.max(...visibleCounts, 1)
-    return { grid, maxCount, totalDays }
+    return { grid, monthLabels, maxCount, totalDays }
   }, [sessions, weeks])
 
   const activeDays = useMemo(() => {
@@ -95,10 +131,11 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
 
   return (
     <motion.div
+      ref={measureRef}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.15, ease: [0.25, 1, 0.5, 1] }}
-      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-5 flex flex-col"
+      className="rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-5 flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
@@ -110,77 +147,115 @@ export function ActivityHeatmap({ sessions, weeks = 16 }: ActivityHeatmapProps) 
           </h3>
         </div>
         <span className="text-xs text-muted-foreground">
-          <span className="font-mono font-semibold text-foreground">{activeDays}</span>
-          {" "}
           {t("activityHeatmap.activeDays", { count: activeDays })}
         </span>
       </div>
 
-      <div className="flex flex-1 items-center gap-2">
-        <div className="flex flex-col gap-[5px]">
-          {dayLabels.map((label, i) => (
-            <div key={i} className="h-4 flex items-center">
-              <span className="text-xs text-muted-foreground w-8 text-right">{label}</span>
+      {weeks > 0 && (
+        <div className="flex-1 flex flex-col justify-center">
+          {/* Month labels row */}
+          <div className="flex mb-0.5">
+            <div style={{ width: DAY_LABEL_WIDTH, flexShrink: 0 }} />
+            <div className="flex" style={{ gap: CELL_GAP }}>
+              {grid.map((_, wi) => {
+                const monthLabel = monthLabels.find((m) => m.col === wi)
+                return (
+                  <span
+                    key={wi}
+                    className="text-[10px] text-muted-foreground leading-none"
+                    style={{ width: CELL_SIZE, textAlign: "left" }}
+                  >
+                    {monthLabel?.label ?? ""}
+                  </span>
+                )
+              })}
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div
-          className="grid flex-1 gap-[5px]"
-          style={{ gridTemplateColumns: `repeat(${grid.length}, 1fr)` }}
-          role="img"
-          aria-label={t("activityHeatmap.ariaLabel")}
-        >
-          {grid.map((week, wi) => (
-            <div key={wi} className="grid gap-[5px]" style={{ gridTemplateRows: "repeat(7, 1fr)" }}>
-              {week.map((day) => (
-                <Tooltip key={day.date}>
-                  <TooltipTrigger>
-                    <div
-                      className={cn(
-                        "h-4 w-full rounded transition-colors duration-200",
-                        getIntensityClass(day.count),
-                      )}
-                      style={{ gridRow: day.dayOfWeek + 1 }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    <div className="font-medium">
-                      {parseDateKey(day.date).toLocaleDateString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                    {day.count > 0 ? (
-                      <div className="text-muted-foreground">
-                        {t("activityHeatmap.tooltip.sessions", {
-                          n: day.count,
-                          wpm: day.wpm,
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-muted-foreground">
-                        {t("activityHeatmap.tooltip.noSessions")}
-                      </div>
-                    )}
-                  </TooltipContent>
-                </Tooltip>
+          {/* Heatmap grid */}
+          <div className="flex">
+            {/* Day labels */}
+            <div
+              className="flex flex-col shrink-0"
+              style={{ width: DAY_LABEL_WIDTH, gap: CELL_GAP }}
+            >
+              {dayLabels.map((label, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-end pr-1"
+                  style={{ height: CELL_SIZE }}
+                >
+                  <span className="text-[10px] text-muted-foreground leading-none">{label}</span>
+                </div>
               ))}
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="flex items-center justify-end gap-2 mt-auto pt-3">
+            {/* Cells grid */}
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: `repeat(${grid.length}, ${CELL_SIZE}px)`,
+                gridTemplateRows: `repeat(7, ${CELL_SIZE}px)`,
+                gap: CELL_GAP,
+              }}
+              role="img"
+              aria-label={t("activityHeatmap.ariaLabel")}
+            >
+              {grid.map((week, wi) =>
+                week.map((day) => (
+                  <Tooltip key={day.date}>
+                    <TooltipTrigger>
+                      <div
+                        className={cn(
+                          "rounded-sm transition-colors duration-200",
+                          getIntensityClass(day.count),
+                        )}
+                        style={{
+                          width: CELL_SIZE,
+                          height: CELL_SIZE,
+                          gridColumn: wi + 1,
+                          gridRow: day.dayOfWeek + 1,
+                        }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <div className="font-medium">
+                        {parseDateKey(day.date).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                      {day.count > 0 ? (
+                        <div className="text-muted-foreground">
+                          {t("activityHeatmap.tooltip.sessions", {
+                            n: day.count,
+                            wpm: day.wpm,
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground">
+                          {t("activityHeatmap.tooltip.noSessions")}
+                        </div>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                )),
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-1.5 mt-auto pt-3">
         <span className="text-[10px] text-muted-foreground mr-0.5">
           {t("activityHeatmap.legend.less")}
         </span>
-        <div className="h-3.5 w-3.5 rounded bg-secondary/40 dark:bg-secondary/30" />
-        <div className="h-3.5 w-3.5 rounded bg-emerald-300/50 dark:bg-emerald-400/25" />
-        <div className="h-3.5 w-3.5 rounded bg-emerald-400/50 dark:bg-emerald-400/40" />
-        <div className="h-3.5 w-3.5 rounded bg-emerald-400/80 dark:bg-emerald-400/70" />
-        <div className="h-3.5 w-3.5 rounded bg-emerald-500 dark:bg-emerald-500" />
+        <div className="h-[11px] w-[11px] rounded-sm bg-secondary/40 dark:bg-secondary/30" />
+        <div className="h-[11px] w-[11px] rounded-sm bg-emerald-300/50 dark:bg-emerald-400/25" />
+        <div className="h-[11px] w-[11px] rounded-sm bg-emerald-400/50 dark:bg-emerald-400/40" />
+        <div className="h-[11px] w-[11px] rounded-sm bg-emerald-400/80 dark:bg-emerald-400/70" />
+        <div className="h-[11px] w-[11px] rounded-sm bg-emerald-500 dark:bg-emerald-500" />
         <span className="text-[10px] text-muted-foreground ml-0.5">
           {t("activityHeatmap.legend.more")}
         </span>
