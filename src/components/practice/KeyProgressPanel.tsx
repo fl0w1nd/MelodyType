@@ -501,13 +501,7 @@ function KeyProgressPanelInner({
                 >
                   <span className="text-[9px] font-mono font-bold leading-none">12</span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {isProgressivePhase
-                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
-                        feature: mixToggleLabels.numbers,
-                      })
-                    : mixToggleLabels.numbers}
-                </TooltipContent>
+                <TooltipContent side="bottom">{mixToggleLabels.numbers}</TooltipContent>
               </Tooltip>
             )}
             {onIncludePunctuationChange && (
@@ -530,13 +524,7 @@ function KeyProgressPanelInner({
                 >
                   <Braces className="h-3 w-3" />
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {isProgressivePhase
-                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
-                        feature: mixToggleLabels.punctuation,
-                      })
-                    : mixToggleLabels.punctuation}
-                </TooltipContent>
+                <TooltipContent side="bottom">{mixToggleLabels.punctuation}</TooltipContent>
               </Tooltip>
             )}
             {onIncludeSpecialCharactersChange && (
@@ -563,23 +551,12 @@ function KeyProgressPanelInner({
                 >
                   <span className="text-[8px] font-mono font-bold leading-none">#*</span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {isProgressivePhase
-                    ? t("keyProgressPanel.symbolMixEarlyUnlockHint", {
-                        feature: mixToggleLabels.specialCharacters,
-                      })
-                    : mixToggleLabels.specialCharacters}
-                </TooltipContent>
+                <TooltipContent side="bottom">{mixToggleLabels.specialCharacters}</TooltipContent>
               </Tooltip>
             )}
           </>
         )}
       </div>
-      {isProgressivePhase && (
-        <div className="mt-2 text-center text-[10px] text-muted-foreground/60">
-          {t("keyProgressPanel.symbolMixEarlyUnlockSummary")}
-        </div>
-      )}
 
       <AnimatePresence>
         {expanded && (
@@ -693,9 +670,6 @@ function KeyProgressPanelInner({
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground font-medium">
                     {t("keyProgressPanel.nextToUnlock")}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {t("keyProgressPanel.lockedManualHint")}
                   </span>
                   <div className="flex gap-1.5 flex-wrap">
                     {lockedKeys.slice(0, 5).map((kc) => (

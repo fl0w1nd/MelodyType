@@ -196,7 +196,6 @@ const zhCN = {
     },
     unlockedKeys: "已解锁按键",
     nextToUnlock: "下一个解锁",
-    lockedManualHint: "以上锁定的按键可以手动解锁。",
     lockedTitle: "{{key}}：已锁定 · 点击手动解锁",
     keyStats: {
       current: "当前",
@@ -235,8 +234,6 @@ const zhCN = {
     includeNumbers: "包含数字",
     includePunctuation: "包含标点",
     includeSpecialCharacters: "包含特殊字符",
-    symbolMixEarlyUnlockHint: "第一阶段点击后会弹出警告，可提前强制开启 {{feature}}。",
-    symbolMixEarlyUnlockSummary: "第一阶段可通过警告提前强制开启这些混合练习；第二阶段则可直接切换。",
     mixUnlockWarning: {
       title: "提前开启 {{feature}}？",
       description:

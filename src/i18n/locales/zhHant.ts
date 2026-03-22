@@ -196,7 +196,6 @@ const zhTW = {
     },
     unlockedKeys: "已解鎖按鍵",
     nextToUnlock: "下一個解鎖",
-    lockedManualHint: "以上鎖定的按鍵可以手動解鎖。",
     lockedTitle: "{{key}}：已鎖定 · 點擊手動解鎖",
     keyStats: {
       current: "當前",
@@ -235,8 +234,6 @@ const zhTW = {
     includeNumbers: "包含數字",
     includePunctuation: "包含標點",
     includeSpecialCharacters: "包含特殊字元",
-    symbolMixEarlyUnlockHint: "第一階段點擊後會彈出警告，可提前強制開啟 {{feature}}。",
-    symbolMixEarlyUnlockSummary: "第一階段可透過警告提前強制開啟這些混合練習；第二階段則可直接切換。",
     mixUnlockWarning: {
       title: "提前開啟 {{feature}}？",
       description:

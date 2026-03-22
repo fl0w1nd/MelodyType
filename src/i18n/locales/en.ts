@@ -206,7 +206,6 @@ const en = {
     },
     unlockedKeys: "Unlocked Keys",
     nextToUnlock: "Next to Unlock",
-    lockedManualHint: "Locked keys above can be unlocked manually.",
     lockedTitle: "{{key}}: Locked · click to unlock manually",
     keyStats: {
       current: "Current",
@@ -246,9 +245,6 @@ const en = {
     includeNumbers: "Include numbers",
     includePunctuation: "Include punctuation",
     includeSpecialCharacters: "Include special chars",
-    symbolMixEarlyUnlockHint: "Stage 1 will warn before force-enabling {{feature}}.",
-    symbolMixEarlyUnlockSummary:
-      "During Stage 1 you can still force-enable these mix-ins after a warning; Stage 2 switches them directly.",
     mixUnlockWarning: {
       title: "Enable {{feature}} early?",
       description:
