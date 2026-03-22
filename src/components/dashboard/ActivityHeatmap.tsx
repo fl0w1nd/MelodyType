@@ -15,6 +15,7 @@ const CELL_SIZE = 12
 const CELL_GAP = 3
 const DAY_LABEL_WIDTH = 28
 const PADDING = 40 // p-5 = 20px × 2
+const MONTH_LABEL_SHIFT = 6
 
 interface ActivityHeatmapProps {
   sessions: TypingSession[]
@@ -58,7 +59,7 @@ export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
 
     const today = new Date()
     const totalDays = weeks * 7
-    const grid: { date: string; count: number; wpm: number; dayOfWeek: number; month: number }[][] = []
+    const grid: { date: string; count: number; wpm: number; dayOfWeek: number; month: number; dayOfMonth: number }[][] = []
     let currentWeek: typeof grid[0] = []
 
     for (let i = totalDays - 1; i >= 0; i--) {
@@ -66,13 +67,14 @@ export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
       d.setDate(d.getDate() - i)
       const key = formatLocalDateKey(d)
       const data = dayMap.get(key)
-      const entry = {
-        date: key,
-        count: data?.count ?? 0,
-        wpm: data ? Math.round(data.wpm) : 0,
-        dayOfWeek: d.getDay(),
-        month: d.getMonth(),
-      }
+        const entry = {
+          date: key,
+          count: data?.count ?? 0,
+          wpm: data ? Math.round(data.wpm) : 0,
+          dayOfWeek: d.getDay(),
+          month: d.getMonth(),
+          dayOfMonth: d.getDate(),
+        }
 
       if (entry.dayOfWeek === 0 && currentWeek.length > 0) {
         grid.push(currentWeek)
@@ -88,10 +90,14 @@ export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
     const monthLabels: { col: number; label: string }[] = []
     let lastMonth = -1
     for (let wi = 0; wi < grid.length; wi++) {
-      const firstDay = grid[wi][0]
-      if (firstDay.month !== lastMonth) {
-        monthLabels.push({ col: wi, label: monthNames[firstDay.month] })
-        lastMonth = firstDay.month
+      const week = grid[wi]
+      const labelDay = wi === 0
+        ? week[0]
+        : (week.find((day) => day.dayOfMonth === 1) ?? null)
+
+      if (labelDay && labelDay.month !== lastMonth) {
+        monthLabels.push({ col: wi, label: monthNames[labelDay.month] })
+        lastMonth = labelDay.month
       }
     }
 
@@ -156,19 +162,24 @@ export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
           {/* Month labels row */}
           <div className="flex mb-0.5">
             <div style={{ width: DAY_LABEL_WIDTH, flexShrink: 0 }} />
-            <div className="flex" style={{ gap: CELL_GAP }}>
-              {grid.map((_, wi) => {
-                const monthLabel = monthLabels.find((m) => m.col === wi)
-                return (
-                  <span
-                    key={wi}
-                    className="text-[10px] text-muted-foreground leading-none"
-                    style={{ width: CELL_SIZE, textAlign: "left" }}
-                  >
-                    {monthLabel?.label ?? ""}
-                  </span>
-                )
-              })}
+            <div
+              className="relative"
+              style={{
+                width: grid.length * CELL_SIZE + Math.max(grid.length - 1, 0) * CELL_GAP,
+                height: 10,
+              }}
+            >
+              {monthLabels.map((monthLabel) => (
+                <span
+                  key={`${monthLabel.label}-${monthLabel.col}`}
+                  className="absolute text-[10px] text-muted-foreground leading-none whitespace-nowrap"
+                  style={{
+                    left: monthLabel.col * (CELL_SIZE + CELL_GAP) + (monthLabel.col === 0 ? 0 : MONTH_LABEL_SHIFT),
+                  }}
+                >
+                  {monthLabel.label}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -204,19 +215,19 @@ export function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
               {grid.map((week, wi) =>
                 week.map((day) => (
                   <Tooltip key={day.date}>
-                    <TooltipTrigger>
-                      <div
-                        className={cn(
-                          "rounded-sm transition-colors duration-200",
-                          getIntensityClass(day.count),
-                        )}
-                        style={{
-                          width: CELL_SIZE,
-                          height: CELL_SIZE,
-                          gridColumn: wi + 1,
-                          gridRow: day.dayOfWeek + 1,
-                        }}
-                      />
+                    <TooltipTrigger
+                      className={cn(
+                        "block rounded-sm border-0 p-0 transition-colors duration-200",
+                        getIntensityClass(day.count),
+                      )}
+                      style={{
+                        width: CELL_SIZE,
+                        height: CELL_SIZE,
+                        gridColumn: wi + 1,
+                        gridRow: day.dayOfWeek + 1,
+                      }}
+                    >
+                      <span className="sr-only">{day.date}</span>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
                       <div className="font-medium">
