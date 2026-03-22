@@ -11,3 +11,4 @@ scripts/*
 /worktrees
 .cache/
 .vercel
+.agents/*
