@@ -5,10 +5,12 @@ dist
 .env
 .env.*
 !.env.example
-local/
-scripts/*
+/local
+/scripts
 !scripts/generate-seo-assets.mjs
 /worktrees
 .cache/
-.vercel
-.agents/*
+/.vercel
+/.agents
+/.conductor
+conductor.json
