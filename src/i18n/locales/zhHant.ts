@@ -1,21 +1,32 @@
+/**
+ * Traditional Chinese (Taiwan) translations
+ *
+ * Note: This file uses Taiwan-standard terminology:
+ * - 儲存 (not 保存) for "save"
+ * - 載入 (not 加載) for "load"
+ * - 檔案 (not 文件) for "file" (MIDI files)
+ * - 設定 (not 設置) for "settings"
+ * - 存放庫 (not 倉庫) for "repository"
+ * - 點選 (not 點擊) for "click" action
+ */
 const zhTW = {
   // ── Common ──────────────────────────────────────────────
   common: {
     cancel: "取消",
-    save: "保存",
+    save: "儲存",
     close: "關閉",
-    loading: "加載中...",
+    loading: "載入中...",
     optional: "可選",
   },
 
   // ── Navigation ──────────────────────────────────────────
   nav: {
     practice: "練習",
-    dashboard: "儀表盤",
+    dashboard: "儀表板",
     midi: "MIDI",
-    docs: "文檔",
-    settings: "設置",
-    githubRepository: "GitHub 倉庫",
+    docs: "文件",
+    settings: "設定",
+    githubRepository: "GitHub 存放庫",
     footer: "MelodyType · 打字與音樂的交響",
   },
 
@@ -47,12 +58,12 @@ const zhTW = {
       optionsButton: {
         title: "⚙️ 這個按鈕很重要！",
         description:
-          "這是 Adaptive 模式的隱藏選項入口。點擊它可以設定你的目標打字速度（CPM），系統會據此調整練習難度和按鍵解鎖節奏。接下來我們幫你打開它。",
+          "這是 Adaptive 模式的隱藏選項入口。點選它可以設定你的目標打字速度（CPM），系統會據此調整練習難度和按鍵解鎖節奏。接下來我們幫你打開它。",
       },
       optionsPanel: {
         title: "設定你的目標速度 🎯",
         description:
-          "在這裡選擇適合你的目標 CPM（每分鐘字符數）。可以用預設快速選擇，也可以拖動滑塊精確調節。目標越高，解鎖新按鍵的門檻越高。試試點擊選擇一個吧！",
+          "在這裡選擇適合你的目標 CPM（每分鐘字符數）。可以用預設快速選擇，也可以拖動滑塊精確調節。目標越高，解鎖新按鍵的門檻越高。試試點選選擇一個吧！",
       },
       metricsBar: {
         title: "即時數據面板",
@@ -89,7 +100,7 @@ const zhTW = {
 
   // ── App / Page Loader ────────────────────────────────────
   app: {
-    loading: "加載中...",
+    loading: "載入中...",
   },
 
   practiceWelcome: {
@@ -100,9 +111,9 @@ const zhTW = {
     highlights: {
       adaptive: "針對薄弱按鍵的自適應訓練",
       rhythm: "限時與名言兩種練習模式",
-      privacy: "本地優先統計，無需帳號",
+      privacy: "本地優先統計，無需帳戶",
     },
-    docsCta: "查看文檔",
+    docsCta: "查看文件",
     githubCta: "查看 GitHub",
     dismiss: "關閉歡迎橫幅",
   },
@@ -198,18 +209,18 @@ const zhTW = {
     nextToUnlock: "下一個解鎖",
     lockedTitle: "{{key}}：已鎖定 · 點擊手動解鎖",
     keyStats: {
-      current: "當前",
-      best: "最佳",
-      recent: "近期",
-      lifetime: "總計",
+      current: "當前速度",
+      best: "歷史最佳速度",
+      recent: "近期準確率",
+      lifetime: "總計準確率",
       hits: "擊鍵",
       falseCount: "失敗",
     },
     gates: {
       targetCpm: "目標 {{cpm}} cpm",
-      minHits: "{{n}}+ 次",
-      recentRate: "近期 {{n}}%",
-      lifetimeRate: "總計 {{n}}%",
+      minHits: "{{n}} 次以上",
+      recentRate: "近期準確率 {{n}}%",
+      lifetimeRate: "總體準確率 {{n}}%",
     },
     gatesMet: "{{met}}/{{total}} 達標",
     focusTooltip: {
@@ -284,7 +295,7 @@ const zhTW = {
     grades: {
       outstanding: "出色的表現！",
       excellent: "優秀的打字技能！",
-      great: "乾得不錯，繼續進步！",
+      great: "做得不錯，繼續進步！",
       good: "努力了，多加練習！",
       keepPracticing: "繼續練習！",
       beginner: "每個大師都曾是初學者。",
@@ -568,18 +579,18 @@ const zhTW = {
       random: "隨機",
     },
     presets: "預設",
-    yourFiles: "我的文件",
+    yourFiles: "我的檔案",
     playlist: "播放列表",
     upload: "上傳",
-    emptyFiles: "上傳你的 MIDI 文件",
-    emptyFilesDesc: "將 .mid 文件拖拽到此處或點擊瀏覽。你的文件將與預設一同播放。",
-    addMore: "添加更多",
+    emptyFiles: "上傳你的 MIDI 檔案",
+    emptyFilesDesc: "將 .mid 檔案拖曳到此處或點選瀏覽。你的檔案將與預設一同播放。",
+    addMore: "新增曲目",
     clearPlaylist: "清空",
     emptyPlaylist: "播放列表為空",
     emptyPlaylistHint: "使用 + 添加曲目",
     itemCount_one: "{{count}} 項",
     itemCount_other: "{{count}} 項",
-    activeBadge: "活躍",
+    activeBadge: "當前",
     playingBadge: "播放中",
     testButton: "測試",
     frames: "{{n}} 幀",
@@ -591,23 +602,23 @@ const zhTW = {
       bell: "鐘聲",
     },
     uploadDialog: {
-      title: "上傳 MIDI 文件",
+      title: "上傳 MIDI 檔案",
       subtitle: "保存前請編輯名稱並添加描述。",
       name: "名稱",
       description: "描述",
       descriptionPlaceholder: "可選描述...",
       framesDetected: "檢測到 {{n}} 幀",
       cancel: "取消",
-      save: "保存",
+      save: "儲存",
     },
     editDialog: {
-      title: "編輯 MIDI 文件",
+      title: "編輯 MIDI 檔案",
       subtitle: "更新名稱和描述。",
       name: "名稱",
       description: "描述",
       descriptionPlaceholder: "可選描述...",
       cancel: "取消",
-      save: "保存",
+      save: "儲存",
     },
   },
 
@@ -621,28 +632,28 @@ const zhTW = {
       keyRecords_other: "{{count}} 條按鍵記錄",
       transitionRecords_one: "{{count}} 條過渡記錄",
       transitionRecords_other: "{{count}} 條過渡記錄",
-      midiFiles_one: "{{count}} 個 MIDI 文件",
-      midiFiles_other: "{{count}} 個 MIDI 文件",
+      midiFiles_one: "{{count}} 個 MIDI 檔案",
+      midiFiles_other: "{{count}} 個 MIDI 檔案",
       exportBackup: "導出備份",
       exported: "已導出！",
       importBackup: "導入備份",
       imported: "已導入！",
-      invalidFile: "無效文件",
+      invalidFile: "無效檔案",
       clearStatistics: "清除統計",
       clearDialog: {
         title: "清除所有統計數據？",
         description:
-          "這將永久刪除你的所有打字會話、按鍵統計、過渡統計和每日目標。MIDI 文件和設置將被保留。此操作無法撤銷。",
+          "這將永久刪除你的所有打字會話、按鍵統計、過渡統計和每日目標。MIDI 檔案和設定將被保留。此操作無法撤銷。",
         cancel: "取消",
         confirm: "刪除統計",
       },
-      resetSettings: "重置設置",
+      resetSettings: "重置設定",
       resetDialog: {
-        title: "重置所有設置？",
+        title: "重置所有設定？",
         description:
-          "這將把 MelodyType 恢復到默認配置，包括自適應練習、顯示和 MIDI 偏好。你的練習統計和 MIDI 文件將被保留。",
+          "這將把 MelodyType 恢復到默認配置，包括自適應練習、顯示和 MIDI 偏好。你的練習統計和 MIDI 檔案將被保留。",
         cancel: "取消",
-        confirm: "重置設置",
+        confirm: "重置設定",
       },
     },
     language: {
@@ -656,9 +667,9 @@ const zhTW = {
       title: "關於",
       tagline: "打字與音樂的交響",
       description:
-        "MelodyType 是一款將鍵盤訓練與音樂享受相結合的打字練習應用。每次擊鍵都會觸發 MIDI 音符，將你的練習轉化為旋律。所有數據都存儲在瀏覽器本地——無需賬戶，無需雲端，完全私密。",
+        "MelodyType 是一款將鍵盤訓練與音樂享受相結合的打字練習應用。每次擊鍵都會觸發 MIDI 音符，將你的練習轉化為旋律。所有數據都存儲在瀏覽器本地——無需帳戶，無需雲端，完全私密。",
       docsHint: "查看鍵盤快捷鍵、指標詞彙表和使用指南",
-      viewDocs: "查看文檔 →",
+      viewDocs: "查看文件 →",
     },
   },
 
@@ -764,7 +775,7 @@ const zhTW = {
         desc: "每個關卡根據你的 WPM 和準確率給出 C 到 S 的評級：",
         grades: {
           s: "S — 速度和準確率均大幅超出目標",
-          a: "A — 乾淨地達成關卡目標",
+          a: "A — 利落地達成關卡目標",
           b: "B — 略低於目標但仍為通過",
           c: "C — 以最低通過標準完成關卡",
         },
@@ -889,8 +900,8 @@ const zhTW = {
       controls: {
         title: "操作",
         items: [
-          "點擊曲目將其設為活躍源",
-          "使用 + 將曲目添加到播放列表",
+          "點選曲目將其設為活躍源",
+          "使用 + 將曲目加入播放列表",
           "循環模式選擇器（循環/單次/順序/隨機）控制播放順序",
           "合成器選擇器更改樂器音色",
           "測試播放任意曲目的短預覽",
@@ -952,7 +963,7 @@ const zhTW = {
   timeLevels: {
     "b-1": {
       name: "第一步",
-      description: "短暫寬鬆的練習，鞏固基礎。",
+      description: "短時間容錯練習，鞏固基礎。",
     },
     "b-2": {
       name: "快速衝刺",
@@ -992,7 +1003,7 @@ const zhTW = {
     },
     "i-6": {
       name: "耐力測試",
-      description: "兩分鐘中級測試，考驗控制而非慌亂。",
+      description: "兩分鐘中級挑戰，考驗沉著而非慌亂。",
     },
     "a-1": {
       name: "複雜詞彙",
@@ -1016,18 +1027,18 @@ const zhTW = {
     },
     "a-6": {
       name: "馬拉松",
-      description: "長時間高級練習，測試疲勞中的節奏保持。",
+      description: "長篇高難度衝刺，驗證你能否在疲勞中維持節奏。",
     },
     "e-1": {
-      name: "速度惡魔",
-      description: "短暫全功能爆發，獎勵極致控制力。",
+      name: "極速挑戰",
+      description: "短時間全要素衝刺，考驗爆發式操控。",
     },
     "e-2": {
       name: "精準測試",
       description: "專家基準：速度極高，失誤代價更重。",
     },
     "e-3": {
-      name: "終極關卡",
+      name: "試煉關卡",
       description: "兩分鐘專家文本，節奏與專注缺一不可。",
     },
   },
@@ -1036,7 +1047,7 @@ const zhTW = {
   tierMeta: {
     beginner: "初級",
     intermediate: "中級",
-    advanced: "高級",
+    advanced: "進階",
     expert: "專家",
   },
 
