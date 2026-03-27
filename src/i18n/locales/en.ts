@@ -474,6 +474,8 @@ const en = {
     empty: "Adaptive mode tracks your progress",
     emptyDesc:
       "Switch to Adaptive mode on the Practice page — the system will learn your strengths and focus on keys you need to improve",
+    sessionLabel_one: "session",
+    sessionLabel_other: "sessions",
     sessions_one: "{{count}} session",
     sessions_other: "{{count}} sessions",
     pills: {

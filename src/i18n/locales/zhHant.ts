@@ -471,6 +471,8 @@ const zhTW = {
     empty: "自適應模式正在追蹤你的進度",
     emptyDesc:
       "在練習頁面切換到自適應模式——系統會學習你的強項，並專注於需要提升的按鍵",
+    sessionLabel_one: "次會話",
+    sessionLabel_other: "次會話",
     sessions_one: "{{count}} 次會話",
     sessions_other: "{{count}} 次會話",
     pills: {

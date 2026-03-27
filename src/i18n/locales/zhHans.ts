@@ -460,6 +460,8 @@ const zhCN = {
     empty: "自适应模式正在追踪你的进度",
     emptyDesc:
       "在练习页面切换到自适应模式——系统会学习你的强项，并专注于需要提升的按键",
+    sessionLabel_one: "次会话",
+    sessionLabel_other: "次会话",
     sessions_one: "{{count}} 次会话",
     sessions_other: "{{count}} 次会话",
     pills: {

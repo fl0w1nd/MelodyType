@@ -125,7 +125,7 @@ export function AdaptiveProgressCard() {
         </div>
         <span className="text-xs text-muted-foreground">
           <span className="font-mono font-semibold text-foreground">{stats.totalSessions}</span>{" "}
-          {t("adaptiveProgressCard.sessions", { count: stats.totalSessions })}
+          {t("adaptiveProgressCard.sessionLabel", { count: stats.totalSessions })}
         </span>
       </div>
 
