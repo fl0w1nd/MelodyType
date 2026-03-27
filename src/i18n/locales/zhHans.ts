@@ -186,8 +186,8 @@ const zhCN = {
       sessions: "自适应会话数",
       totalClicks: "总击键数",
       avgCps: "平均每秒击键",
-      avgConfidence: "平均置信度",
-      unlockReadiness: "解锁准备度",
+      avgConfidence: "平均掌握度",
+      unlockReadiness: "解锁就绪度",
     },
     unlockReadiness: {
       allMet: "所有活跃按键均达到自适应解锁阈值。",
@@ -198,18 +198,18 @@ const zhCN = {
     nextToUnlock: "下一个解锁",
     lockedTitle: "{{key}}：已锁定 · 点击手动解锁",
     keyStats: {
-      current: "当前",
-      best: "最佳",
-      recent: "近期",
-      lifetime: "总计",
+      current: "当前速度",
+      best: "历史最佳速度",
+      recent: "近期准确率",
+      lifetime: "总计准确率",
       hits: "击键",
       falseCount: "失败",
     },
     gates: {
       targetCpm: "目标 {{cpm}} cpm",
-      minHits: "{{n}}+ 次",
-      recentRate: "近期 {{n}}%",
-      lifetimeRate: "总计 {{n}}%",
+      minHits: "{{n}} 次以上",
+      recentRate: "近期准确率 {{n}}%",
+      lifetimeRate: "总体准确率 {{n}}%",
     },
     gatesMet: "{{met}}/{{total}} 达标",
     focusTooltip: {
@@ -238,7 +238,7 @@ const zhCN = {
       title: "提前开启 {{feature}}？",
       description:
         "这会在 26 个字母尚未全部完成前，把 {{feature}} 混入当前训练文本。它会改变原本的字母节奏，但能更早积累跨字符过渡记录。",
-      enable: "仍然开启",
+      enable: "仍要开启",
       enabling: "开启中...",
     },
   },
@@ -301,12 +301,12 @@ const zhCN = {
   // ── Time Level Select ────────────────────────────────────
   timeLevelSelect: {
     stats: {
-      played: "已玩",
+      played: "已练习",
       aOrBetter: "A 及以上",
       sClears: "S 通关",
     },
-    tierCount: "/ {{n}} 已玩",
-    notPlayed: "未游玩",
+    tierCount: "/ {{n}} 已完成",
+    notPlayed: "未练习",
     gradeBest: "{{grade}} 最佳",
     newBadge: "新",
     punc: "标点",
@@ -318,7 +318,7 @@ const zhCN = {
         best: "最佳",
         last: "上次",
         attempts: "尝试次数",
-        lastPlayed: "上次游玩",
+        lastPlayed: "上次练习",
       },
       noRuns: "暂无记录。",
       next: "下一步：",
@@ -409,7 +409,7 @@ const zhCN = {
       peak: "峰值",
       sessions: "会话",
       avg: "平均",
-      floor: "底线",
+      floor: "最低值",
     },
     noData: "该时间段暂无数据",
     tooltips: {
@@ -465,7 +465,7 @@ const zhCN = {
     pills: {
       unlocked: "已解锁",
       mastered: "已掌握",
-      confidence: "置信度",
+      confidence: "掌握度",
     },
     metrics: {
       speed: "速度",
@@ -475,7 +475,7 @@ const zhCN = {
       clicks: "击键数",
       cps: "每秒击键",
     },
-    keyConfidenceMap: "按键置信度地图",
+    keyConfidenceMap: "按键掌握度分布",
     weakestKeys: "最弱按键",
     strongestKeys: "最强按键",
     legend: {
@@ -518,8 +518,8 @@ const zhCN = {
   // ── Activity Heatmap ─────────────────────────────────────
   activityHeatmap: {
     title: "活动记录",
-    activeDays_one: "{{count}} 个活跃天",
-    activeDays_other: "{{count}} 个活跃天",
+    activeDays_one: "{{count}} 天活跃",
+    activeDays_other: "{{count}} 天活跃",
     dayLabels: {
       mon: "一",
       wed: "三",
@@ -573,13 +573,13 @@ const zhCN = {
     upload: "上传",
     emptyFiles: "上传你的 MIDI 文件",
     emptyFilesDesc: "将 .mid 文件拖拽到此处或点击浏览。你的文件将与预设一同播放。",
-    addMore: "添加更多",
+    addMore: "新增曲目",
     clearPlaylist: "清空",
     emptyPlaylist: "播放列表为空",
     emptyPlaylistHint: "使用 + 添加曲目",
     itemCount_one: "{{count}} 项",
     itemCount_other: "{{count}} 项",
-    activeBadge: "活跃",
+    activeBadge: "当前",
     playingBadge: "播放中",
     testButton: "测试",
     frames: "{{n}} 帧",
@@ -952,7 +952,7 @@ const zhCN = {
   timeLevels: {
     "b-1": {
       name: "第一步",
-      description: "短暂宽松的练习，巩固基础。",
+      description: "短时间容错练习，巩固基础。",
     },
     "b-2": {
       name: "快速冲刺",
@@ -992,7 +992,7 @@ const zhCN = {
     },
     "i-6": {
       name: "耐力测试",
-      description: "两分钟中级测试，考验控制而非慌乱。",
+      description: "两分钟中级挑战，考验沉着而非慌乱。",
     },
     "a-1": {
       name: "复杂词汇",
@@ -1016,18 +1016,18 @@ const zhCN = {
     },
     "a-6": {
       name: "马拉松",
-      description: "长时间高级练习，测试疲劳中的节奏保持。",
+      description: "长篇高难度冲刺，验证你能否在疲劳中维持节奏。",
     },
     "e-1": {
-      name: "速度恶魔",
-      description: "短暂全功能爆发，奖励极致控制力。",
+      name: "极速挑战",
+      description: "短时间全要素冲刺，考验爆发式操控。",
     },
     "e-2": {
       name: "精准测试",
       description: "专家基准：速度极高，失误代价更重。",
     },
     "e-3": {
-      name: "终极关卡",
+      name: "试炼关卡",
       description: "两分钟专家文本，节奏与专注缺一不可。",
     },
   },
