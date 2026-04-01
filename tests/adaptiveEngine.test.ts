@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest"
 import {
+  blendAdaptiveEwma,
   computeMastery,
   computeTransitionScore,
   computeSessionCpmFromLatencies,
+  getAdaptiveEwmaAlpha,
   getKeyUnlockChecks,
   isKeyReadyToUnlock,
   isKeyStrictlyMastered,
@@ -94,6 +96,33 @@ describe("computeSessionCpmFromLatencies", () => {
 
   it("returns 0 when there are no valid latency samples", () => {
     expect(computeSessionCpmFromLatencies([])).toBe(0)
+  })
+})
+
+describe("getAdaptiveEwmaAlpha", () => {
+  it("downweights tiny sample sets", () => {
+    expect(getAdaptiveEwmaAlpha(1)).toBeCloseTo(0.02)
+    expect(getAdaptiveEwmaAlpha(2)).toBeCloseTo(0.04)
+    expect(getAdaptiveEwmaAlpha(4)).toBeCloseTo(0.08)
+  })
+
+  it("caps the adaptive alpha once samples are sufficient", () => {
+    expect(getAdaptiveEwmaAlpha(5)).toBeCloseTo(0.1)
+    expect(getAdaptiveEwmaAlpha(12)).toBeCloseTo(0.1)
+  })
+})
+
+describe("blendAdaptiveEwma", () => {
+  it("keeps the previous signal stable for single-sample sessions", () => {
+    expect(blendAdaptiveEwma(200, 400, 1)).toBeCloseTo(204)
+  })
+
+  it("fully applies the base alpha when enough samples are present", () => {
+    expect(blendAdaptiveEwma(200, 400, 5)).toBeCloseTo(220)
+  })
+
+  it("seeds the signal directly when there is no previous baseline", () => {
+    expect(blendAdaptiveEwma(undefined, 320, 1)).toBe(320)
   })
 })
 

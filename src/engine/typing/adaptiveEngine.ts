@@ -34,6 +34,11 @@ export const MIN_BIGRAM_SAMPLES = 5
 export const BIGRAM_ACCURACY_EXPONENT = 1.5
 export const MIN_SAMPLES_FOR_STABLE_SIGNAL = 15
 
+export function getAdaptiveEwmaAlpha(sampleCount: number): number {
+  if (sampleCount <= 0) return 0
+  return Math.min(EWMA_ALPHA, (EWMA_ALPHA * Math.min(sampleCount, 5)) / 5)
+}
+
 function medianLatency(latencies: number[]): number {
   if (latencies.length === 0) return 0
   const sorted = [...latencies].sort((a, b) => a - b)
@@ -46,6 +51,20 @@ function medianLatency(latencies: number[]): number {
 export function computeSessionCpmFromLatencies(latencies: number[]): number {
   const representativeLatency = medianLatency(latencies)
   return representativeLatency > 0 ? 60000 / representativeLatency : 0
+}
+
+export function blendAdaptiveEwma(
+  previousCpm: number | undefined,
+  sessionCpm: number,
+  sampleCount: number,
+): number | undefined {
+  if (sessionCpm <= 0) return previousCpm
+  if (!previousCpm || previousCpm <= 0) return sessionCpm
+
+  const alpha = getAdaptiveEwmaAlpha(sampleCount)
+  if (alpha <= 0) return previousCpm
+
+  return previousCpm * (1 - alpha) + sessionCpm * alpha
 }
 
 export interface AdaptiveSettings {
@@ -537,9 +556,11 @@ async function ensureAdaptiveAccuracyStatsBackfilled(): Promise<void> {
         const aggregate = ensureAggregate(key)
         const sessionCpm = computeSessionCpmFromLatencies(metrics.correctLatencies)
         const prevEwma = aggregate.adaptiveEwmaCpm
-        const newEwma = sessionCpm > 0
-          ? (prevEwma ? prevEwma * (1 - EWMA_ALPHA) + sessionCpm * EWMA_ALPHA : sessionCpm)
-          : prevEwma
+        const newEwma = blendAdaptiveEwma(
+          prevEwma,
+          sessionCpm,
+          metrics.correctLatencies.length,
+        )
 
         aggregate.adaptiveEwmaCpm = newEwma
         if (newEwma != null && newEwma > 0) {
@@ -790,9 +811,11 @@ export async function updateKeyStatsFromSession(
         const blendedSpeed = existing.avgSpeed * (1 - blendFactor) + sessionWpm * blendFactor
 
         const prevEwma = existing.adaptiveEwmaCpm
-        const newEwma = sessionCpm > 0
-          ? (prevEwma ? prevEwma * (1 - EWMA_ALPHA) + sessionCpm * EWMA_ALPHA : sessionCpm)
-          : prevEwma
+        const newEwma = blendAdaptiveEwma(
+          prevEwma,
+          sessionCpm,
+          metrics.correctLatencies.length,
+        )
         const prevBest = existing.adaptiveBestCpm ?? 0
         const newBest = newEwma ? Math.max(prevBest, newEwma) : prevBest
         const newDecayedCorrectHits =
