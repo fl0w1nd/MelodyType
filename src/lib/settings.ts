@@ -16,7 +16,7 @@ export type SelectedMidiSource =
   | { type: "preset"; id: string }
   | { type: "file"; id: number }
 
-export type AdaptivePhase = "progressive" | "reinforcement"
+export type AdaptivePhase = "calibration" | "progressive" | "reinforcement"
 
 export interface AppSettingsSnapshot {
   showKeyboard: boolean
@@ -115,7 +115,10 @@ export const appSettingDefinitions: {
   },
   adaptivePhase: {
     defaultValue: "progressive" as const,
-    deserialize: (raw) => (raw === "reinforcement" ? "reinforcement" : "progressive"),
+    deserialize: (raw) => {
+      if (raw === "reinforcement") return "reinforcement"
+      return "progressive"
+    },
     serialize: (value) => value,
   },
   adaptiveIncludeNumbers: {

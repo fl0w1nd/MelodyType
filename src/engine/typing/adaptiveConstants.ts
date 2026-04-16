@@ -5,5 +5,5 @@ export const LETTER_FREQUENCY_ORDER = [
 ]
 
 export const INITIAL_UNLOCK_COUNT = 6
-export const DEFAULT_TARGET_CPM = 175
+export const DEFAULT_TARGET_CPM = 125
 export const DEFAULT_RECOVER_KEYS = false

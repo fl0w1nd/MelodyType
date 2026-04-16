@@ -1,5 +1,5 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom"
-import { Keyboard, BarChart3, Music, Settings, BookOpen, Github, Globe } from "lucide-react"
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Keyboard, BarChart3, Music, Settings, BookOpen, Github, Globe, Gauge } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 import { BackgroundDecor } from "./BackgroundDecor"
@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SUPPORTED_LANGUAGES } from "@/i18n"
 import type { SupportedLanguage } from "@/i18n"
+import { startCalibration } from "@/lib/calibrationEmitter"
 
 export function AppLayout() {
   const { t, i18n } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const showFloatingPlayer = location.pathname !== "/midi"
 
   const handleLanguageChange = (lang: SupportedLanguage | "auto") => {
@@ -33,6 +35,16 @@ export function AppLayout() {
   const currentLang = SUPPORTED_LANGUAGES.includes(i18n.language as SupportedLanguage)
     ? (i18n.language as SupportedLanguage)
     : "auto"
+
+  const handleCalibrationTrigger = () => {
+    if (location.pathname !== "/") {
+      navigate("/")
+      setTimeout(startCalibration, 300)
+      return
+    }
+
+    startCalibration()
+  }
 
   const langOptions: Array<{ value: SupportedLanguage | "auto"; label: string; flag: string }> = [
     { value: "auto", label: "Auto", flag: "🌐" },
@@ -103,6 +115,22 @@ export function AppLayout() {
               ))}
 
               <div className="w-px h-6 bg-border/40 mx-1" />
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={handleCalibrationTrigger}
+                      data-tour="calibration-trigger"
+                      className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/60"
+                    />
+                  }
+                >
+                  <Gauge className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("nav.calibration")}</TooltipContent>
+              </Tooltip>
 
               <TourReplayButton />
 

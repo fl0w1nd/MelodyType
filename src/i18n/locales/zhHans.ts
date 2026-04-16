@@ -15,6 +15,7 @@ const zhCN = {
     midi: "MIDI",
     docs: "文档",
     settings: "设置",
+    calibration: "校准测试",
     githubRepository: "GitHub 仓库",
     footer: "MelodyType · 打字与音乐的交响",
   },
@@ -84,6 +85,11 @@ const zhCN = {
         description:
           "仪表盘查看历史统计，MIDI 管理背景音乐，文档阅读使用指南，设置管理数据与偏好。慢慢探索吧！",
       },
+      calibrationTrigger: {
+        title: "可选校准测试",
+        description:
+          "使用导航栏里的这个按钮可以随时启动一次校准测试。你想重新估算推荐 CPM 时再点它，直接开始练习也很顺手。",
+      },
     },
   },
 
@@ -116,6 +122,22 @@ const zhCN = {
     showKeyboard: "显示",
     keyboard: "键盘",
     roundSession: "第 {{round}} 轮 · 当前会话 · Esc 重置",
+  },
+
+  // ── Calibration ──────────────────────────────────────────
+  calibration: {
+    title: "校准完成",
+    subtitle: "以下是为你定制的起点",
+    measuredSpeed: "你的速度",
+    accuracy: "准确率",
+    recommended: "推荐目标",
+    accept: "开始练习",
+    adjust: "调整目标",
+    hint: "你随时可以在设置中更改目标。",
+    bannerTitle: "校准测试",
+    bannerDesc: "自然地打字，测量你当前的水平。",
+    wordCount: "{{count}} 个词",
+    exit: "退出校准",
   },
 
   // ── Mode Selector ────────────────────────────────────────

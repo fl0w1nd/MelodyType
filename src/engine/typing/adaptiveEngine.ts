@@ -25,6 +25,8 @@ export const MIN_TARGET_CPM = 75
 export const MAX_TARGET_CPM = 750
 export const EWMA_ALPHA = 0.1
 export const MIN_HITS_FOR_MASTERY = 35
+export const MIN_HITS_FOR_EARLY_MASTERY = 20
+export const EARLY_UNLOCK_THRESHOLD = 8
 export const ACCURACY_DECAY = 0.95
 export const MIN_RECENT_ACCURACY_FOR_MASTERY = 0.90
 export const MIN_LIFETIME_ACCURACY_FOR_MASTERY = 0.88
@@ -107,11 +109,11 @@ export const DEFAULT_ADAPTIVE_SETTINGS: AdaptiveSettings = {
 }
 
 export const ADAPTIVE_TARGET_PRESETS = [
-  { label: "Starter", cpm: 125, description: "early practice" },
-  { label: "Balanced", cpm: 175, description: "default" },
-  { label: "Fluent", cpm: 250, description: "daily typing" },
-  { label: "Fast", cpm: 350, description: "speed push" },
-  { label: "Elite", cpm: 500, description: "advanced" },
+  { label: "Starter", cpm: 100, description: "early practice" },
+  { label: "Balanced", cpm: 125, description: "default" },
+  { label: "Fluent", cpm: 200, description: "daily typing" },
+  { label: "Fast", cpm: 300, description: "speed push" },
+  { label: "Elite", cpm: 450, description: "advanced" },
 ] as const
 
 export interface KeyConfidence {
@@ -275,7 +277,12 @@ export function shouldUnlockNextKey(confidences: KeyConfidence[], recoverKeys: b
   const unlockedActive = confidences.filter((k) => k.unlocked && !k.forced)
   if (unlockedActive.length === 0) return true
 
-  return unlockedActive.every((k) => isKeyReadyToUnlock(k, recoverKeys))
+  const unlockedCount = unlockedActive.length
+  const readyCount = unlockedActive.filter((k) => isKeyReadyToUnlock(k, recoverKeys, unlockedCount)).length
+
+  // Allow unlocking when ≥80% of keys are ready (at least 1 laggard tolerated)
+  const readyRatio = readyCount / unlockedCount
+  return readyRatio >= 0.8
 }
 
 export function getNextKeyToUnlock(
@@ -294,6 +301,7 @@ export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean =
   const unlockedByKey = new Map(
     confidences.filter((k) => k.unlocked).map((k) => [k.key, k]),
   )
+  const unlockedCount = unlockedByKey.size
 
   // Scan in frequency order and return the first unlocked key that is not
   // ready under the active gating mode. When recoverKeys is off, focus
@@ -301,7 +309,7 @@ export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean =
   for (const key of LETTER_FREQUENCY_ORDER) {
     const kc = unlockedByKey.get(key)
     if (!kc) continue
-    if (!isKeyReadyToUnlock(kc, recoverKeys)) {
+    if (!isKeyReadyToUnlock(kc, recoverKeys, unlockedCount)) {
       return key
     }
   }
@@ -309,9 +317,16 @@ export function getFocusKey(confidences: KeyConfidence[], recoverKeys: boolean =
   return null
 }
 
+export function getMinHitsForMastery(unlockedCount: number = LETTER_FREQUENCY_ORDER.length): number {
+  return unlockedCount <= EARLY_UNLOCK_THRESHOLD
+    ? MIN_HITS_FOR_EARLY_MASTERY
+    : MIN_HITS_FOR_MASTERY
+}
+
 export function getKeyUnlockChecks(
   keyConfidence: KeyConfidence,
   recoverKeys: boolean = false,
+  unlockedCount: number = LETTER_FREQUENCY_ORDER.length,
 ): KeyUnlockChecks {
   if (!recoverKeys && keyConfidence.qualifiedBestConfidence >= 1.0) {
     return {
@@ -326,9 +341,11 @@ export function getKeyUnlockChecks(
     ? keyConfidence.confidence
     : keyConfidence.bestConfidence
 
+  const minHits = getMinHitsForMastery(unlockedCount)
+
   return {
     speed: gatedConfidence >= 1.0,
-    hits: keyConfidence.samples >= MIN_HITS_FOR_MASTERY,
+    hits: keyConfidence.samples >= minHits,
     recentAccuracy: keyConfidence.accuracy >= MIN_RECENT_ACCURACY_FOR_MASTERY * 100,
     lifetimeAccuracy:
       keyConfidence.lifetimeAccuracy >= MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100,
@@ -338,8 +355,9 @@ export function getKeyUnlockChecks(
 export function isKeyReadyToUnlock(
   keyConfidence: KeyConfidence,
   recoverKeys: boolean = false,
+  unlockedCount: number = LETTER_FREQUENCY_ORDER.length,
 ): boolean {
-  const checks = getKeyUnlockChecks(keyConfidence, recoverKeys)
+  const checks = getKeyUnlockChecks(keyConfidence, recoverKeys, unlockedCount)
   return Object.values(checks).every(Boolean)
 }
 
@@ -396,6 +414,12 @@ export function resolveAdaptiveMixOptions(
     punctuation: settings.includePunctuation,
     specialCharacters: settings.includeSpecialCharacters,
   }
+}
+
+export function resolveStoredAdaptivePhase(
+  storedPhase: AdaptivePhase,
+): AdaptivePhase {
+  return storedPhase === "reinforcement" ? "reinforcement" : "progressive"
 }
 
 export async function loadForcedKeys(): Promise<string[]> {
@@ -651,7 +675,7 @@ export { ensureAdaptiveAccuracyStatsBackfilled }
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
   await ensureAdaptiveAccuracyStatsBackfilled()
 
-  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
+  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, storedPhase] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
     getAppSetting("adaptiveUnlocked"),
@@ -659,6 +683,11 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     loadAdaptiveSettings(),
     getAppSetting("adaptivePhase"),
   ])
+  const phase = resolveStoredAdaptivePhase(storedPhase)
+
+  if (phase !== storedPhase) {
+    await setAppSetting("adaptivePhase", phase)
+  }
 
   const statsMap = new Map<string, KeyStat>()
   for (const stat of keyStats) {

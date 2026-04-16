@@ -16,6 +16,9 @@ import {
   extractBigramMetrics,
   resolveAdaptiveMixOptions,
   MIN_HITS_FOR_MASTERY,
+  MIN_HITS_FOR_EARLY_MASTERY,
+  EARLY_UNLOCK_THRESHOLD,
+  getMinHitsForMastery,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
   MIN_SAMPLES_FOR_STABLE_SIGNAL,
@@ -66,6 +69,7 @@ describe("computeMastery", () => {
     expect(computeMastery(175, 175)).toBe(1)
     expect(computeMastery(350, 175)).toBe(2)
     expect(computeMastery(87.5, 175)).toBeCloseTo(0.5)
+    expect(computeMastery(125, 125)).toBe(1)
   })
 
   it("uses DEFAULT_TARGET_CPM when targetCpm is omitted", () => {
@@ -302,6 +306,29 @@ describe("getKeyUnlockChecks", () => {
   it("lifetimeAccuracy fails just below 88", () => {
     const kc = makeKC({ key: "e", lifetimeAccuracy: MIN_LIFETIME_ACCURACY_FOR_MASTERY * 100 - 0.01 })
     expect(getKeyUnlockChecks(kc).lifetimeAccuracy).toBe(false)
+  })
+
+  it("uses lower hit threshold during early unlocks", () => {
+    const kc = makeKC({ key: "e", samples: MIN_HITS_FOR_EARLY_MASTERY })
+    expect(getKeyUnlockChecks(kc, false, 6).hits).toBe(true)
+    expect(getKeyUnlockChecks(kc, false, EARLY_UNLOCK_THRESHOLD).hits).toBe(true)
+  })
+
+  it("uses full hit threshold after early stage", () => {
+    const kc = makeKC({ key: "e", samples: MIN_HITS_FOR_EARLY_MASTERY })
+    expect(getKeyUnlockChecks(kc, false, EARLY_UNLOCK_THRESHOLD + 1).hits).toBe(false)
+  })
+})
+
+describe("getMinHitsForMastery", () => {
+  it("returns early threshold for small unlock counts", () => {
+    expect(getMinHitsForMastery(6)).toBe(MIN_HITS_FOR_EARLY_MASTERY)
+    expect(getMinHitsForMastery(EARLY_UNLOCK_THRESHOLD)).toBe(MIN_HITS_FOR_EARLY_MASTERY)
+  })
+
+  it("returns full threshold after early stage", () => {
+    expect(getMinHitsForMastery(EARLY_UNLOCK_THRESHOLD + 1)).toBe(MIN_HITS_FOR_MASTERY)
+    expect(getMinHitsForMastery(26)).toBe(MIN_HITS_FOR_MASTERY)
   })
 })
 
@@ -680,6 +707,35 @@ describe("shouldUnlockNextKey", () => {
     ]
     // The locked key is filtered by k.unlocked && !k.forced, so only "n" is checked
     expect(shouldUnlockNextKey(confs)).toBe(true)
+  })
+
+  it("tolerates one laggard when ≥80% of keys are ready (5 of 6)", () => {
+    const ready = { bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }
+    const confs = [
+      makeKC({ key: "e", ...ready }),
+      makeKC({ key: "n", ...ready }),
+      makeKC({ key: "i", ...ready }),
+      makeKC({ key: "t", ...ready }),
+      makeKC({ key: "r", ...ready }),
+      makeKC({ key: "l", bestConfidence: 0.3, samples: 5, accuracy: 60, lifetimeAccuracy: 60 }),
+    ]
+    // 5/6 = 83% ≥ 80%
+    expect(shouldUnlockNextKey(confs)).toBe(true)
+  })
+
+  it("blocks when too many keys are unready (3 of 6)", () => {
+    const ready = { bestConfidence: 1.0, samples: 60, accuracy: 95, lifetimeAccuracy: 95 }
+    const weak = { bestConfidence: 0.3, samples: 5, accuracy: 60, lifetimeAccuracy: 60 }
+    const confs = [
+      makeKC({ key: "e", ...ready }),
+      makeKC({ key: "n", ...ready }),
+      makeKC({ key: "i", ...ready }),
+      makeKC({ key: "t", ...weak }),
+      makeKC({ key: "r", ...weak }),
+      makeKC({ key: "l", ...weak }),
+    ]
+    // 3/6 = 50% < 80%
+    expect(shouldUnlockNextKey(confs)).toBe(false)
   })
 })
 

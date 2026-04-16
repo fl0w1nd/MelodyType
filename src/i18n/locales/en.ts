@@ -15,6 +15,7 @@ const en = {
     midi: "MIDI",
     docs: "Docs",
     settings: "Settings",
+    calibration: "Calibration test",
     githubRepository: "GitHub Repository",
     footer: "MelodyType · Where typing meets music",
   },
@@ -85,6 +86,11 @@ const en = {
         description:
           "Dashboard for history stats, MIDI to manage background music, Docs to read the guide, and Settings to manage data and preferences. Enjoy exploring!",
       },
+      calibrationTrigger: {
+        title: "Optional Calibration Test",
+        description:
+          "Use this navigation button to run a calibration round any time. Click it when you want a fresh recommended CPM, or skip it and start practicing right away.",
+      },
     },
   },
 
@@ -117,6 +123,22 @@ const en = {
     showKeyboard: "Show",
     keyboard: "Keyboard",
     roundSession: "Round {{round}} · current session · Esc resets",
+  },
+
+  // ── Calibration ──────────────────────────────────────────
+  calibration: {
+    title: "Calibration Complete",
+    subtitle: "Here's your personalized starting point",
+    measuredSpeed: "Your Speed",
+    accuracy: "Accuracy",
+    recommended: "Recommended Target",
+    accept: "Start Practicing",
+    adjust: "Adjust Target",
+    hint: "You can always change this later in settings.",
+    bannerTitle: "Calibration Round",
+    bannerDesc: "Type naturally to measure your current skill level.",
+    wordCount: "{{count}} words",
+    exit: "Exit calibration",
   },
 
   // ── Mode Selector ────────────────────────────────────────

@@ -95,6 +95,12 @@ const tourSteps: TourStep[] = [
     descriptionKey: "tour.steps.navBar.description",
     placement: "bottom",
   },
+  {
+    target: "calibration-trigger",
+    titleKey: "tour.steps.calibrationTrigger.title",
+    descriptionKey: "tour.steps.calibrationTrigger.description",
+    placement: "bottom",
+  },
 ]
 
 // ── localStorage key ───────────────────────────────────
