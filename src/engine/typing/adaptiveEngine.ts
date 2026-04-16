@@ -416,12 +416,6 @@ export function resolveAdaptiveMixOptions(
   }
 }
 
-export function resolveStoredAdaptivePhase(
-  storedPhase: AdaptivePhase,
-): AdaptivePhase {
-  return storedPhase === "reinforcement" ? "reinforcement" : "progressive"
-}
-
 export async function loadForcedKeys(): Promise<string[]> {
   const parsed = await getAppSetting("adaptiveForcedKeys")
   return parsed.filter((key) => LETTER_FREQUENCY_ORDER.includes(key))
@@ -675,7 +669,7 @@ export { ensureAdaptiveAccuracyStatsBackfilled }
 export async function loadAdaptiveState(): Promise<AdaptiveState> {
   await ensureAdaptiveAccuracyStatsBackfilled()
 
-  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, storedPhase] = await Promise.all([
+  const [keyStats, sessions, unlockedKeys, forcedKeys, adaptSettings, phase] = await Promise.all([
     db.keyStats.toArray(),
     db.sessions.where("mode").equals("adaptive").sortBy("timestamp"),
     getAppSetting("adaptiveUnlocked"),
@@ -683,11 +677,6 @@ export async function loadAdaptiveState(): Promise<AdaptiveState> {
     loadAdaptiveSettings(),
     getAppSetting("adaptivePhase"),
   ])
-  const phase = resolveStoredAdaptivePhase(storedPhase)
-
-  if (phase !== storedPhase) {
-    await setAppSetting("adaptivePhase", phase)
-  }
 
   const statsMap = new Map<string, KeyStat>()
   for (const stat of keyStats) {

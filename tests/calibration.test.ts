@@ -1,22 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
-  resolveStoredAdaptivePhase,
-} from "../src/engine/typing/adaptiveEngine"
-import {
   CALIBRATION_WORD_COUNT,
   computeCalibrationResult,
   generateCalibrationText,
 } from "../src/engine/typing/calibration"
-
-describe("resolveStoredAdaptivePhase", () => {
-  it("maps legacy calibration phase to progressive", () => {
-    expect(resolveStoredAdaptivePhase("calibration")).toBe("progressive")
-  })
-
-  it("keeps reinforcement phase intact", () => {
-    expect(resolveStoredAdaptivePhase("reinforcement")).toBe("reinforcement")
-  })
-})
 
 describe("generateCalibrationText", () => {
   it("covers the full alphabet", () => {

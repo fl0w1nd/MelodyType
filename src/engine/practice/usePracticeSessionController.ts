@@ -743,6 +743,7 @@ export function usePracticeSessionController({
       handleRestart,
       handleNextLevel,
       handleManualUnlock,
+      beginCalibrationSession,
       handleCalibrationAccept,
       handleCalibrationExit,
       updateAdaptiveSettings,

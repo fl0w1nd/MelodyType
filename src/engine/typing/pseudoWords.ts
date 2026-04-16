@@ -116,6 +116,9 @@ export function generateAdaptiveText(
   // Prefer ~60% focused words when a focus key is active and focused pool
   // is available; remaining slots filled from unfocused pool or Markov
   const focusRatio = focusKey && focusedWords.length > 0 ? 0.6 : 0
+  const combinedWordWeights = focusedWords.length > 0
+    ? new Map([...focusedWordWeights, ...unfocusedWordWeights])
+    : unfocusedWordWeights
 
   const words: string[] = []
   const recentWords: string[] = []
@@ -125,9 +128,7 @@ export function generateAdaptiveText(
 
     const useFocusPool = Math.random() < focusRatio
     const primaryPool = useFocusPool ? focusedWords : allRealWords
-    const primaryWeights = useFocusPool ? focusedWordWeights : (focusedWords.length > 0
-      ? new Map([...focusedWordWeights, ...unfocusedWordWeights])
-      : unfocusedWordWeights)
+    const primaryWeights = useFocusPool ? focusedWordWeights : combinedWordWeights
 
     if (primaryPool.length > 0) {
       let attempts = 0

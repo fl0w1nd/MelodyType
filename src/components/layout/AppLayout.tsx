@@ -38,8 +38,7 @@ export function AppLayout() {
 
   const handleCalibrationTrigger = () => {
     if (location.pathname !== "/") {
-      navigate("/")
-      setTimeout(startCalibration, 300)
+      navigate("/", { state: { startCalibration: true } })
       return
     }
 

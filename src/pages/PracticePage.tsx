@@ -1,6 +1,8 @@
 import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
 import { FlowMeter } from "@/components/practice/FlowMeter"
@@ -21,6 +23,10 @@ import { setAppSetting, useAppSetting } from "@/lib/settings"
 
 export default function PracticePage() {
   const { t } = useTranslation()
+  const location = useLocation() as ReturnType<typeof useLocation> & {
+    state: { startCalibration?: boolean } | null
+  }
+  const navigate = useNavigate()
   const { particles, emit } = useNoteParticles()
   const showKeyboard = useAppSetting("showKeyboard")
   const {
@@ -47,6 +53,13 @@ export default function PracticePage() {
   } = usePracticeSessionController({
     onCorrectInput: emit,
   })
+
+  useEffect(() => {
+    if (location.state?.startCalibration !== true) return
+
+    void actions.beginCalibrationSession()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [actions, location.pathname, location.state, navigate])
 
   return (
     <div className="flex flex-col items-center gap-6">
