@@ -1,10 +1,13 @@
 import { RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { TextDisplay } from "@/components/practice/TextDisplay"
 import { FlowMeter } from "@/components/practice/FlowMeter"
 import { MetricsBar } from "@/components/practice/MetricsBar"
+import { CalibrationPanel } from "@/components/practice/CalibrationPanel"
 import { VirtualKeyboard } from "@/components/practice/VirtualKeyboard"
 import { ModeSelector } from "@/components/practice/ModeSelector"
 import { ResultsPanel } from "@/components/practice/ResultsPanel"
@@ -20,6 +23,10 @@ import { setAppSetting, useAppSetting } from "@/lib/settings"
 
 export default function PracticePage() {
   const { t } = useTranslation()
+  const location = useLocation() as ReturnType<typeof useLocation> & {
+    state: { startCalibration?: boolean } | null
+  }
+  const navigate = useNavigate()
   const { particles, emit } = useNoteParticles()
   const showKeyboard = useAppSetting("showKeyboard")
   const {
@@ -38,12 +45,21 @@ export default function PracticePage() {
     timeLevelKey,
     nextKey,
     isAdaptive,
+    isCalibrating,
+    calibrationResult,
     isTimeLevelSelect,
     showResults,
     actions,
   } = usePracticeSessionController({
     onCorrectInput: emit,
   })
+
+  useEffect(() => {
+    if (location.state?.startCalibration !== true) return
+
+    void actions.beginCalibrationSession()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [actions, location.pathname, location.state, navigate])
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -57,35 +73,44 @@ export default function PracticePage() {
       </div>
 
       {isAdaptive && adaptiveState && (
-        <KeyProgressPanel
-          keyConfidences={adaptiveState.keyConfidences}
-          focusKey={adaptiveState.focusKey}
-          globalSummary={adaptiveState.globalSummary}
-          phase={adaptiveState.phase}
-          targetCpm={adaptiveState.settings.targetCpm}
-          recoverKeys={adaptiveState.settings.recoverKeys}
-          includeNumbers={adaptiveState.settings.includeNumbers}
-          includePunctuation={adaptiveState.settings.includePunctuation}
-          includeSpecialCharacters={adaptiveState.settings.includeSpecialCharacters}
-          totalSessions={adaptiveState.totalSessions}
-          roundNumber={roundCount + 1}
-          onUnlockKey={actions.handleManualUnlock}
-          onTargetChange={(targetCpm) => {
-            void actions.updateAdaptiveSettings({ targetCpm })
-          }}
-          onRecoverChange={(recoverKeys) => {
-            void actions.updateAdaptiveSettings({ recoverKeys })
-          }}
-          onIncludeNumbersChange={(includeNumbers) => {
-            void actions.updateAdaptiveSettings({ includeNumbers })
-          }}
-          onIncludePunctuationChange={(includePunctuation) => {
-            void actions.updateAdaptiveSettings({ includePunctuation })
-          }}
-          onIncludeSpecialCharactersChange={(includeSpecialCharacters) => {
-            void actions.updateAdaptiveSettings({ includeSpecialCharacters })
-          }}
-        />
+        isCalibrating ? (
+          <CalibrationPanel
+            active={isCalibrating}
+            result={calibrationResult}
+            onAccept={actions.handleCalibrationAccept}
+            onExit={actions.handleCalibrationExit}
+          />
+        ) : (
+          <KeyProgressPanel
+            keyConfidences={adaptiveState.keyConfidences}
+            focusKey={adaptiveState.focusKey}
+            globalSummary={adaptiveState.globalSummary}
+            phase={adaptiveState.phase}
+            targetCpm={adaptiveState.settings.targetCpm}
+            recoverKeys={adaptiveState.settings.recoverKeys}
+            includeNumbers={adaptiveState.settings.includeNumbers}
+            includePunctuation={adaptiveState.settings.includePunctuation}
+            includeSpecialCharacters={adaptiveState.settings.includeSpecialCharacters}
+            totalSessions={adaptiveState.totalSessions}
+            roundNumber={roundCount + 1}
+            onUnlockKey={actions.handleManualUnlock}
+            onTargetChange={(targetCpm) => {
+              void actions.updateAdaptiveSettings({ targetCpm })
+            }}
+            onRecoverChange={(recoverKeys) => {
+              void actions.updateAdaptiveSettings({ recoverKeys })
+            }}
+            onIncludeNumbersChange={(includeNumbers) => {
+              void actions.updateAdaptiveSettings({ includeNumbers })
+            }}
+            onIncludePunctuationChange={(includePunctuation) => {
+              void actions.updateAdaptiveSettings({ includePunctuation })
+            }}
+            onIncludeSpecialCharactersChange={(includeSpecialCharacters) => {
+              void actions.updateAdaptiveSettings({ includeSpecialCharacters })
+            }}
+          />
+        )
       )}
 
       <AnimatePresence>

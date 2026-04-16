@@ -5,6 +5,11 @@ import { generateWordText } from "@/engine/typing/wordLists"
 import { getRandomQuoteAsync, preloadQuotes } from "@/engine/typing/quoteLoader"
 import { generateAdaptiveText, generateReinforcementText } from "@/engine/typing/pseudoWords"
 import { computeWordAccuracyMetrics } from "@/engine/typing/accuracyMetrics"
+import {
+  generateCalibrationText,
+  computeCalibrationResult,
+  type CalibrationResult,
+} from "@/engine/typing/calibration"
 import type {
   KeystrokeEntry,
   PracticeModeConfig,
@@ -21,6 +26,7 @@ import {
   loadAdaptiveState,
   resolveAdaptiveMixOptions,
 } from "@/engine/typing/adaptiveEngine"
+import { subscribeCalibration } from "@/lib/calibrationEmitter"
 import { setAppSetting } from "@/lib/settings"
 import {
   TIME_LEVELS,
@@ -119,6 +125,8 @@ export function usePracticeSessionController({
   const [completedMetrics, setCompletedMetrics] = useState<TypingMetrics | null>(null)
   const [timeResultSummary, setTimeResultSummary] =
     useState<TimeResultSummary | null>(null)
+  const [calibrationResult, setCalibrationResult] = useState<CalibrationResult | null>(null)
+  const [isCalibrating, setIsCalibrating] = useState(false)
 
   const adaptiveLoaded = useRef(false)
   const adaptiveContinuingRef = useRef(false)
@@ -204,9 +212,16 @@ export function usePracticeSessionController({
   }, [])
 
   const generateText = useCallback(
-    async (nextConfig: PracticeModeConfig, nextAdaptiveState?: AdaptiveState | null) => {
+    async (
+      nextConfig: PracticeModeConfig,
+      nextAdaptiveState?: AdaptiveState | null,
+      calibrationRound: boolean = false,
+    ) => {
       switch (nextConfig.mode) {
         case "adaptive": {
+          if (calibrationRound) {
+            return generateCalibrationText()
+          }
           const resolvedAdaptiveState = nextAdaptiveState ?? adaptiveState
           if (resolvedAdaptiveState) {
             const mixOpts = resolveAdaptiveMixOptions(
@@ -257,18 +272,65 @@ export function usePracticeSessionController({
   )
 
   const startPractice = useCallback(
-    async (nextConfig: PracticeModeConfig, nextAdaptiveState?: AdaptiveState | null) => {
+    async (
+      nextConfig: PracticeModeConfig,
+      nextAdaptiveState?: AdaptiveState | null,
+      calibrationRound: boolean = false,
+    ) => {
       if (nextConfig.mode !== "quote") setQuoteAuthor(null)
       setCompletedMetrics(null)
       setTimeResultSummary(null)
-      const text = await generateText(nextConfig, nextAdaptiveState)
+      const text = await generateText(nextConfig, nextAdaptiveState, calibrationRound)
       loadText(text, nextConfig.mode === "time" ? nextConfig.timeLimit : undefined)
       setRoundCount(0)
       adaptiveContinuingRef.current = false
-      resetMelodySession(getTargetCPM(nextConfig, nextAdaptiveState))
+      resetMelodySession(
+        calibrationRound
+          ? DEFAULT_TARGET_CPM
+          : getTargetCPM(nextConfig, nextAdaptiveState),
+      )
     },
     [generateText, getTargetCPM, loadText, resetMelodySession],
   )
+
+  const beginCalibrationSession = useCallback(async () => {
+    const nextConfig: PracticeModeConfig = { mode: "adaptive" }
+    setConfig(nextConfig)
+    setActiveLevel(null)
+    setNewlyUnlocked(null)
+    setCompletedMetrics(null)
+    setTimeResultSummary(null)
+    setCalibrationResult(null)
+    setIsCalibrating(true)
+    reset()
+    adaptiveContinuingRef.current = false
+
+    const nextState = await loadAdaptiveState()
+    setAdaptiveState(nextState)
+    await startPractice(nextConfig, nextState, true)
+  }, [reset, startPractice])
+
+  const handleCalibrationExit = useCallback(async () => {
+    const nextConfig: PracticeModeConfig = { mode: "adaptive" }
+    setConfig(nextConfig)
+    setCalibrationResult(null)
+    setIsCalibrating(false)
+    setNewlyUnlocked(null)
+    setCompletedMetrics(null)
+    setTimeResultSummary(null)
+    reset()
+    adaptiveContinuingRef.current = false
+
+    const nextState = await loadAdaptiveState()
+    setAdaptiveState(nextState)
+    await startPractice(nextConfig, nextState, false)
+  }, [reset, startPractice])
+
+  useEffect(() => {
+    return subscribeCalibration(() => {
+      void beginCalibrationSession()
+    })
+  }, [beginCalibrationSession])
 
   const handleBackToLevels = useCallback(() => {
     reset()
@@ -303,6 +365,8 @@ export function usePracticeSessionController({
       setActiveLevel(null)
       setCompletedMetrics(null)
       setTimeResultSummary(null)
+      setCalibrationResult(null)
+      setIsCalibrating(false)
 
       if (nextConfig.mode === "time") {
         reset()
@@ -313,7 +377,7 @@ export function usePracticeSessionController({
       if (nextConfig.mode === "adaptive") {
         void loadAdaptiveState().then((nextState) => {
           setAdaptiveState(nextState)
-          void startPractice(nextConfig, nextState)
+          void startPractice(nextConfig, nextState, false)
         })
         return
       }
@@ -327,18 +391,19 @@ export function usePracticeSessionController({
     reset()
     setNewlyUnlocked(null)
     setCompletedMetrics(null)
+    setCalibrationResult(null)
     adaptiveContinuingRef.current = false
 
     if (config.mode === "adaptive") {
       void loadAdaptiveState().then((nextState) => {
         setAdaptiveState(nextState)
-        void startPractice(config, nextState)
+        void startPractice(config, nextState, isCalibrating)
       })
       return
     }
 
     void startPractice(config)
-  }, [config, reset, startPractice])
+  }, [config, isCalibrating, reset, startPractice])
 
   const discardAdaptiveSession = useCallback(() => {
     if (config.mode !== "adaptive" || state.isFinished) return
@@ -346,13 +411,14 @@ export function usePracticeSessionController({
     reset()
     setNewlyUnlocked(null)
     setCompletedMetrics(null)
+    setCalibrationResult(null)
     adaptiveContinuingRef.current = false
 
     void loadAdaptiveState().then((nextState) => {
       setAdaptiveState(nextState)
-      void startPractice(config, nextState)
+      void startPractice(config, nextState, isCalibrating)
     })
-  }, [config, reset, startPractice, state.isFinished])
+  }, [config, isCalibrating, reset, startPractice, state.isFinished])
 
   const handleNextLevel = useCallback(() => {
     if (!activeLevel) return
@@ -393,9 +459,24 @@ export function usePracticeSessionController({
       adaptiveContinuingRef.current = false
       const nextState = await loadAdaptiveState()
       setAdaptiveState(nextState)
-      await startPractice(config, nextState)
+      await startPractice(config, nextState, isCalibrating)
     },
-    [adaptiveState, config, reset, startPractice],
+    [adaptiveState, config, isCalibrating, reset, startPractice],
+  )
+
+  const handleCalibrationAccept = useCallback(
+    async (targetCpm?: number) => {
+      const finalTarget = targetCpm ?? calibrationResult?.recommendedTargetCpm ?? DEFAULT_TARGET_CPM
+      await setAppSetting("adaptiveTargetCpm", finalTarget)
+      setCalibrationResult(null)
+      setIsCalibrating(false)
+      reset()
+      adaptiveContinuingRef.current = false
+      const nextState = await loadAdaptiveState()
+      setAdaptiveState(nextState)
+      await startPractice(config, nextState, false)
+    },
+    [calibrationResult, config, reset, startPractice],
   )
 
   const handleManualUnlock = useCallback(
@@ -408,7 +489,7 @@ export function usePracticeSessionController({
       adaptiveContinuingRef.current = false
       const nextState = await loadAdaptiveState()
       setAdaptiveState(nextState)
-      await startPractice(config, nextState)
+      await startPractice(config, nextState, false)
     },
     [config, reset, startPractice],
   )
@@ -514,6 +595,17 @@ export function usePracticeSessionController({
     if (!state.isFinished || !state.isStarted) return
     if (adaptiveContinuingRef.current) return
 
+    // Handle calibration round completion
+    if (config.mode === "adaptive" && isCalibrating) {
+      adaptiveContinuingRef.current = true
+      const roundMetrics = adaptivePersistMetrics
+      const result = computeCalibrationResult(roundMetrics.wpm, roundMetrics.accuracy)
+      queueMicrotask(() => {
+        setCalibrationResult(result)
+      })
+      return
+    }
+
     adaptiveContinuingRef.current = true
 
     const roundMetrics =
@@ -563,6 +655,7 @@ export function usePracticeSessionController({
     adaptivePersistMetrics,
     adaptiveState,
     config,
+    isCalibrating,
     metrics,
     startAdaptiveNextRound,
     state.isFinished,
@@ -639,6 +732,8 @@ export function usePracticeSessionController({
     timeLevelKey,
     nextKey,
     isAdaptive,
+    isCalibrating,
+    calibrationResult,
     isTimeLevelSelect,
     showResults,
     actions: {
@@ -648,6 +743,9 @@ export function usePracticeSessionController({
       handleRestart,
       handleNextLevel,
       handleManualUnlock,
+      beginCalibrationSession,
+      handleCalibrationAccept,
+      handleCalibrationExit,
       updateAdaptiveSettings,
     },
   }

@@ -51,7 +51,7 @@ import {
   getKeyUnlockChecks,
   isKeyReadyToUnlock,
   isKeyStrictlyMastered,
-  MIN_HITS_FOR_MASTERY,
+  getMinHitsForMastery,
   MIN_RECENT_ACCURACY_FOR_MASTERY,
   MIN_LIFETIME_ACCURACY_FOR_MASTERY,
 } from "@/engine/typing/adaptiveEngine"
@@ -112,11 +112,12 @@ function KeyProgressPanelInner({
   const unlockedKeys = keyConfidences.filter((k) => k.unlocked)
   const lockedKeys = keyConfidences.filter((k) => !k.unlocked)
   const progressionKeys = unlockedKeys.filter((k) => !k.forced)
+  const unlockedCount = progressionKeys.length
   const masteredCount = unlockedKeys.filter((k) => isKeyStrictlyMastered(k, recoverKeys)).length
   const readyToUnlockCount = progressionKeys.filter((k) =>
-    isKeyReadyToUnlock(k, recoverKeys),
+    isKeyReadyToUnlock(k, recoverKeys, unlockedCount),
   ).length
-  const blockingKeys = progressionKeys.filter((k) => !isKeyReadyToUnlock(k, recoverKeys))
+  const blockingKeys = progressionKeys.filter((k) => !isKeyReadyToUnlock(k, recoverKeys, unlockedCount))
 
   const avgConfidence =
     unlockedKeys.length > 0
@@ -272,6 +273,7 @@ function KeyProgressPanelInner({
                   keyConfidences={keyConfidences}
                   targetCpm={targetCpm}
                   recoverKeys={recoverKeys}
+                  unlockedCount={unlockedCount}
                   inline
                 />
               </div>
@@ -637,6 +639,7 @@ function KeyProgressPanelInner({
                           key={kc.key}
                           keyConf={kc}
                           recoverKeys={recoverKeys}
+                          unlockedCount={unlockedCount}
                         />
                       ))}
                       {blockingKeys.length > 4 && (
@@ -661,6 +664,7 @@ function KeyProgressPanelInner({
                       isFocus={kc.key === focusKey}
                       targetCpm={targetCpm}
                       recoverKeys={recoverKeys}
+                      unlockedCount={unlockedCount}
                     />
                   ))}
                 </div>
@@ -773,16 +777,18 @@ function KeyStatCard({
   isFocus,
   targetCpm,
   recoverKeys,
+  unlockedCount,
 }: {
   keyConf: KeyConfidence
   isFocus: boolean
   targetCpm: number
   recoverKeys: boolean
+  unlockedCount?: number
 }) {
   const { t } = useTranslation()
   const ewmaCpm = Math.round(keyConf.speed * 5)
   const bestCpm = Math.round(keyConf.bestConfidence * targetCpm)
-  const gates = getMasteryComparisonRows(keyConf, targetCpm, recoverKeys, t)
+  const gates = getMasteryComparisonRows(keyConf, targetCpm, recoverKeys, t, unlockedCount)
   const readiness = gates.filter((gate) => gate.met).length
   return (
     <div
@@ -860,11 +866,13 @@ function KeyStatCard({
 function UnlockBlockerBadge({
   keyConf,
   recoverKeys,
+  unlockedCount,
 }: {
   keyConf: KeyConfidence
   recoverKeys: boolean
+  unlockedCount?: number
 }) {
-  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
+  const checks = getKeyUnlockChecks(keyConf, recoverKeys, unlockedCount)
   const missing = [
     !checks.speed && "speed",
     !checks.hits && "hits",
@@ -885,9 +893,11 @@ function getMasteryComparisonRows(
   targetCpm: number,
   recoverKeys: boolean,
   t: (key: string, options?: Record<string, unknown>) => string,
+  unlockedCount?: number,
 ) {
-  const checks = getKeyUnlockChecks(keyConf, recoverKeys)
+  const checks = getKeyUnlockChecks(keyConf, recoverKeys, unlockedCount)
   const ewmaCpm = Math.round(keyConf.speed * 5)
+  const minHits = getMinHitsForMastery(unlockedCount)
 
   return [
     {
@@ -900,7 +910,7 @@ function getMasteryComparisonRows(
       label: t("keyProgressPanel.focusTooltip.hits"),
       met: checks.hits,
       current: `${keyConf.samples}`,
-      target: `${MIN_HITS_FOR_MASTERY}+`,
+      target: `${minHits}+`,
     },
     {
       label: t("keyProgressPanel.focusTooltip.recentAcc"),
@@ -1050,6 +1060,7 @@ function FocusThresholds({
   keyConfidences,
   targetCpm,
   recoverKeys,
+  unlockedCount,
   inline = false,
   className,
 }: {
@@ -1057,6 +1068,7 @@ function FocusThresholds({
   keyConfidences: KeyConfidence[]
   targetCpm: number
   recoverKeys: boolean
+  unlockedCount?: number
   inline?: boolean
   className?: string
 }) {
@@ -1080,7 +1092,7 @@ function FocusThresholds({
     )
   }
 
-  const gates = getMasteryComparisonRows(focus, targetCpm, recoverKeys, t)
+  const gates = getMasteryComparisonRows(focus, targetCpm, recoverKeys, t, unlockedCount)
   const metCount = gates.filter((g) => g.met).length
 
   if (inline) {

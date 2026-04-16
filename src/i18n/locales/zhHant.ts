@@ -26,6 +26,7 @@ const zhTW = {
     midi: "MIDI",
     docs: "文件",
     settings: "設定",
+    calibration: "校準測試",
     githubRepository: "GitHub 存放庫",
     footer: "MelodyType · 打字與音樂的交響",
   },
@@ -95,6 +96,11 @@ const zhTW = {
         description:
           "儀表盤查看歷史統計，MIDI 管理背景音樂，文檔閱讀使用指南，設置管理數據與偏好。慢慢探索吧！",
       },
+      calibrationTrigger: {
+        title: "可選校準測試",
+        description:
+          "使用導覽列裡的這個按鈕可以隨時啟動一次校準測試。你想重新估算推薦 CPM 時再點它，直接開始練習也很順手。",
+      },
     },
   },
 
@@ -127,6 +133,22 @@ const zhTW = {
     showKeyboard: "顯示",
     keyboard: "鍵盤",
     roundSession: "第 {{round}} 輪 · 當前會話 · Esc 重置",
+  },
+
+  // ── Calibration ──────────────────────────────────────────
+  calibration: {
+    title: "校準完成",
+    subtitle: "以下是為你訂製的起點",
+    measuredSpeed: "你的速度",
+    accuracy: "準確率",
+    recommended: "推薦目標",
+    accept: "開始練習",
+    adjust: "調整目標",
+    hint: "你隨時可以在設定中更改目標。",
+    bannerTitle: "校準測試",
+    bannerDesc: "自然地打字，測量你目前的水平。",
+    wordCount: "{{count}} 個詞",
+    exit: "退出校準",
   },
 
   // ── Mode Selector ────────────────────────────────────────

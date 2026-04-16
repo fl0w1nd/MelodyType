@@ -41,12 +41,20 @@ function pickWeighted(options: string[], weights: Map<string, number>): string {
 function filterRealWords(
   availableKeys: Set<string>,
   focusKey: string | null,
-): string[] {
-  return ALL_REAL_WORDS.filter((word) => {
-    if (!word.split("").every((ch) => availableKeys.has(ch))) return false
-    if (focusKey && !word.includes(focusKey)) return false
-    return true
-  })
+): { focused: string[]; unfocused: string[] } {
+  const focused: string[] = []
+  const unfocused: string[] = []
+
+  for (const word of ALL_REAL_WORDS) {
+    if (!word.split("").every((ch) => availableKeys.has(ch))) continue
+    if (focusKey && word.includes(focusKey)) {
+      focused.push(word)
+    } else {
+      unfocused.push(word)
+    }
+  }
+
+  return { focused, unfocused }
 }
 
 function scoreRealWord(
@@ -95,10 +103,22 @@ export function generateAdaptiveText(
 
   const keyWeights = computeKeyWeights(keyConfidences, unlockedKeys, focusKey, recoverKeys)
 
-  const realWords = filterRealWords(availableKeys, focusKey)
-  const realWordWeights = new Map(
-    realWords.map((word) => [word, scoreRealWord(word, keyWeights, focusKey)]),
+  const { focused: focusedWords, unfocused: unfocusedWords } = filterRealWords(availableKeys, focusKey)
+  const allRealWords = [...focusedWords, ...unfocusedWords]
+
+  const focusedWordWeights = new Map(
+    focusedWords.map((word) => [word, scoreRealWord(word, keyWeights, focusKey)]),
   )
+  const unfocusedWordWeights = new Map(
+    unfocusedWords.map((word) => [word, scoreRealWord(word, keyWeights, null)]),
+  )
+
+  // Prefer ~60% focused words when a focus key is active and focused pool
+  // is available; remaining slots filled from unfocused pool or Markov
+  const focusRatio = focusKey && focusedWords.length > 0 ? 0.6 : 0
+  const combinedWordWeights = focusedWords.length > 0
+    ? new Map([...focusedWordWeights, ...unfocusedWordWeights])
+    : unfocusedWordWeights
 
   const words: string[] = []
   const recentWords: string[] = []
@@ -106,14 +126,18 @@ export function generateAdaptiveText(
   for (let i = 0; i < wordCount; i++) {
     let word: string | undefined
 
-    if (realWords.length > 0) {
+    const useFocusPool = Math.random() < focusRatio
+    const primaryPool = useFocusPool ? focusedWords : allRealWords
+    const primaryWeights = useFocusPool ? focusedWordWeights : combinedWordWeights
+
+    if (primaryPool.length > 0) {
       let attempts = 0
       do {
-        word = pickWeighted(realWords, realWordWeights)
+        word = pickWeighted(primaryPool, primaryWeights)
         attempts++
       } while (recentWords.includes(word) && attempts < 3)
 
-      if (recentWords.includes(word) && realWords.length < 10) {
+      if (recentWords.includes(word) && primaryPool.length < 10) {
         word = undefined
       }
     }
